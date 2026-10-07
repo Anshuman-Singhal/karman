@@ -56,15 +56,8 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 3.5 5 5.6 5 10.5A5 5 0 0 1 7 12.6c0-2 1-3.6 2.3-4.6.1 1.7.9 3 2.2 3.4C11 8.3 11 5 12 2z"/></svg>
         <span id="streak-count">0</span>
       </button>
-      <button type="button" class="icon-btn" id="btn-sound" aria-label="Sound on">
-        <svg class="snd-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
-        <svg class="snd-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></svg>
-      </button>
-      <button type="button" class="icon-btn text-btn" id="btn-logbook" aria-label="Open logbook">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/><path d="M9 7h6"/></svg><span>Logbook</span>
-      </button>
-      <button type="button" class="icon-btn text-btn" id="btn-help" aria-label="How to fly">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.7-.9 1.3v.6"/><circle cx="12" cy="16.8" r=".6" fill="currentColor"/></svg><span>How to fly</span>
+      <button type="button" class="menu-btn" id="btn-menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="sheet-menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg><span>Menu</span><i class="mb-live" aria-hidden="true"></i>
       </button>
     </div>
   </header>
@@ -114,6 +107,7 @@
         <button type="button" class="clue-tag" id="btn-clue" data-state="ready"></button>
       </div>
       <p class="sr-only" id="timer-live" aria-live="assertive"></p>
+      <div class="leg-body" id="leg-body">
       <h2 class="question" id="round-q"></h2>
       <p class="hint" id="round-hint"></p>
 
@@ -148,7 +142,8 @@
         <div class="result-head"><span class="verdict"></span><span class="verdict-delta"></span></div>
         <p class="result-line"></p>
         <p class="result-fact"></p>
-        <button type="button" class="btn-primary" id="btn-next">Next leg</button>
+        <button type="button" class="btn-primary next-ticket" id="btn-next"><span class="kl-main">Next leg</span><span class="kl-stub"></span></button>
+      </div>
       </div>
     </section>
 
@@ -161,11 +156,13 @@
         </div>
         <p class="res-tier"><span id="res-km"></span> · <em id="res-tier"></em></p>
 
-        <!-- Today's pilots: one histogram, your balloon on your bar -->
-        <div class="crowd" id="crowd">
-          <div class="crowd-head" id="crowd-head"></div>
-          <div class="crowd-chart" id="crowd-chart"></div>
-          <p class="res-rank" id="res-rank" hidden></p>
+        <!-- Today's pilots: one percentile, one gauge (ui.js renderPercentile) -->
+        <div class="pctl" id="pctl" hidden>
+          <div class="pctl-read">
+            <span class="pctl-fig" aria-hidden="true"><b id="pctl-num">0</b><i>%</i></span>
+            <p class="pctl-txt" id="pctl-txt"></p>
+          </div>
+          <div class="pctl-gauge" aria-hidden="true"><i class="pg-lit"></i><i class="pg-needle"></i></div>
         </div>
 
         <!-- Six legs, tap one to see its answer -->
@@ -213,6 +210,52 @@
 
   <div id="banner" class="banner" aria-live="polite"></div>
   <canvas id="fx" aria-hidden="true"></canvas>
+
+  <!-- MENU: phone sheet / desktop popover. The round keeps running behind it. -->
+  <div class="sheet-wrap menu-wrap" id="sheet-menu" hidden>
+    <div class="sheet menu" role="dialog" aria-modal="true" aria-labelledby="menu-h">
+      <div class="menu-head"><h2 id="menu-h">Menu</h2><button type="button" class="icon-btn sheet-x" data-close="menu" aria-label="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+
+      <button type="button" class="menu-resume" id="menu-resume" hidden>
+        <span class="mr-dial" aria-hidden="true"><b id="mr-sec">30</b></span>
+        <span class="mr-text"><b id="mr-title">Flight #1 in progress</b><small id="mr-sub">Leg 1 of 7 · 30 s left</small></span>
+        <span class="mr-go">Resume</span>
+      </button>
+
+      <nav class="menu-grid" aria-label="Go to">
+        <button type="button" class="menu-tile" data-menu="today">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c-4 0-6.5 2.9-6.5 6.4 0 2.7 2.2 5 3.9 6.3h5.2c1.7-1.3 3.9-3.6 3.9-6.3 0-3.5-2.5-6.4-6.5-6.4z"/><path d="M12 3.5c-1.6 1.6-2.3 4-2.3 6.4 0 2.6.5 4.8 1 6.3M12 3.5c1.6 1.6 2.3 4 2.3 6.4 0 2.6-.5 4.8-1 6.3"/><rect x="10" y="18.5" width="4" height="2.6" rx=".6"/></svg>
+          <b>Today’s flight</b><span class="mt-meta" id="mt-today"></span>
+        </button>
+        <button type="button" class="menu-tile" data-menu="unlimited">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.2 15.2a3.2 3.2 0 1 1 0-6.4c2.6 0 4.6 6.4 7.2 6.4h1.4c2.6 0 4.6-6.4 7.2-6.4a3.2 3.2 0 1 1 0 6.4" transform="translate(-1.5 0) scale(.94)"/></svg>
+          <b>Unlimited</b><span id="mt-unlimited"></span>
+        </button>
+        <button type="button" class="menu-tile" data-menu="archive">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="15" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/><path d="M8 14h2M14 14h2M8 17.2h2"/></svg>
+          <b>Archive</b><span id="mt-archive"></span>
+        </button>
+        <button type="button" class="menu-tile" data-menu="logbook" id="btn-logbook">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/><circle cx="12" cy="10" r="3"/></svg>
+          <b>Logbook</b>
+        </button>
+        <button type="button" class="menu-tile" data-menu="help" id="btn-help">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="m14.8 9.2-1.6 4-4 1.6 1.6-4z"/><path d="M12 3.5v1.6M12 18.9v1.6M3.5 12h1.6M18.9 12h1.6"/></svg>
+          <b>How to fly</b>
+        </button>
+        <a class="menu-tile" data-menu="contact" id="menu-contact" href="mailto:hello@karman.day">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6" width="17" height="12.5" rx="2"/><path d="m4 7 8 6 8-6"/></svg>
+          <b>Contact</b>
+        </a>
+      </nav>
+
+      <div class="menu-prefs">
+        <div class="pref"><span id="pref-sound-l">Sound</span><button type="button" class="seg" id="btn-sound" role="switch" aria-checked="true" aria-labelledby="pref-sound-l"><i>On</i><i>Off</i></button></div>
+        <div class="pref"><span id="pref-units-l">Units</span><button type="button" class="seg" id="btn-units" role="switch" aria-checked="true" aria-labelledby="pref-units-l"><i>Metric</i><i>Imperial</i></button></div>
+      </div>
+      <p class="menu-foot"><a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>
+    </div>
+  </div>
 
   <!-- LOGBOOK sheet -->
   <div class="sheet-wrap" id="sheet-logbook" hidden>

@@ -47,6 +47,7 @@ K.storage = (() => {
       freeRunUsed: false,
       access: { unlimited: false, via: null, code: null, session: null, checkedAt: 0 },
       reported: {},
+      parked: {},           // flights left mid-way when switching modes, by slot
     };
   }
 

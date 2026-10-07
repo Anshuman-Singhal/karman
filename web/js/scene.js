@@ -631,6 +631,22 @@ K.scene = (() => {
   }
 
   /* ========================================================== frame loop */
+  let tuckT = 0;
+  const hits = (a, b, pad = 6) => a.left < b.right + pad && a.right > b.left - pad && a.top < b.bottom + pad && a.bottom > b.top - pad;
+  function tuckCaptions() {
+    const dock = document.getElementById('dock');
+    const dockTop = dock && !dock.hidden ? dock.getBoundingClientRect().top : Infinity;
+    const env = rigEl.getBoundingClientRect();
+    const balloon = { left: env.left + env.width * 0.1, right: env.right - env.width * 0.1, top: env.top, bottom: env.bottom };
+    for (const it of items) {
+      if (!it.visible) continue;
+      const lab = it.label || (it.label = it.el.querySelector('.w-label') || false);
+      if (!lab) continue;
+      const r = lab.getBoundingClientRect();
+      lab.classList.toggle('tucked', r.bottom > dockTop - 10 || hits(r, balloon));
+    }
+  }
+
   function frame(now) {
     const dt = Math.min(0.05, lastNow ? (now - lastNow) / 1000 : 0.016);
     lastNow = now;
@@ -680,6 +696,9 @@ K.scene = (() => {
       }
       if (visible) it.el.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
     }
+
+    // Captions never sit on the card or across the balloon: tuck them away (5×/s is plenty)
+    if (now - tuckT > 200) { tuckT = now; tuckCaptions(); }
 
     // Balloon: bob, spin, flame
     const bob = calm || perch > GROUND_DROP - 2 ? 0 : Math.sin(now / 900) * 3.2;

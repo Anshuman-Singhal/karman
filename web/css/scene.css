@@ -93,6 +93,8 @@ body {
   white-space: nowrap;
   color: #F6F1E7;
 }
+.w-label { transition: opacity 220ms ease; }
+.w-label.tucked { opacity: 0; }
 .cap-r .w-label { left: -0.5px; border-left: 1px solid var(--cap-line); border-radius: 0 3px 3px 0; }
 .cap-l .w-label { right: -0.5px; border-right: 1px solid var(--cap-line); border-radius: 3px 0 0 3px; text-align: right; align-items: flex-end; }
 .cap-name { font: 600 9.5px/1 var(--f-ui); letter-spacing: 0.13em; text-transform: uppercase; }

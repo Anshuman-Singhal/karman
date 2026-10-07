@@ -1608,3 +1608,401 @@ body[data-screen="round"] #dock {
   .round .round-timer, .round .round-timer::before, .round .wbtn, .round .clue-tag { transition: none; }
 }
 .round.is-locked .clue-tag { opacity: 0.45; pointer-events: none; }
+
+/* ================= v11 · results boarding pass, elevated card, menu, leg transition (keep last) ================= */
+/* ================= v11 · elevated card, percentile gauge, leg transition, menu (keep last) ================= */
+/* ==========================================================================
+   KÁRMÁN · v11
+   Append to the END of web/css/ui.css (after the v10 round-card block).
+
+   1  The card surface: deeper night glass, a burner-lit top rim, a bevel.
+   2  Results: the percentile gauge (replaces the histogram + median),
+      a vertical perforation between the two desktop columns, a calmer
+      answers list with a waypoint gutter.
+   3  Round card: lifted keys, Lock / Next tickets with paper depth.
+   4  Leg-to-leg transition: .leg-out → .leg-in on #screen-round.
+   5  Menu: #btn-menu in the top bar, #sheet-menu (phone sheet, desktop popover).
+   ========================================================================== */
+
+/* Lets the dial arc animate (leg transition) instead of jumping. */
+@property --left { syntax: "<number>"; inherits: true; initial-value: 1; }
+
+/* ---------------------------------------------------------------- 1 · surface */
+#dock {
+  background:
+    linear-gradient(180deg, rgba(27, 33, 68, 0.80) 0%, rgba(15, 19, 42, 0.86) 34%, rgba(9, 11, 26, 0.93) 100%);
+  backdrop-filter: blur(26px) saturate(160%); -webkit-backdrop-filter: blur(26px) saturate(160%);
+  border-color: rgba(226, 232, 255, 0.13);
+  box-shadow:
+    0 -20px 60px rgba(2, 4, 14, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+}
+/* The burner catches the card's top rim: one warm hairline, brightest in the middle. */
+#dock::before {
+  content: ""; position: absolute; z-index: 3; top: 0; left: 10%; right: 10%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 200, 130, 0.55) 30%, rgba(255, 214, 160, 0.8) 50%, rgba(255, 200, 130, 0.55) 70%, transparent);
+  pointer-events: none;
+}
+/* …and a faint warm wash spills a little way down from it. */
+#dock::after {
+  content: ""; position: absolute; z-index: 0; top: 0; left: 0; right: 0; height: 140px;
+  background: radial-gradient(55% 100% at 50% 0, rgba(255, 170, 80, 0.075), transparent 72%);
+  pointer-events: none;
+}
+#dock > .screen { z-index: 1; }
+@media (min-width: 720px) {
+  #dock {
+    box-shadow:
+      0 30px 80px rgba(2, 4, 14, 0.5), 0 2px 6px rgba(2, 4, 14, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+  }
+}
+
+/* ---------------------------------------------------------------- 2 · results */
+.results { padding-top: 24px; }
+.results .res-hero { margin-top: 10px; }
+.results .res-tier { margin-top: 6px; }
+
+/* The percentile: one figure, one sentence, one gauge.
+     .pctl              hidden until stats arrive (or with no data at all)
+     .pctl[data-kind]   rank | grounded | first
+     --p                0..1, your percentile (drives the gauge)            */
+.pctl { --p: 0; margin: 22px 0 0; padding-top: 18px; border-top: 1px solid var(--hairline); }
+.pctl[hidden] { display: none; }
+.pctl-read { display: flex; align-items: center; gap: 14px; }
+.pctl-fig {
+  flex: none; display: inline-flex; align-items: baseline;
+  font: 800 44px/0.86 var(--f-display); letter-spacing: 0.01em; color: #FFF4E2; font-variant-numeric: tabular-nums;
+}
+.pctl-fig i { font-style: normal; font-size: 26px; margin-left: 1px; color: var(--amber); }
+.pctl-txt { margin: 0; font: 500 14.5px/1.35 var(--f-ui); color: var(--text-dim); text-wrap: balance; }
+.pctl-txt b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pctl-txt .sample { margin-left: 4px; vertical-align: 1px; }
+
+/* The gauge: a fine comb of ticks, 0 → 100. Ticks you passed are lit amber; a
+   cream needle stands at your percentile. Long ticks every 25. */
+.pctl-gauge { position: relative; height: 18px; margin-top: 14px; }
+.pctl-gauge::before, .pg-lit {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 100%;
+  /* end tick · long ticks every 25 · short ticks every 2 ("round" fits whole tiles, so they always align) */
+  background:
+    linear-gradient(currentColor, currentColor) right bottom / 1.5px 100% no-repeat,
+    linear-gradient(90deg, currentColor 1.5px, transparent 0) left bottom / 25% 100% round no-repeat,
+    linear-gradient(90deg, currentColor 1px, transparent 0) left bottom / 2% 9px round no-repeat;
+}
+.pctl-gauge::before { color: rgba(224, 230, 248, 0.2); }
+.pg-lit {
+  display: block; color: var(--amber);
+  clip-path: inset(0 calc((1 - var(--p)) * 100%) 0 0);
+  filter: drop-shadow(0 0 4px rgba(255, 181, 71, 0.45));
+}
+.pg-needle {
+  position: absolute; bottom: -3px; left: calc(var(--p) * 100%); width: 2px; height: 24px; margin-left: -1px;
+  border-radius: 1px; background: #FFF4E2; box-shadow: 0 0 0 2px rgba(9, 11, 26, 0.9);
+}
+.pg-needle::after { /* the head of the needle */
+  content: ""; position: absolute; top: -3px; left: 50%; width: 7px; height: 7px; margin-left: -3.5px;
+  border-radius: 50%; background: #FFF4E2; box-shadow: 0 0 0 2px rgba(9, 11, 26, 0.9);
+}
+/* Arrival: the lit comb sweeps from 0 to you while the figure counts up (ui.js). */
+.pctl.sweep .pg-lit { animation: pgSweep 900ms var(--ease-out) 250ms both; }
+.pctl.sweep .pg-needle { animation: pgNeedle 900ms var(--ease-out) 250ms both; }
+@keyframes pgSweep { from { clip-path: inset(0 100% 0 0); } }
+@keyframes pgNeedle { from { left: 0; } }
+
+/* Grounded (0 points): no figure, the needle rests at the far left. */
+.pctl[data-kind="grounded"] .pctl-fig, .pctl[data-kind="first"] .pctl-fig { display: none; }
+.pctl[data-kind="grounded"] .pg-needle { background: var(--c-miss); }
+.pctl[data-kind="grounded"] .pg-needle::after { background: var(--c-miss); }
+/* Only you so far: a single line, no gauge. */
+.pctl[data-kind="first"] .pctl-gauge { display: none; }
+.pctl[data-kind="first"] .pctl-txt { color: var(--text-dim); }
+
+.results .res-note { margin: 16px 0 0; }
+.results .legstrip { margin-top: 24px; }
+.results .keep-ticket { margin-top: 22px; }
+.results .ticket-row { margin-top: 10px; }
+.results .passport-row { margin-top: 10px; }
+.results .res-foot { margin-top: 18px; }
+
+/* Desktop: a two-column boarding pass. The tear line runs between your flight
+   and the answers, with notches cut into the card's top and bottom edges. */
+@media (min-width: 1024px) {
+  body[data-screen="results"] #dock {
+    --split: 446px;
+    width: min(980px, calc(100% - 48px));
+    -webkit-mask: radial-gradient(circle at var(--split) 0, transparent 9px, #000 9.5px) top / 100% 51% no-repeat,
+                  radial-gradient(circle at var(--split) 100%, transparent 9px, #000 9.5px) bottom / 100% 51% no-repeat;
+            mask: radial-gradient(circle at var(--split) 0, transparent 9px, #000 9.5px) top / 100% 51% no-repeat,
+                  radial-gradient(circle at var(--split) 100%, transparent 9px, #000 9.5px) bottom / 100% 51% no-repeat;
+  }
+  .results { grid-template-columns: 420px minmax(0, 1fr); gap: 0; padding: 0 0 0 26px; }
+  .results .res-main { padding: 26px 28px 20px 0; }
+  .results .res-side { position: relative; padding: 26px 32px 40px 32px; }
+  .results::before {
+    content: ""; position: absolute; left: 446px; top: 14px; bottom: 14px; width: 0;
+    border-left: 1.5px dashed rgba(238, 241, 250, 0.13); pointer-events: none;
+  }
+  body[data-screen="results"] #dock::before { left: 4%; right: 4%; }
+}
+
+/* ---- Answers: a route down the page. Number = waypoint, no row borders. ---- */
+.results .recap-head { margin: 0 0 6px; padding-left: 36px; }
+.recap { position: relative; }
+.recap::before { /* the route the waypoints sit on */
+  content: ""; position: absolute; left: 11px; top: 30px; bottom: 30px; width: 0;
+  border-left: 1.5px dashed rgba(238, 241, 250, 0.14);
+}
+.recap .ans, .recap .ans:first-child { position: relative; padding: 22px 0 22px; border-top: 0; }
+.recap .ans-top { grid-template-columns: 24px minmax(0, 1fr) auto; gap: 0 12px; align-items: start; }
+.recap .ans-no {
+  position: relative; z-index: 1; display: grid; place-items: center; width: 24px; height: 24px; margin-top: -2px;
+  border-radius: 50%; background: #0D1027; box-shadow: inset 0 0 0 1.5px rgba(238, 241, 250, 0.3);
+  font: 800 13px/1 var(--f-display); color: var(--text-dim);
+}
+.recap .ans.hit .ans-no { background: var(--c); box-shadow: 0 0 10px color-mix(in srgb, var(--c) 40%, transparent); color: var(--night); }
+.recap .ans.none .ans-no { box-shadow: none; outline: 1.5px dashed rgba(238, 241, 250, 0.3); outline-offset: -1.5px; }
+.recap .ans-q { font: 500 15px/21px var(--f-ui); color: rgba(238, 241, 250, 0.88); }
+.recap .ans-pts { font-size: 20px; line-height: 21px; }
+.recap .ans-line { margin: 16px 0 0 36px; }
+.recap .ans-fact, .leg-detail .ans-fact {
+  margin: 12px 0 0 36px; max-width: 46ch;
+  font: 400 13.5px/19px var(--f-ui); color: rgba(224, 230, 248, 0.5);
+}
+/* The scale's own end labels add text without adding meaning: gone. */
+.ans-axis { display: none; }
+.leg-detail .ans-line, .leg-detail .ans-fact { margin-left: 28px; }
+
+/* Phone leg tiles: same waypoint language, a touch more air. */
+.results .leg-tile { border-color: rgba(226, 232, 255, 0.09); background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025)); }
+.results .legstrip-note { margin-top: 10px; }
+
+/* ---------------------------------------------------------------- 3 · round card */
+.round .key {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.055));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 -1px 0 rgba(0, 0, 0, 0.28);
+}
+.round .key-del, .round .key-dot { background: rgba(255, 255, 255, 0.035); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04); }
+.round .wbtns { background: rgba(4, 6, 16, 0.5); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(226, 232, 255, 0.09); }
+
+/* Lock it in / Next leg: a printed ticket. Lit paper stock with a bevel, a
+   darker tear-off stub; the stub carries the bet (a pip in your width's colour). */
+.round .key-lock, .round .next-ticket {
+  --cut: 70%;
+  --stock: linear-gradient(180deg, #FFCB74 0%, #FFB547 52%, #F7A53D 100%);
+  background:
+    linear-gradient(90deg, transparent var(--cut), rgba(120, 58, 0, 0.12) var(--cut)),
+    var(--stock);
+  box-shadow: inset 0 1px 0 rgba(255, 246, 224, 0.65), inset 0 -2px 0 rgba(120, 58, 0, 0.22);
+  color: var(--on-amber);
+  transition: transform var(--d-press) var(--ease-out), filter var(--d-state), background var(--d-state);
+}
+.round .key-lock:active, .round .next-ticket:active { transform: translateY(1px) scale(0.99); box-shadow: inset 0 1px 0 rgba(255, 246, 224, 0.4), inset 0 0 0 rgba(0, 0, 0, 0); }
+.round .key-lock:hover, .round .next-ticket:hover { filter: brightness(1.04); }
+/* masks clip outlines: focus is drawn inside the ticket */
+.round .key-lock:focus-visible, .round .next-ticket:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--on-amber), inset 0 0 0 4px #FFF4E2; }
+.round .kl-main { gap: 8px; font: 650 16px/1 var(--f-ui); letter-spacing: 0.005em; }
+.round .kl-main svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.round .kl-stub { gap: 7px; }
+.round .kl-stub .kl-pip { width: 9px; height: 9px; border-radius: 50%; background: var(--chip, var(--c-snug)); box-shadow: 0 0 0 1.5px rgba(29, 18, 4, 0.75); }
+.round.empty .key-lock {
+  --stock: linear-gradient(180deg, rgba(255, 181, 71, 0.16), rgba(255, 181, 71, 0.1));
+  background: var(--stock); box-shadow: inset 0 0 0 1px rgba(255, 181, 71, 0.22); color: rgba(255, 196, 120, 0.7); filter: none;
+}
+.round.empty .key-lock::after { border-color: rgba(255, 181, 71, 0.3); }
+.round.empty .kl-pip { opacity: 0.5; box-shadow: none; }
+.round.t-low .key-lock { --stock: linear-gradient(180deg, #FF946A 0%, var(--ember) 55%, #EC5631 100%); }
+.round.t-low.empty .key-lock { --stock: rgba(255, 106, 61, 0.16); color: #FF9C7E; }
+
+/* Next leg uses the same ticket. Markup: button#btn-next.btn-primary.next-ticket
+   > span.kl-main + span.kl-stub (round.js showResult fills both). */
+.round .next-ticket {
+  --cut: 74%;
+  position: relative; display: flex; align-items: stretch; padding: 0; height: 52px; min-height: 52px; border: 0; border-radius: 12px;
+  -webkit-mask: radial-gradient(circle at var(--cut) 0, transparent 6px, #000 6.5px) top / 100% 51% no-repeat,
+                radial-gradient(circle at var(--cut) 100%, transparent 6px, #000 6.5px) bottom / 100% 51% no-repeat;
+          mask: radial-gradient(circle at var(--cut) 0, transparent 6px, #000 6.5px) top / 100% 51% no-repeat,
+                radial-gradient(circle at var(--cut) 100%, transparent 6px, #000 6.5px) bottom / 100% 51% no-repeat;
+}
+.round .next-ticket::after { content: ""; position: absolute; left: var(--cut); top: 9px; bottom: 9px; border-left: 1.5px dashed rgba(29, 18, 4, 0.35); }
+.round .next-ticket .kl-main { flex: 0 0 var(--cut); display: flex; align-items: center; justify-content: center; font: 650 17px/1 var(--f-ui); }
+.round .next-ticket .kl-stub { flex: 1; display: flex; align-items: center; justify-content: center; font: 800 16px/1 var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; }
+.round .next-ticket .kl-stub svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------------------------------------------------------------- 4 · leg transition
+   round.js advance() drives #screen-round:
+     0 ms     .leg-out   the body tears off below the perforation, header flaps shut
+     200 ms   render(next leg) · .leg-out → .leg-in
+              header flaps open, body feeds up, dial rewinds to full, waypoint lands
+     660 ms   .leg-in removed · timer starts
+   Any key or tap during the sequence jumps straight to the end. */
+.leg-body { display: flex; flex-direction: column; flex: 1 0 auto; min-height: 0; }
+.leg-body > .controls { margin-top: auto; }
+.leg-body > * { flex-shrink: 0; }
+
+.round.leg-out .leg-body { animation: tearOut 200ms var(--ease-in) both; transform-origin: 0 0; pointer-events: none; }
+@keyframes tearOut { to { opacity: 0; transform: translate(8px, 30px) rotate(2.2deg); } }
+.round.leg-out .round-head::after { animation: perfFlash 220ms ease-out both; }
+@keyframes perfFlash { 40% { border-top-color: rgba(255, 181, 71, 0.6); } }
+.round.leg-out .cat-tag > span { animation: flapOut 140ms var(--ease-in) both; }
+.round.leg-out .round-timer b { animation: flapOut 140ms var(--ease-in) both; }
+.round .cat-tag > span, .round .round-timer b { transform-origin: 50% 60%; backface-visibility: hidden; }
+@keyframes flapOut { to { transform: perspective(200px) rotateX(88deg); opacity: 0.2; } }
+
+.round.leg-in { animation: dialRewind 460ms var(--ease-out) both; }
+@keyframes dialRewind { from { --left: 0; } to { --left: 1; } }
+.round.leg-in .cat-tag > span, .round.leg-in .round-timer b { animation: flapIn 280ms var(--ease-out) both; }
+.round.leg-in .cat-tag > span:nth-child(2) { animation-delay: 40ms; }
+.round.leg-in .cat-tag > span:nth-child(3) { animation-delay: 80ms; }
+.round.leg-in .round-timer b { animation-delay: 160ms; }
+@keyframes flapIn { from { transform: perspective(200px) rotateX(-88deg); opacity: 0.2; } }
+.round.leg-in .leg-body { animation: feedIn 380ms var(--ease-out) both; }
+@keyframes feedIn { from { opacity: 0; transform: translateY(18px); } }
+.round.leg-in .leg-body .wbtns { animation: feedIn 380ms var(--ease-out) 50ms both; }
+.round.leg-in .leg-body .controls { animation: feedIn 380ms var(--ease-out) 90ms both; }
+.round.leg-in .leg-now { animation: wpArrive 520ms var(--ease-spring) 140ms both; }
+@keyframes wpArrive { from { transform: scale(0.2); box-shadow: 0 0 0 0 rgba(255, 181, 71, 0.6); } 60% { box-shadow: 0 0 0 7px rgba(255, 181, 71, 0); } to { transform: none; } }
+.round.leg-in .leg-prev { animation: wpDone 360ms var(--ease-spring) 60ms both; }
+@keyframes wpDone { from { transform: scale(1.7); } }
+/* the old per-render "enter" rise would double up with .leg-in */
+.round.leg-in .question, .round.leg-in .readout, .round.leg-in .scale, .round.leg-in .chips { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .round.leg-out .leg-body { animation: fadeOut 120ms linear both; }
+  .round.leg-in .leg-body { animation: fadeIn 160ms linear both; }
+  @keyframes fadeOut { to { opacity: 0; } }
+  .round.leg-in, .round.leg-out .round-head::after,
+  .round.leg-out .cat-tag > span, .round.leg-in .cat-tag > span,
+  .round.leg-out .round-timer b, .round.leg-in .round-timer b,
+  .round.leg-in .leg-body .wbtns, .round.leg-in .leg-body .controls,
+  .round.leg-in .leg-now, .round.leg-in .leg-prev { animation: none; }
+}
+
+/* ---------------------------------------------------------------- 5 · menu */
+/* Top bar: wordmark · streak · Menu. Sound, logbook and help moved into the menu. */
+.menu-btn {
+  height: 38px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px 0 12px;
+  border-radius: var(--r-pill); border: 1px solid var(--hairline-strong);
+  background: rgba(10, 13, 30, 0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  color: var(--text); font: 600 13px/1 var(--f-ui); cursor: pointer;
+  transition: background var(--d-state), transform var(--d-press) var(--ease-out), border-color var(--d-state);
+}
+.menu-btn:hover { background: rgba(30, 36, 66, 0.6); }
+.menu-btn:active { transform: scale(0.95); }
+.menu-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.menu-btn[aria-expanded="true"] { border-color: rgba(255, 181, 71, 0.55); color: var(--amber); }
+/* a round is running behind the menu: a small amber "in flight" light on the button */
+.menu-btn .mb-live { display: none; width: 6px; height: 6px; margin-left: -2px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+body[data-screen="round"] .menu-btn .mb-live { display: block; }
+.top-actions { gap: 8px; }
+
+/* The sheet. Phone: bottom sheet. Desktop: a popover under the button. */
+.menu { padding: 18px 18px calc(env(safe-area-inset-bottom, 0px) + 18px); }
+.menu-wrap .sheet {
+  background: linear-gradient(180deg, rgba(25, 30, 62, 0.94) 0%, rgba(11, 13, 30, 0.97) 60%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 -20px 60px rgba(2, 4, 14, 0.5);
+  position: relative;
+}
+.menu::before { /* same lit rim as the card */
+  content: ""; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 214, 160, 0.7) 50%, transparent);
+}
+.menu-head { display: flex; align-items: center; justify-content: space-between; margin: 0 0 14px; }
+.menu-head h2 { margin: 0; font: 800 22px/1 var(--f-display); letter-spacing: 0.1em; text-transform: uppercase; color: #FFF4E2; }
+.menu-head .sheet-x { width: 38px; padding: 0; }
+
+/* Resume strip: the flight you left, still running. A dark pass with an amber stub. */
+.menu-resume {
+  --cut: 76%; --left: 1;
+  position: relative; display: flex; align-items: center; width: 100%; height: 64px; margin: 0 0 14px; padding: 0;
+  border: 0; border-radius: 12px; cursor: pointer; text-align: left; color: var(--text);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.055) var(--cut), rgba(255, 181, 71, 0.16) var(--cut));
+  box-shadow: inset 0 0 0 1px rgba(255, 181, 71, 0.3);
+  -webkit-mask: radial-gradient(circle at var(--cut) 0, transparent 6px, #000 6.5px) top / 100% 51% no-repeat,
+                radial-gradient(circle at var(--cut) 100%, transparent 6px, #000 6.5px) bottom / 100% 51% no-repeat;
+          mask: radial-gradient(circle at var(--cut) 0, transparent 6px, #000 6.5px) top / 100% 51% no-repeat,
+                radial-gradient(circle at var(--cut) 100%, transparent 6px, #000 6.5px) bottom / 100% 51% no-repeat;
+}
+.menu-resume[hidden] { display: none; }
+.menu-resume::after { content: ""; position: absolute; left: var(--cut); top: 10px; bottom: 10px; border-left: 1.5px dashed rgba(255, 181, 71, 0.45); }
+.mr-dial {
+  --arc: rgba(243, 233, 214, 0.9);
+  position: relative; flex: none; display: grid; place-items: center; width: 38px; height: 38px; margin: 0 12px 0 13px;
+  border-radius: 50%; background: rgba(6, 8, 20, 0.7); box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  font: 800 16px/1 var(--f-display); font-variant-numeric: tabular-nums;
+}
+.mr-dial::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(rgba(238, 241, 250, 0.07) calc((1 - var(--left)) * 360deg), var(--arc) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+}
+.mr-dial b { position: relative; }
+.menu-resume.t-mid .mr-dial { --arc: var(--amber); }
+.menu-resume.t-low .mr-dial { --arc: var(--ember); color: var(--ember); }
+.mr-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.mr-text b { font: 800 16px/1 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.mr-text small { font: 500 12.5px/1.2 var(--f-ui); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mr-go { flex: 0 0 calc(100% - var(--cut)); display: grid; place-items: center; font: 800 16px/1 var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber); }
+.menu-resume:hover { filter: brightness(1.12); }
+
+/* Tiles: 2 columns. Icon top-left, name bottom-left, state top-right. */
+.menu-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.menu-tile {
+  box-sizing: border-box; position: relative; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start;
+  height: 84px; padding: 13px 14px 13px; border-radius: 14px;
+  border: 1px solid rgba(226, 232, 255, 0.09);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  color: var(--text); text-align: left; text-decoration: none; cursor: pointer;
+  transition: background var(--d-press), border-color var(--d-state), transform var(--d-press) var(--ease-out);
+}
+.menu-tile:hover { background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04)); }
+.menu-tile:active { transform: scale(0.97); }
+.menu-tile > svg { width: 22px; height: 22px; fill: none; stroke: rgba(243, 233, 214, 0.86); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.menu-tile > b { font: 600 15px/1.15 var(--f-ui); }
+#mt-unlimited, #mt-archive { display: contents; }
+.mt-meta { position: absolute; top: 12px; right: 12px; display: inline-flex; align-items: center; gap: 5px; font: 600 11.5px/1 var(--f-ui); color: var(--text-dim); }
+/* Current mode: amber edge, amber icon, a live dot. */
+.menu-tile[aria-current="page"] { border-color: rgba(255, 181, 71, 0.5); background: linear-gradient(180deg, rgba(255, 181, 71, 0.12), rgba(255, 181, 71, 0.04)); }
+.menu-tile[aria-current="page"] > svg { stroke: var(--amber); }
+.menu-tile[aria-current="page"] .mt-meta { color: var(--amber); }
+.menu-tile[aria-current="page"] .mt-meta::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+/* Locked: a small paper price stub, like the clue tag. */
+.mt-price {
+  position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; gap: 4px;
+  height: 22px; padding: 0 7px 0 6px; border-radius: 5px; background: var(--paper); color: #14213D;
+  font: 800 13px/1 var(--f-display); letter-spacing: 0.04em;
+}
+.mt-price svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.menu-tile.locked > svg { stroke: rgba(243, 233, 214, 0.5); }
+.menu-tile.locked > b { color: var(--text-dim); }
+
+/* Preferences: two small switches, the same five-way-switch language as width. */
+.menu-prefs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.pref { display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 12px 14px; border-radius: 14px; border: 1px solid rgba(226, 232, 255, 0.09); }
+.pref > span { font: 600 12px/1 var(--f-ui); color: var(--text-dim); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; gap: 0; border: 0; border-radius: 10px; background: rgba(4, 6, 16, 0.5); box-shadow: inset 0 0 0 1px var(--hairline); cursor: pointer; }
+.seg i { display: grid; place-items: center; height: 28px; border-radius: 8px; font: 600 12.5px/1 var(--f-ui); font-style: normal; color: var(--text-faint); transition: background var(--d-state), color var(--d-state); }
+.seg[aria-checked="true"] i:first-child, .seg[aria-checked="false"] i:last-child { background: rgba(243, 233, 214, 0.92); color: #14213D; }
+.menu-foot { margin: 16px 0 0; text-align: center; font: 500 12px/1.4 var(--f-ui); color: var(--text-faint); }
+.menu-foot a { color: var(--text-dim); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(224, 230, 248, 0.3); }
+
+/* Desktop / tablet: the same panel as a popover under the button. */
+@media (min-width: 720px) {
+  .menu-wrap { align-items: flex-start; justify-content: flex-end; padding: calc(env(safe-area-inset-top, 0px) + 58px) 16px 0 0; }
+  .menu-wrap.open { background: rgba(4, 6, 16, 0.32); }
+  .menu-wrap .sheet {
+    width: 384px; max-height: calc(100vh - 80px); border: 1px solid rgba(226, 232, 255, 0.13); border-radius: 20px;
+    padding: 18px; transform: translateY(-6px) scale(0.98); opacity: 0; transform-origin: 92% 0;
+    transition: transform 220ms var(--ease-out), opacity 160ms ease-out;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 30px 80px rgba(2, 4, 14, 0.55);
+  }
+  .menu-wrap.open .sheet { transform: none; opacity: 1; }
+  .menu-tile { height: 80px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-wrap .sheet { transition: opacity 120ms linear; transform: none; }
+}

@@ -350,24 +350,51 @@ K.ui = (() => {
 
   let lastStats = null;
 
-  /** Fetch today's crowd, then draw the histogram and the rank line. */
+  /** Today's pilots as ONE percentile: a figure, a sentence, a gauge.
+      Never shows a number it can't stand behind:
+        no stats (offline, Unlimited, no backend)  → nothing at all
+        only you so far                            → one line, no figure
+        0 points                                   → "grounded", no figure        */
+  function renderPercentile(record, stats) {
+    const box = $('pctl');
+    box.classList.remove('sweep');
+    if (!stats || !stats.players) { box.hidden = true; return; }
+    const players = stats.players;
+    const many = players.toLocaleString('en-US');
+    const higher = stats.buckets.filter(([from]) => from > record.pts).reduce((a, b) => a + b[1], 0);
+    const pct = K.stats.percentile(stats, record.pts);
+    let kind = 'rank';
+    let txt = `of today’s <b>${many}</b> pilots flew lower than you.`;
+    let said = `${pct}% of today's ${many} pilots flew lower than you.`;
+    if (players <= 1) { kind = 'first'; txt = said = 'You’re the first pilot up today. Check back later to see how you compare.'; }
+    else if (record.pts === 0) { kind = 'grounded'; txt = said = 'Grounded today. The meadow resets at midnight.'; }
+    else if (higher === 0) { txt = `of today’s <b>${many}</b> pilots flew lower. Nobody flew higher.`; said = `Highest balloon of today's ${many} pilots.`; }
+    box.dataset.kind = kind;
+    box.style.setProperty('--p', kind === 'rank' ? (pct / 100).toFixed(3) : '0');
+    box.setAttribute('aria-label', said);
+    $('pctl-num').textContent = String(pct);
+    $('pctl-txt').innerHTML = txt + (stats.sample ? ' <span class="sample">Sample</span>' : '');
+    box.hidden = false;
+    if (kind === 'rank' && !K.fx.reduced()) {
+      void box.offsetWidth;
+      box.classList.add('sweep');
+      const el = $('pctl-num');
+      const t0 = performance.now() + 250;
+      const step = (now) => {
+        const p = Math.min(1, Math.max(0, (now - t0) / 900));
+        el.textContent = String(Math.round(pct * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) requestAnimationFrame(step);
+      };
+      el.textContent = '0';
+      requestAnimationFrame(step);
+    }
+  }
+
+  /** Fetch today's crowd, then show the percentile. */
   async function applyStats(record, n) {
     const stats = await K.stats.get(n);
     lastStats = stats;
-    const box = $('crowd');
-    if (!stats || !stats.players) { box.hidden = true; return; }
-    box.hidden = false;
-    const chart = $('crowd-chart');
-    chart.classList.remove('draw');
-    chart.innerHTML = histogram(record, stats);
-    requestAnimationFrame(() => requestAnimationFrame(() => chart.classList.add('draw')));
-    $('crowd-head').innerHTML = stats.sample ? '<span class="sample">Sample data</span>' : '';
-    const pct = K.stats.percentile(stats, record.pts);
-    const rank = $('res-rank');
-    rank.innerHTML = rankSentence(record, stats, pct);
-    rank.hidden = false;
-    const num = rank.querySelector('[data-count]');
-    if (num) setTimeout(() => countUp(num), 700);
+    renderPercentile(record, stats);
   }
 
   /* ------------------------------------------------------------ results */
@@ -383,7 +410,7 @@ K.ui = (() => {
     $('res-alt').textContent = record.pts.toLocaleString('en-US');
     $('res-km').textContent = `${record.alt.toFixed(1)} km up`;
     $('res-tier').textContent = S.tierName(record.alt);
-    $('res-rank').hidden = true;
+    $('pctl').hidden = true;
 
     // At most one short line of personal news.
     const prevBestPts = S.ptsOf(prevBest || 0);
@@ -403,7 +430,7 @@ K.ui = (() => {
     const recap = $('recap');
     recap.innerHTML = record.rounds.map((_, i) => answerRow(record, i)).join('');
     recap.classList.toggle('reveal-seq', Boolean(isFresh));
-    if (mode === 'unlimited') { $('crowd').hidden = true; lastStats = null; } else applyStats(record, n);
+    if (mode === 'unlimited') { $('pctl').hidden = true; lastStats = null; } else applyStats(record, n);
 
     $('res-streak').textContent = `${streak}-day streak · ${thermals} thermal${thermals === 1 ? '' : 's'}`;
   }
@@ -499,6 +526,47 @@ K.ui = (() => {
     }
   }
 
+  /* ------------------------------------------------------------ menu */
+  let menuTimer = 0;
+  const LOCK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>';
+  function renderMenu() {
+    const g = K.game, A = K.access;
+    const cur = g.mode === 'unlimited' ? 'unlimited' : g.mode === 'archive' ? 'archive' : 'today';
+    document.querySelectorAll('.menu-tile[data-menu]').forEach((t) => t.removeAttribute('aria-current'));
+    document.querySelector(`.menu-tile[data-menu="${cur}"]`).setAttribute('aria-current', 'page');
+    const flying = current === 'round' && g.phase;
+    $('mt-today').textContent = cur === 'today' ? (flying ? 'Flying' : current === 'results' ? 'Landed' : 'Now') : `#${g.today}`;
+    const price = `<span class="mt-price">${LOCK_SVG}${K.CONFIG.PRICE}</span>`;
+    const un = document.querySelector('.menu-tile[data-menu="unlimited"]');
+    const ar = document.querySelector('.menu-tile[data-menu="archive"]');
+    un.classList.toggle('locked', !A.canKeepFlying());
+    ar.classList.toggle('locked', !A.canArchive());
+    $('mt-unlimited').outerHTML = `<span id="mt-unlimited">${cur === 'unlimited' ? '<span class="mt-meta">Flying</span>' : A.unlimited() ? '' : A.freeRunLeft() ? '<span class="mt-meta">1 free run</span>' : price}</span>`;
+    $('mt-archive').outerHTML = `<span id="mt-archive">${cur === 'archive' ? '<span class="mt-meta">Flying</span>' : A.canArchive() ? '' : price}</span>`;
+    $('menu-contact').href = $('contact-link').href;
+    $('btn-units').setAttribute('aria-checked', String(K.units.system() !== 'imperial'));
+    $('btn-sound').setAttribute('aria-checked', String(K.audio.enabled()));
+    renderResume();
+  }
+  /** "Flight #4 in progress · Leg 3 of 7 · 18 s left", ticking while the menu is open. */
+  function renderResume() {
+    const g = K.game;
+    const btn = $('menu-resume');
+    const on = current === 'round' && (g.phase === 'round' || g.phase === 'reveal');
+    btn.hidden = !on;
+    if (!on) return;
+    const total = K.CONFIG.ROUND_SECONDS;
+    const left = g.remaining();
+    const sec = left == null ? 0 : Math.ceil(left);
+    $('mr-title').textContent = g.mode === 'unlimited' ? 'Unlimited run' : `Flight #${g.flightNo} in progress`;
+    $('mr-sub').textContent = g.phase === 'reveal' ? `Leg ${g.leg + 1} of ${K.CONFIG.LEGS} · answer waiting`
+      : `Leg ${g.leg + 1} of ${K.CONFIG.LEGS} · ${sec} s left`;
+    $('mr-sec').textContent = g.phase === 'reveal' ? '✓' : String(sec);
+    btn.style.setProperty('--left', g.phase === 'reveal' ? '1' : (left / total).toFixed(3));
+    btn.classList.toggle('t-mid', g.phase === 'round' && sec <= 15 && sec > 5);
+    btn.classList.toggle('t-low', g.phase === 'round' && sec <= 5);
+  }
+
   /* ------------------------------------------------------------ sheets */
   function openSheet(name) {
     const el = $(`sheet-${name}`);
@@ -506,6 +574,7 @@ K.ui = (() => {
     if (name === 'help') renderHelp();
     if (name === 'archive') { calY = 0; renderArchive(); }
     if (name === 'paywall') renderPaywall();
+    if (name === 'menu') { renderMenu(); menuTimer = setInterval(renderResume, 250); $('btn-menu').setAttribute('aria-expanded', 'true'); }
     el.hidden = false;
     void el.offsetWidth;
     el.classList.add('open');
@@ -518,6 +587,7 @@ K.ui = (() => {
   }
   function closeSheet(name) {
     const el = $(`sheet-${name}`);
+    if (name === 'menu') { clearInterval(menuTimer); $('btn-menu').setAttribute('aria-expanded', 'false'); }
     el.classList.remove('open');
     document.body.classList.remove('sheet-open');
     setTimeout(() => { el.hidden = true; }, 320);
@@ -683,7 +753,7 @@ K.ui = (() => {
   return {
     init, show, topbar, setAltitude, home, results, closed, prepareLaunch, refreshAccess, startGoogle,
     calStep(d) { calM += d; if (calM < 0) { calM = 11; calY -= 1; } if (calM > 11) { calM = 0; calY += 1; } renderArchive(); },
-    openSheet, closeSheet, dev, anchorBalloon,
+    openSheet, closeSheet, dev, anchorBalloon, renderMenu,
     get lastRecord() { return lastRecord; },
     ICONS, pilotNo: () => String(Math.abs(seeded(K.storage.data.device || 'x')) % 10000).padStart(4, '0'), get lastStats() { return lastStats; },
     get current() { return current; },

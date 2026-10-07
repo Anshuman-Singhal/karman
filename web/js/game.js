@@ -97,6 +97,9 @@ K.game = (() => {
     return { n: today, facts, weather: K.daily.weatherFor(1000 + run), run };
   }
 
+  /** Which in-progress slot a flight lives in: today's/an archive day by number, Unlimited as one. */
+  function slotKey(m, num) { return m === 'unlimited' ? 'unlimited' : `${m}:${num}`; }
+
   /* ------------------------------------------------------------ boot */
   function boot(opts = {}) {
     if ('flight' in opts) devFlight = opts.flight;
@@ -108,8 +111,21 @@ K.game = (() => {
     const inProgress = store.live && store.live.mode && store.live.mode !== 'daily' ? store.live : null;
     mode = opts.mode || (inProgress ? inProgress.mode : 'daily');
     n = mode === 'archive' ? (opts.n != null ? opts.n : inProgress.n) : today;
+    // One flight per mode can be in progress. Leaving one for another (menu → Unlimited
+    // mid-leg) parks it; coming back unparks it, clock still counting from where it was.
+    const want = slotKey(mode, n);
+    if (store.live && slotKey(store.live.mode || 'daily', store.live.n) !== want) {
+      store.parked = { ...(store.parked || {}), [slotKey(store.live.mode || 'daily', store.live.n)]: store.live };
+      store.live = null;
+    }
+    if (!store.live && store.parked && store.parked[want] && !(mode === 'unlimited' && opts.fresh)) {
+      store.live = store.parked[want];
+      delete store.parked[want];
+    }
+    if (mode === 'unlimited' && opts.fresh && store.parked) delete store.parked.unlimited;
+    save();
     if (mode === 'unlimited') {
-      const ids = !opts.fresh && inProgress && inProgress.mode === 'unlimited' ? inProgress.factIds : null;
+      const ids = !opts.fresh && store.live && store.live.mode === 'unlimited' ? store.live.factIds : null;
       flight = unlimitedFlight(ids);
       if (!flight) { mode = 'daily'; flight = K.daily.get(n); K.fx.toast('Unlimited is restocking. Try again soon.'); }
     } else flight = K.daily.get(n);
@@ -208,7 +224,7 @@ K.game = (() => {
   }
 
   /* ------------------------------------------------------------ rounds */
-  function startRound(resuming) {
+  async function startRound(resuming, animate) {
     const i = live.round;
     const fact = flight.facts[i];
     if (!resuming) {
@@ -218,15 +234,22 @@ K.game = (() => {
       live.chip = S.DEFAULT_CHIP;
       save();
     }
-    K.round.render({
+    const opts = {
       fact, index: i, rounds: live.rounds, scorePts: live.pts,
       entry: live.entry, chip: live.chip,
       clueUsed: live.clueLeg != null, clueHere: live.clueLeg === i, clueLeg: live.clueLeg,
       onClue: () => { live.clueLeg = i; save(); },
       onChange: (entry, chip) => { live.entry = entry; live.chip = chip; saveSoon(); },
-    });
+    };
+    if (animate) {
+      await K.round.advance(opts);
+      // Locked during the transition (Enter), or left the round? Then don't start a clock.
+      if (!live || live.round !== i || live.phase !== 'round') return;
+      live.startedAt = Date.now();   // the 30 s start once the dial is full
+      save();
+    } else K.round.render(opts);
     K.scene.setChip(live.chip, true);
-    K.ui.show('round');
+    if (K.ui.current !== 'round') K.ui.show('round');
     startTimer(C.ROUND_SECONDS);
   }
 
@@ -317,6 +340,7 @@ K.game = (() => {
       hit: result.hit, chipIdx: result.chip, delta: result.delta, clue: result.clue,
       timedOut: result.timedOut, guess: result.guess, lo: result.lo, hi: result.hi,
       nextLabel: i < C.LEGS - 1 ? 'Next leg' : 'See your flight',
+      nextStub: i < C.LEGS - 1 ? `Leg ${i + 2}` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
     });
     document.getElementById('btn-next').focus({ preventScroll: true });
   }
@@ -325,7 +349,7 @@ K.game = (() => {
     if (!live || live.phase !== 'reveal' || busy) return;
     if (live.round < C.LEGS - 1) {
       live.round += 1;
-      startRound(false);
+      startRound(false, true);
     } else finish();
   }
 
@@ -472,6 +496,7 @@ K.game = (() => {
 
   /** Results → "Keep flying": an Unlimited run, or the paywall. */
   function keepFlying() {
+    if (store.parked && store.parked.unlimited) return boot({ mode: 'unlimited' });   // pick up the run you left
     if (!K.access.canKeepFlying()) return K.ui.openSheet('paywall');
     boot({ mode: 'unlimited', fresh: true });
   }
@@ -490,5 +515,8 @@ K.game = (() => {
     factById: (id) => factIndex.get(id),
     get flightNo() { return n; },
     get phase() { return live ? live.phase : null; },
+    get leg() { return live ? live.round : null; },
+    /** Seconds left on the running leg (null outside a round). Keeps counting while the menu is open. */
+    remaining: () => (live && live.phase === 'round' ? Math.max(0, C.ROUND_SECONDS - (Date.now() - live.startedAt) / 1000) : null),
   };
 })();

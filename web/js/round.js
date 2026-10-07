@@ -200,6 +200,7 @@ K.round = (() => {
         li.classList.add(r.hit ? 'leg-hit' : 'leg-miss');
         li.style.setProperty('--c', r.hit ? `var(--c-${S.CHIPS[r.chip].key})` : 'var(--c-miss)');
       } else if (i === index) li.classList.add('leg-now');
+      if (r && i === index - 1) li.classList.add('leg-prev');
       li.setAttribute('aria-label', `Leg ${i + 1}${r ? (r.hit ? ', hit' : ', miss') : i === index ? ', now' : ''}`);
       els.legs.appendChild(li);
     }
@@ -265,10 +266,13 @@ K.round = (() => {
   }
 
   /** Switch metric ⇄ imperial, converting whatever has been typed. */
-  function toggleUnits() {
-    if (locked || !view.convertible) return;
+  function toggleUnits() { setUnits(K.units.system() === 'imperial' ? 'metric' : 'imperial'); }
+  /** Menu switch + inline toggle. Re-renders the live leg in the new units. */
+  function setUnits(sys) {
+    if (!fact || locked) { K.units.setSystem(sys); return; }
     const metric = guessValue();
-    K.units.setSystem(K.units.system() === 'imperial' ? 'metric' : 'imperial');
+    K.units.setSystem(sys);
+    if (!view.convertible) { view = K.units.view(fact); return; }
     view = K.units.view(fact);
     if (metric != null) state.entry = String(Number(view.toDisp(metric).toPrecision(4)));
     renderUnit();
@@ -380,7 +384,7 @@ K.round = (() => {
     els.lock.disabled = guess == null;
     els.lockMain.textContent = guess == null ? 'Type a guess' : 'Lock it in';
     const bet = ctx.clueHere ? Math.round(S.legPoints(state.chip) * S.CLUE_FACTOR) : S.legPoints(state.chip);
-    els.lockStub.textContent = `+${bet}`;
+    els.lockStub.innerHTML = `<i class="kl-pip"></i>+${bet}`;
     els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `Lock it in for ${bet} points`);
 
     // Width buttons: the chosen one lights up; values halve when the clue is on.
@@ -458,7 +462,7 @@ K.round = (() => {
     return S.offBy({ ...fact, answer: view.toDisp(fact.answer) }, view.toDisp(metricGuess), false);
   }
 
-  function showResult({ hit, chipIdx, delta, timedOut, guess, lo, hi, clue, nextLabel }) {
+  function showResult({ hit, chipIdx, delta, timedOut, guess, lo, hi, clue, nextLabel, nextStub }) {
     const chip = S.CHIPS[chipIdx];
     const unit = view.unit ? ` ${view.unit}` : '';
     const verdict = els.result.querySelector('.verdict');
@@ -475,14 +479,51 @@ K.round = (() => {
       ? `Answer <strong>${view.fmt(fact.answer, true)}${unit}</strong>`
       : `Answer <strong>${view.fmt(fact.answer, true)}${unit}</strong> · you said ${view.fmt(lo)}–${view.fmt(hi)}`;
     els.result.querySelector('.result-fact').textContent = fact.card;
-    els.result.querySelector('#btn-next').textContent = nextLabel;
+    const nb = els.result.querySelector('#btn-next');
+    nb.querySelector('.kl-main').textContent = nextLabel;
+    nb.querySelector('.kl-stub').innerHTML = nextStub || '';
     els.controls.hidden = true;
     els.result.hidden = false;
     els.card.classList.add('is-revealed');
   }
 
+  /* ------------------------------------------------------------ leg to leg
+     0 ms .leg-out (body tears off) → OUT ms render(next) + .leg-in → +IN ms done.
+     Any key or tap jumps to the end; the key still types into the new leg. */
+  function advance(opts) {
+    const OUT = reduce.matches ? 120 : 200;
+    const IN = reduce.matches ? 160 : 460;
+    const card = els.card;
+    return new Promise((resolve) => {
+      let t = 0, swapped = false, done = false;
+      const swap = () => {
+        swapped = true;
+        card.classList.remove('leg-out');
+        render(opts);
+        card.classList.remove('enter');
+        void card.offsetWidth;
+        card.classList.add('leg-in');
+        t = setTimeout(end, IN);
+      };
+      const end = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(t);
+        card.classList.remove('leg-out', 'leg-in');
+        document.removeEventListener('keydown', skip, true);
+        document.removeEventListener('pointerdown', skip, true);
+        resolve();
+      };
+      const skip = () => { if (!swapped) { clearTimeout(t); swap(); } end(); };
+      document.addEventListener('keydown', skip, true);
+      document.addEventListener('pointerdown', skip, true);
+      card.classList.add('leg-out');
+      t = setTimeout(swap, OUT);
+    });
+  }
+
   return {
-    init, render, setTimer, lockVisual, dropNeedle, markOutcome, bandPoint, showResult,
+    init, render, advance, setUnits, setTimer, lockVisual, dropNeedle, markOutcome, bandPoint, showResult,
     renderLegs, selectChip, key, guessValue, offByText,
     get locked() { return locked; },
     get state() { return state; },

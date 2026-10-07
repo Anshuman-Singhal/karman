@@ -29,8 +29,7 @@
   /* Sound toggle (saved). Turning it on also unlocks audio, since this is a tap. */
   const paintSound = () => {
     const on = K.audio.enabled();
-    $('btn-sound').classList.toggle('muted', !on);
-    $('btn-sound').setAttribute('aria-label', on ? 'Sound on. Tap to mute' : 'Sound off. Tap to unmute');
+    $('btn-sound').setAttribute('aria-checked', String(on));
   };
   $('btn-sound').addEventListener('click', () => {
     K.audio.setEnabled(!K.audio.enabled());
@@ -39,13 +38,30 @@
   });
 
   /* Sheets */
-  $('btn-logbook').addEventListener('click', () => K.ui.openSheet('logbook'));
+  /* Menu: opening it never pauses the round; the clock keeps running behind. */
+  const fromMenu = (fn) => () => { K.ui.closeSheet('menu'); setTimeout(fn, K.fx.reduced() ? 0 : 200); };
+  $('btn-menu').addEventListener('click', () => K.ui.openSheet('menu'));
+  $('menu-resume').addEventListener('click', () => K.ui.closeSheet('menu'));
+  $('btn-units').addEventListener('click', () => {
+    const sys = K.units.system() === 'imperial' ? 'metric' : 'imperial';
+    if (K.ui.current === 'round') K.round.setUnits(sys); else K.units.setSystem(sys);
+    $('btn-units').setAttribute('aria-checked', String(sys === 'metric'));
+  });
+  document.querySelectorAll('.menu-tile[data-menu]').forEach((t) => t.addEventListener('click', (e) => {
+    const go = t.dataset.menu;
+    const here = t.getAttribute('aria-current') === 'page';
+    if (go === 'contact') return;                                   // plain mailto link
+    if (here) return K.ui.closeSheet('menu');                        // already flying this: just resume
+    if (go === 'today') return fromMenu(() => K.game.playDay(K.game.today))();
+    if (go === 'unlimited') return fromMenu(() => K.game.keepFlying())();
+    if (go === 'archive') return fromMenu(() => K.ui.openSheet('archive'))();
+    fromMenu(() => K.ui.openSheet(go))();                             // logbook | help
+  }));
   // Streak: a quick explanation rather than a second door into the logbook.
   $('btn-streak').addEventListener('click', () => {
     const st = K.game.streakNow();
     K.fx.toast(`${st.cur}-day streak · ${st.thermals} thermal${st.thermals === 1 ? '' : 's'}. Fly 7 days in a row to earn a thermal; it saves your streak if you miss a day.`);
   });
-  $('btn-help').addEventListener('click', () => K.ui.openSheet('help'));
   // Briefing ticket: the stub tears off, then the sheet closes.
   $('btn-ready').addEventListener('click', () => {
     const b = $('btn-ready');
