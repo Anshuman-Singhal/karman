@@ -1,0 +1,94 @@
+/* ==========================================================================
+   KÁRMÁN · tokens.css
+   Layout concept: a full-bleed sky that changes with altitude, a dark tinted
+   scrim over it, and one docked glass "gondola" card holding every control,
+   with an altimeter rail along the left edge.
+
+   This is a deliberately single-look design (the sky is the theme), so there
+   is no light/dark switch: every colour is set explicitly here.
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* ---- Surfaces: night navy glass over the sky ---- */
+  --night: #0A0D1C;
+  --glass: rgba(12, 15, 33, 0.66);
+  --glass-hi: rgba(26, 31, 58, 0.72);
+  --glass-strong: rgba(9, 11, 24, 0.9);
+  --hairline: rgba(226, 232, 255, 0.11);
+  --hairline-strong: rgba(226, 232, 255, 0.22);
+
+  /* ---- Text ---- */
+  --text: #EEF1FA;
+  --text-dim: rgba(224, 230, 248, 0.68);
+  --text-faint: rgba(224, 230, 248, 0.42);
+
+  /* ---- Accent: burner amber (flame, altitude, primary actions) ---- */
+  --amber: #FFB547;
+  --amber-deep: #F07C2C;
+  --ember: #FF6A3D;
+  --on-amber: #1D1204;
+
+  /* ---- Width chips: these match the share-card emoji ---- */
+  --c-wide: #DDE2EC;
+  --c-fair: #6CA9FF;
+  --c-snug: #5BD49A;
+  --c-tight: #F4CF4A;
+  --c-pinpoint: #FF5E62;
+  --c-miss: #8B93A7;
+
+  /* ---- Balloon + scenery ---- */
+  --gore-a: #D9452B;
+  --gore-b: #F3E7D0;
+  --gore-band: #1E2A55;
+  --cloud: #F7F3EE;
+  --cloud-shade: rgba(120, 132, 168, 0.35);
+  --hill-far: #45648F;
+  --hill-mid: #2D4C58;
+  --hill-near: #1C3530;
+  --horizon: #F2BE94;   /* set per day by scene.js */
+  --haze: #F6D3BC;
+
+  /* ---- Type ---- */
+  --f-display: "Big Shoulders Display", "Antonio", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-ui: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace; /* share ticket only */
+
+  /* Type scale (1.25 minor third-ish, tuned for phones) */
+  --t-2xs: 0.68rem;
+  --t-xs: 0.75rem;
+  --t-sm: 0.86rem;
+  --t-md: 1rem;
+  --t-lg: 1.2rem;
+  --t-xl: 1.5rem;
+  --t-2xl: 2.25rem;
+  --t-3xl: 3.4rem;
+  --t-4xl: 4.6rem;
+
+  /* ---- Shape ---- */
+  --r-card: 24px;
+  --r-ctl: 16px;
+  --r-pill: 999px;
+  --card-max: 470px;
+  --gondola-h: clamp(400px, 52vh, 470px);  /* the card's one fixed height */
+
+  /* ---- Motion: one system ----
+     ease-out for nearly everything: 160ms press, 240ms state change, 320ms sheets.
+     ease-spring ONLY for a hit verdict and a stamp slam. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --d-press: 160ms;
+  --d-state: 240ms;
+  --d-sheet: 320ms;
+
+  /* ---- Stamp inks (tier by lifetime count) ---- */
+  --ink-1: #2B3F7A;  /* navy, 1+ */
+  --ink-2: #A0602A;  /* bronze, 5+ */
+  --ink-3: #6E7A90;  /* silver, 10+ */
+  --ink-4: #B8861E;  /* gold, 20+ */
+  --ink-5: #55525F;  /* moon rock, 30+: speckled grey */
+  --paper: #F3E9D6;
+}

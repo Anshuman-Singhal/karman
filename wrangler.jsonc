@@ -1,0 +1,24 @@
+// Cloudflare deploy config for karman.day.
+// One Worker serves the static game (./web) and the stats API (/api/*).
+// The D1 database has no id on purpose: the first `wrangler deploy` creates a
+// database called "karman" and links it (automatic provisioning). The Worker
+// creates its own tables on first use, so there is no schema step.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "karman",
+  "main": "api/src/index.js",
+  "compatibility_date": "2026-10-04",
+  "assets": {
+    "directory": "./web",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"],
+    "not_found_handling": "single-page-application"
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "karman" }
+  ],
+  "routes": [
+    { "pattern": "karman.day", "custom_domain": true },
+    { "pattern": "www.karman.day", "custom_domain": true }
+  ]
+}

@@ -1,0 +1,108 @@
+/* ==========================================================================
+   KÁRMÁN · fx.css
+   One-shot effects, screen transitions, hitstop and reduced-motion rules.
+   ========================================================================== */
+
+[hidden] { display: none !important; }
+
+#fx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 12; pointer-events: none; }
+
+/* ---- Screen transitions ---- */
+.screen.entering { animation: screenIn 360ms var(--ease-out) 60ms both; }
+.screen.leaving { animation: screenOut 180ms ease-in both; pointer-events: none; }
+@keyframes screenIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes screenOut { to { opacity: 0; transform: translateY(-6px); } }
+/* The gondola rises into place once, on first load */
+#dock { animation: dockIn 600ms var(--ease-out) both; }
+@keyframes dockIn { from { transform: translateY(40px); opacity: 0; } }
+@media (min-width: 720px) { @keyframes dockIn { from { transform: translate(-50%, 40px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } } }
+
+/* ---- Rising "+5.6 km" ---- */
+.floater {
+  position: fixed; z-index: 13; pointer-events: none;
+  transform: translate(-50%, -50%);
+  font: 800 1.7rem/1 var(--f-display); letter-spacing: 0.02em;
+  color: var(--amber);
+  text-shadow: 0 0 18px currentColor, 0 2px 0 rgba(0, 0, 0, 0.35);
+  animation: floatUp 1500ms var(--ease-out) forwards;
+  white-space: nowrap;
+}
+@keyframes floatUp {
+  0% { opacity: 0; transform: translate(-50%, -20%) scale(0.6); }
+  15% { opacity: 1; transform: translate(-50%, -60%) scale(1.15); }
+  30% { transform: translate(-50%, -80%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -260%) scale(0.95); }
+}
+
+/* ---- Pinpoint ring ---- */
+.ring-burst {
+  position: fixed; z-index: 13; pointer-events: none;
+  width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%;
+  border: 2px solid var(--ring);
+  box-shadow: 0 0 24px var(--ring), inset 0 0 18px var(--ring);
+  animation: ring 850ms var(--ease-out) forwards;
+}
+@keyframes ring { from { transform: scale(0.2); opacity: 1; } to { transform: scale(7); opacity: 0; } }
+
+/* ---- Sandbag dropped on a miss ---- */
+.sandbag {
+  position: fixed; z-index: 3; width: 22px; pointer-events: none;
+  animation: bagFall 1400ms cubic-bezier(0.5, 0, 0.9, 0.6) forwards;
+}
+.sandbag svg { display: block; width: 100%; }
+@keyframes bagFall {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  12% { transform: translate(4px, -6px) rotate(10deg); }
+  100% { transform: translate(30px, 70vh) rotate(260deg); opacity: 0.6; }
+}
+
+/* ---- Milestone banner ---- */
+.banner {
+  position: fixed; z-index: 11; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 22vh);
+  width: min(calc(100vw - 96px), 520px);
+  transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  pointer-events: none; opacity: 0;
+}
+.banner-eyebrow { font: 600 11px/1 var(--f-ui); letter-spacing: 0.12em; text-transform: uppercase; color: var(--amber); }
+.banner-title {
+  font: italic 400 clamp(2rem, 9vw, 3rem)/1 var(--f-serif);
+  color: #fff;
+  text-shadow: 0 2px 24px rgba(5, 8, 25, 0.65), 0 0 40px rgba(255, 220, 160, 0.35);
+  text-wrap: balance;
+}
+.banner-meta { font: 500 13px/1 var(--f-ui); letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.75); }
+.banner.show { opacity: 1; }
+.banner.show .banner-title { animation: unfurl 760ms var(--ease-out) both; }
+.banner.show .banner-eyebrow { animation: spread 900ms var(--ease-out) both; }
+.banner.show .banner-meta { animation: rise 600ms 260ms var(--ease-out) both; }
+.banner.leave { opacity: 0; transform: translate(-50%, -70%); transition: opacity 400ms, transform 400ms var(--ease-in); }
+.banner.fresh .banner-eyebrow { color: #FFD48A; }
+/* Familiar milestones: a small, quick whisper instead of a headline */
+.banner.quiet .banner-title { font-size: clamp(1.25rem, 5vw, 1.6rem); text-shadow: 0 2px 16px rgba(5, 8, 25, 0.6); }
+.banner.quiet .banner-eyebrow, .banner.quiet .banner-meta { display: none; }
+.banner.pb .banner-eyebrow { color: #BFD6FF; }
+.banner.space .banner-title { color: #FFE1A8; }
+@keyframes unfurl {
+  from { clip-path: inset(0 50% 0 50%); letter-spacing: 0.12em; opacity: 0; }
+  to { clip-path: inset(0 0 0 0); letter-spacing: 0; opacity: 1; }
+}
+@keyframes spread { from { letter-spacing: 0.5em; opacity: 0; } to { letter-spacing: 0.12em; opacity: 1; } }
+
+/* ---- Camera nudge on Pinpoint ---- */
+#app.nudge { animation: nudge 260ms ease-out; }
+@keyframes nudge { 25% { transform: translate(0, 4px); } 55% { transform: translate(0, -2px); } 100% { transform: none; } }
+
+/* ---- Hitstop: freeze every CSS animation for a beat ---- */
+.hitstop *, .hitstop *::before, .hitstop *::after { animation-play-state: paused !important; }
+
+/* ---- Reduced motion: keep the information, drop the movement ---- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  .odo-strip { transition: none !important; }
+  .cloud, .plane, .windsock { animation: none !important; }
+}

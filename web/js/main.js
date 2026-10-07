@@ -1,0 +1,180 @@
+/* ==========================================================================
+   KÁRMÁN · main.js
+   Boot order and the few event bindings that span modules.
+   ========================================================================== */
+
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  K.fx.init();
+  K.scene.init();
+  K.ambient.init();
+  K.round.init();
+  K.ui.init();
+  K.game.init();
+
+  /* Launch: one tap fires the burner. */
+  $('btn-launch').addEventListener('click', () => {
+    const btn = $('btn-launch');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.classList.add('holding');
+    K.game.launch();
+  });
+
+  /* Round controls */
+  $('btn-lock').addEventListener('click', () => K.game.lock());
+  $('btn-next').addEventListener('click', () => K.game.next());
+
+  /* Sound toggle (saved). Turning it on also unlocks audio, since this is a tap. */
+  const paintSound = () => {
+    const on = K.audio.enabled();
+    $('btn-sound').classList.toggle('muted', !on);
+    $('btn-sound').setAttribute('aria-label', on ? 'Sound on. Tap to mute' : 'Sound off. Tap to unmute');
+  };
+  $('btn-sound').addEventListener('click', () => {
+    K.audio.setEnabled(!K.audio.enabled());
+    paintSound();
+    if (K.audio.enabled()) K.audio.puff();
+  });
+
+  /* Sheets */
+  $('btn-logbook').addEventListener('click', () => K.ui.openSheet('logbook'));
+  // Streak: a quick explanation rather than a second door into the logbook.
+  $('btn-streak').addEventListener('click', () => {
+    const st = K.game.streakNow();
+    K.fx.toast(`${st.cur}-day streak · ${st.thermals} thermal${st.thermals === 1 ? '' : 's'}. Fly 7 days in a row to earn a thermal; it saves your streak if you miss a day.`);
+  });
+  $('btn-help').addEventListener('click', () => K.ui.openSheet('help'));
+  // Briefing ticket: the stub tears off, then the sheet closes.
+  $('btn-ready').addEventListener('click', () => {
+    const b = $('btn-ready');
+    b.classList.add('torn');
+    K.audio.tick();
+    setTimeout(() => { K.ui.closeSheet('help'); b.classList.remove('torn'); }, K.fx.reduced() ? 0 : 240);
+  });
+
+  /* Share: one ticket button. Tear the stub, then send an image + text via
+     the system share sheet where files are supported, else copy the text. */
+  let sharing = false;
+  $('btn-share').addEventListener('click', async () => {
+    const last = K.ui.lastRecord;
+    if (!last || sharing) return;
+    sharing = true;
+    const btn = $('btn-share');
+    btn.classList.remove('torn');
+    void btn.offsetWidth;
+    btn.classList.add('torn');
+    K.audio.tick();
+    const str = K.share.text(last.record, last.streak);
+    let result = 'manual';
+    try {
+      let file = null;
+      if (navigator.canShare) {
+        const blob = await K.shareImage.render(last.record, last.n, last.streak, K.ui.lastStats);
+        const f = blob && new File([blob], `karman-${last.n}.png`, { type: 'image/png' });
+        if (f && navigator.canShare({ files: [f] })) file = f;
+      }
+      result = await K.share.share(str, file);
+    } catch (e) {
+      result = await K.share.copy(str);
+    }
+    if (result === 'copied') K.fx.toast('Flight log copied. Paste it in the group chat.');
+    if (result === 'manual') K.fx.toast('Couldn\'t reach the clipboard. Long-press to copy.');
+    setTimeout(() => { sharing = false; }, 400);
+  });
+
+  /* Copy image: put the boarding-pass PNG on the clipboard. The ClipboardItem
+     gets a Promise so Safari accepts it inside the tap. Browsers without
+     image clipboard support fall back to a download. */
+  let copying = false;
+  $('btn-copy-img').addEventListener('click', async () => {
+    const last = K.ui.lastRecord;
+    if (!last || copying) return;
+    copying = true;
+    const btn = $('btn-copy-img');
+    btn.classList.remove('torn', 'done');
+    void btn.offsetWidth;
+    btn.classList.add('torn');
+    K.audio.tick();
+    const blobP = K.shareImage.render(last.record, last.n, last.streak, K.ui.lastStats);
+    try {
+      if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error('no image clipboard');
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })]);
+      btn.classList.add('done');
+      K.fx.toast('Image copied. Paste it anywhere.');
+    } catch (e) {
+      const blob = await blobP;
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `karman-flight-${last.n}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        K.fx.toast('This browser can\'t copy images, so it was saved instead.');
+      }
+    }
+    setTimeout(() => { copying = false; }, 400);
+  });
+
+  /* The passport row opens the stamp book. */
+  $('passport-row').addEventListener('click', () => K.ui.openSheet('logbook'));
+
+  /* Keyboard: digits type, ← → change width, Enter locks in. */
+  document.addEventListener('keydown', (e) => {
+    if (document.querySelector('.sheet-wrap.open')) {
+      if (e.key === 'Escape') document.querySelectorAll('.sheet-wrap.open').forEach((s) => K.ui.closeSheet(s.id.replace('sheet-', '')));
+      return;
+    }
+    if (K.ui.current !== 'round' || K.game.phase !== 'round' || K.round.locked) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (K.round.key(e)) { e.preventDefault(); return; }
+    if (e.key === 'Enter' && K.round.guessValue() != null) { e.preventDefault(); K.game.lock(); }
+  });
+
+  /* Archive, Keep flying, paywall */
+  $('btn-archive').addEventListener('click', () => K.ui.openSheet('archive'));
+  $('cal-prev').addEventListener('click', () => K.ui.calStep(-1));
+  $('cal-next').addEventListener('click', () => K.ui.calStep(1));
+  $('btn-keep').addEventListener('click', () => K.game.keepFlying());
+  $('btn-today').addEventListener('click', () => K.game.boot({ mode: 'daily' }));
+  $('btn-buy').addEventListener('click', () => K.ui.startGoogle('buy'));
+  $('btn-restore').addEventListener('click', () => K.ui.startGoogle('restore'));
+  $('btn-code-toggle').addEventListener('click', () => { $('code-form').hidden = false; $('code-input').focus(); });
+  $('code-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const ok = await K.access.redeem($('code-input').value);
+    if (ok) { K.fx.toast('Unlimited unlocked. Keep flying.'); K.ui.refreshAccess(); }
+    else { K.fx.toast('That code isn’t valid.'); $('code-input').select(); }
+  });
+
+  /* Copy the passport page as an image (logbook). */
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('#btn-pp-share');
+    if (!btn) return;
+    btn.classList.remove('thunk'); void btn.offsetWidth; btn.classList.add('thunk');
+    K.audio.stamp();
+    const blobP = K.shareImage.passport();
+    try {
+      if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error('no image clipboard');
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobP })]);
+      K.fx.toast('Passport copied. Paste it anywhere.');
+    } catch (err) {
+      const blob = await blobP;
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'karman-passport.png';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      K.fx.toast('Passport image saved.');
+    }
+  });
+
+  K.game.boot();
+  K.access.refresh();
+  paintSound();
+})();

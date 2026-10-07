@@ -1,0 +1,261 @@
+/* ==========================================================================
+   KÁRMÁN · scene.css
+   The sky world, the scrim and the altimeter rail. Positions of world items
+   are set every frame by js/scene.js through transform: translate3d().
+   ========================================================================== */
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--night);
+  color: var(--text);
+  font-family: var(--f-ui);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+#app { position: fixed; inset: 0; overflow: hidden; }
+
+/* ---------------------------------------------------------------- scene */
+#scene { position: absolute; inset: 0; overflow: hidden; z-index: 0; }
+#sky { position: absolute; inset: 0; background: linear-gradient(#4E78B8, #93B8E0 58%, #F2BE94); }
+
+#sun {
+  position: absolute; left: 80%; top: 38%;
+  width: 70vmin; height: 70vmin; max-width: 560px; max-height: 560px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle,
+    #FFF6DF 0 5.5%, rgba(255, 226, 168, 0.85) 7%, rgba(255, 196, 130, 0.32) 13%,
+    rgba(255, 180, 120, 0.12) 30%, transparent 62%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+#ambient { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#stars { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+
+#world, #world-front { position: absolute; inset: 0; pointer-events: none; }
+/* World labels fade out under the top bar instead of colliding with it */
+#world { -webkit-mask-image: linear-gradient(to bottom, transparent 70px, #000 150px); mask-image: linear-gradient(to bottom, transparent 70px, #000 150px); }
+#world-front { z-index: 3; }
+
+.w-item {
+  position: absolute; left: 0; top: 0; width: 100%;
+  will-change: transform;
+}
+
+/* Ground: top edge of the item is the ground line */
+/* Hills are lifted so the far ridges rise behind the balloon at launch. */
+.ground .hills { display: block; width: 100%; height: 60vh; min-height: 320px; margin-top: -19vh; margin-bottom: -2px; }
+.ground::after { /* solid meadow below the drawing, so tall screens never see sky under the hills */
+  content: ""; display: block; height: 200vh; background: var(--hill-near);
+}
+.windsock { transform-box: fill-box; transform-origin: 0 50%; animation: sock 3.4s ease-in-out infinite alternate; }
+@keyframes sock { from { transform: rotate(-4deg); } to { transform: rotate(5deg) scaleX(0.92); } }
+
+/* Clouds: centred on their altitude line, drifting sideways */
+.cloud {
+  position: absolute; top: 0;
+  width: calc(190px * var(--s));
+  transform: translate(-50%, -50%);
+  animation: drift var(--drift) ease-in-out infinite alternate;
+}
+.cloud-svg { display: block; width: 100%; filter: drop-shadow(0 6px 10px rgba(30, 40, 80, 0.12)); }
+@keyframes drift {
+  from { translate: calc(-6vw * var(--dir)) 0; }
+  to   { translate: calc(6vw * var(--dir)) 0; }
+}
+
+/* Landmarks */
+.w-label {
+  position: absolute;
+  font: 600 11px/1 var(--f-ui);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+  white-space: nowrap;
+  text-shadow: 0 1px 6px rgba(5, 8, 25, 0.5);
+}
+.landmark.right .peak { position: absolute; right: 2%; top: 0; width: min(46vw, 300px); }
+.peak svg { display: block; width: 100%; height: auto; }
+.peak .w-label { top: -6px; right: 54%; }
+
+.plane-lane { position: absolute; left: 0; right: 0; top: 0; height: 30px; transform: translateY(-50%); }
+.plane {
+  position: absolute; top: 4px; left: 0; width: 46px;
+  animation: fly 22s linear infinite;
+}
+.plane svg { display: block; width: 46px; }
+.contrail {
+  position: absolute; right: 88%; top: 9px; width: 42vw; height: 2px;
+  background: linear-gradient(to left, rgba(255, 255, 255, 0.75), transparent);
+  border-radius: 2px;
+}
+.plane-lane .w-label { left: 104px; top: -16px; }
+@keyframes fly { from { transform: translateX(-30vw); } to { transform: translateX(120vw); } }
+
+.band-item .ozone {
+  position: absolute; left: 0; right: 0; top: -70px; height: 140px;
+  background: linear-gradient(to bottom, transparent, rgba(170, 140, 255, 0.16) 45%, rgba(120, 190, 255, 0.12) 60%, transparent);
+}
+.band-item .w-label { left: 104px; top: -8px; }
+
+.landmark.left .diver { position: absolute; left: 22%; top: 0; }
+.diver svg { display: block; width: 18px; transform: translate(-50%, -50%) rotate(12deg); }
+.diver-trail {
+  position: absolute; left: -1px; top: 10px; width: 2px; height: 90px;
+  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.45) 0 4px, transparent 4px 9px);
+}
+.diver .w-label { left: 18px; top: -5px; }
+
+.line-item .w-line {
+  position: absolute; left: 0; right: 0; top: 0; height: 1px;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.35) 15%, rgba(255, 255, 255, 0.35) 85%, transparent);
+}
+.line-item .w-label { left: 104px; top: -16px; }
+.line-item .w-line.karman {
+  height: 2px;
+  background: repeating-linear-gradient(to right, var(--amber) 0 10px, transparent 10px 18px);
+  box-shadow: 0 0 18px rgba(255, 181, 71, 0.55);
+}
+.karman-label { color: var(--amber) !important; left: 50%; right: auto !important; transform: translateX(-50%); top: -20px !important; }
+.line-item .w-line.pb { background: repeating-linear-gradient(to right, rgba(255, 255, 255, 0.55) 0 3px, transparent 3px 8px); }
+.pb-item .w-label { left: 104px; color: rgba(255, 255, 255, 0.85); }
+
+/* Earth's curve, rising into view above ~55 km */
+#earth {
+  position: absolute; left: 50%; bottom: -150vmax;
+  width: 240vmax; height: 170vmax; border-radius: 50%;
+  transform: translate3d(-50%, 38vh, 0);
+  opacity: 0;
+  background: radial-gradient(ellipse at 50% 8%, #2F6FB8 0%, #1C4A86 14%, #0E2550 30%, #071430 52%);
+  box-shadow: 0 0 0 2px rgba(150, 200, 255, 0.55), 0 0 40px 10px rgba(110, 170, 255, 0.45), 0 0 140px 50px rgba(80, 140, 255, 0.22);
+}
+.earth-rim {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 2%, rgba(255, 255, 255, 0.35), transparent 10%);
+}
+
+/* The balloon */
+#balloon-rig {
+  position: absolute; left: 50%; top: 0;
+  transform-origin: 50% 100%;
+  z-index: 2;
+  will-change: transform;
+}
+#balloon {
+  display: block; width: 100%; height: 100%; overflow: visible;
+  transform-origin: 50% 70%;
+  transform: scale(calc(1 + var(--inflate, 0) * 0.05), calc(1 + var(--inflate, 0) * 0.03));
+  filter: drop-shadow(0 10px 18px rgba(8, 10, 30, 0.35));
+}
+#balloon.squash { animation: squash 520ms var(--ease-spring); }
+/* Take-off heave: the envelope swells and stretches upward as it leaves the ground */
+#balloon.heave { animation: heave 2100ms cubic-bezier(0.4, 0, 0.2, 1); }
+@keyframes heave {
+  0% { transform: scale(1, 1); }
+  12% { transform: scale(1.06, 0.95); }
+  30% { transform: scale(0.96, 1.07); }
+  55% { transform: scale(1.01, 0.99); }
+  100% { transform: scale(1, 1); }
+}
+@keyframes squash {
+  0% { transform: scale(1, 1); }
+  30% { transform: scale(1.07, 0.94); }
+  60% { transform: scale(0.97, 1.03); }
+  100% { transform: scale(1, 1); }
+}
+
+/* ---------------------------------------------------------------- scrim
+   The dark tinted layer between the sky and the interface: light at the top
+   so the balloon stays bright, heavy at the bottom so the card always reads. */
+#scrim {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    linear-gradient(to bottom,
+      rgba(6, 8, 22, 0.42) 0%,
+      rgba(6, 8, 22, 0.08) 16%,
+      rgba(6, 8, 22, 0.06) 34%,
+      rgba(6, 8, 22, 0.46) 58%,
+      rgba(6, 8, 22, 0.78) 100%),
+    rgba(10, 12, 34, 0.12);
+}
+
+/* ---------------------------------------------------------------- rail */
+#rail {
+  position: absolute; z-index: 2;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  top: calc(env(safe-area-inset-top, 0px) + 78px);
+  height: calc(100% - var(--gondola-h) - 130px - env(safe-area-inset-top, 0px)); width: 74px;
+  pointer-events: none;
+}
+.rail-line { /* the route ahead: a quiet dashed line */
+  position: absolute; left: 4px; top: 0; bottom: 0; width: 1px;
+  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.34) 0 3px, transparent 3px 7px);
+}
+.rail-fill { /* the route flown: a solid amber contrail up to the plane */
+  position: absolute; left: 4px; bottom: 0; width: 1px; height: 0;
+  background: linear-gradient(to top, rgba(255, 181, 71, 0.15), rgba(255, 181, 71, 0.85));
+  box-shadow: 0 0 6px rgba(255, 181, 71, 0.45);
+}
+.rail-tick { position: absolute; left: 0; transform: translateY(-50%); display: flex; align-items: center; gap: 6px; }
+.rail-tick i { display: block; width: 7px; height: 1px; margin-left: 1px; background: rgba(255, 255, 255, 0.45); }
+.rail-tick span {
+  font: 600 10px/1 var(--f-ui); letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.25); transition: color 400ms, text-shadow 400ms;
+}
+.rail-tick.lit i { background: var(--amber); width: 9px; }
+.rail-tick.lit span { color: rgba(255, 200, 120, 0.4); }
+/* Ticks stay as a scale; only two labels show: the next milestone, and Space (the goal). */
+.rail-tick span { opacity: 0; transition: opacity 400ms, color 400ms; }
+.rail-tick.next span { opacity: 1; }
+.rail-tick:last-child span { opacity: 0.55; }
+/* Only the NEXT milestone is labelled at full strength: your goal, not a list */
+.rail-tick.next span { color: #fff; text-shadow: 0 1px 8px rgba(5, 8, 25, 0.6); }
+.rail-tick.next i { background: #fff; width: 9px; }
+#rail { transition: opacity 300ms; }
+.rail-bug { /* a small plane, nose up, climbing the scale */
+  position: absolute; left: -4px; width: 17px; height: 17px;
+  transform: translateY(-50%);
+  filter: drop-shadow(0 0 5px rgba(255, 181, 71, 0.8));
+}
+.rail-bug svg { display: block; width: 100%; height: 100%; fill: var(--amber); }
+.rail-ghost {
+  position: absolute; left: -1px; width: 22px; height: 1px; transform: translateY(-50%);
+  background: repeating-linear-gradient(to right, #fff 0 2px, transparent 2px 4px);
+}
+.rail-ghost span { display: none; }
+.rail-ghost-unused {
+  position: absolute; left: 26px; top: -5px;
+  font: 600 9.5px/1 var(--f-ui); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.7);
+}
+
+@media (max-height: 640px) { .rail-tick span { display: none; } }
+
+/* ---------------------------------------------------------------- sights on the way up */
+.sight .w-label { font-size: 10px; color: rgba(255, 255, 255, 0.6); }
+.tower { position: absolute; top: 0; opacity: 0.92; }
+.tower-clip { overflow: hidden; }
+.tower-clip.fade { -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
+.tower-art { display: block; width: 100%; }
+.tower svg { display: block; width: 100%; height: 100%; }
+.tower .w-label { top: -18px; }
+.tower.left .w-label { left: 0; }
+.tower.right .w-label { right: 0; }
+.castle { position: absolute; left: 4%; top: -46px; width: 120px; }
+.castle svg { display: block; width: 100%; overflow: visible; }
+.castle .w-label { left: 8px; top: -14px; }
+.flyer { position: absolute; top: 0; left: 0; animation: cross var(--dur) linear infinite; animation-delay: var(--delay); }
+.flyer.rtl { animation-direction: reverse; }
+.flyer-art { display: block; transform: translateY(-50%); }
+.flyer.rtl .flyer-art { transform: translateY(-50%) scaleX(-1); }
+.flyer-art svg { display: block; width: 100%; height: auto; }
+.flyer .w-label { left: calc(100% + 6px); top: -14px; }
+@keyframes cross { from { transform: translateX(-25vw); } to { transform: translateX(115vw); } }
+.sprites { position: absolute; left: 0; right: 0; top: -60px; height: 120px; }
+.nlc { position: absolute; left: 0; right: 0; top: -40px; height: 80px;
+  background: repeating-linear-gradient(170deg, transparent 0 18px, rgba(120, 200, 255, 0.10) 18px 22px, transparent 22px 40px),
+              linear-gradient(to bottom, transparent, rgba(110, 190, 255, 0.14) 50%, transparent); }
+@media (prefers-reduced-motion: reduce) { .flyer { animation: none; transform: translateX(30vw); } }

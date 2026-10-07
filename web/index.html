@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KÁRMÁN</title>
+<meta name="description" content="A daily estimation game. Seven guesses, one balloon. Climb toward the edge of space.">
+<meta name="theme-color" content="#0A0D1C">
+<meta property="og:title" content="KÁRMÁN">
+<meta property="og:description" content="Seven guesses, one flight a day. How close to space can you get?">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Mono:wght@500&family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@1&display=swap">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/scene.css">
+<link rel="stylesheet" href="css/ui.css">
+<link rel="stylesheet" href="css/fx.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ===================== 1 · SCENE (decorative; js/scene.js) ===================== -->
+  <div id="scene" aria-hidden="true">
+    <div id="sky"></div>
+    <div id="sun"></div>
+    <canvas id="ambient"></canvas>
+    <canvas id="stars"></canvas>
+    <div id="world"></div>
+    <div id="earth"><div class="earth-rim"></div></div>
+    <div id="balloon-rig"><svg id="balloon" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    <div id="world-front"></div>
+  </div>
+
+  <!-- ===================== 2 · SCRIM: dark tinted layer between sky and interface ===================== -->
+  <div id="scrim" aria-hidden="true"></div>
+
+  <!-- ===================== 3 · INTERFACE ===================== -->
+  <div id="rail" aria-hidden="true">
+    <div class="rail-line"></div>
+    <div class="rail-fill"></div>
+    <div class="rail-ticks"></div>
+    <div class="rail-ghost" hidden><span>Best</span></div>
+    <div class="rail-bug"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c.9 0 1.5 1.3 1.5 3v5.2l7.5 4.6v2.1l-7.5-2.3v4.6l2.3 1.7v1.6L12 21.1l-3.8 0.9v-1.6l2.3-1.7v-4.6L3 16.4v-2.1l7.5-4.6V4.5c0-1.7.6-3 1.5-3z"/></svg></div>
+  </div>
+
+  <header id="topbar">
+    <div class="brand">
+      <span class="wordmark">KÁRMÁN</span>
+      <span class="flight-no" id="flight-no"></span>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="streak-pill" id="btn-streak" aria-label="Streak">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 3.5 5 5.6 5 10.5A5 5 0 0 1 7 12.6c0-2 1-3.6 2.3-4.6.1 1.7.9 3 2.2 3.4C11 8.3 11 5 12 2z"/></svg>
+        <span id="streak-count">0</span>
+      </button>
+      <button type="button" class="icon-btn" id="btn-sound" aria-label="Sound on">
+        <svg class="snd-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
+        <svg class="snd-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></svg>
+      </button>
+      <button type="button" class="icon-btn text-btn" id="btn-logbook" aria-label="Open logbook">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3"/><path d="M9 7h6"/></svg><span>Logbook</span>
+      </button>
+      <button type="button" class="icon-btn text-btn" id="btn-help" aria-label="How to fly">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.7-.9 1.3v.6"/><circle cx="12" cy="16.8" r=".6" fill="currentColor"/></svg><span>How to fly</span>
+      </button>
+    </div>
+  </header>
+
+  <div id="altimeter">
+    <span class="alt-label">Altitude</span>
+    <span class="alt-value"><span id="odo" class="odo"></span><span class="alt-unit">km</span></span>
+    <span class="alt-pts"><b id="alt-pts">0</b> pts</span>
+  </div>
+
+  <!-- The gondola: ONE persistent card. Screens crossfade inside it, so the
+       card never jumps in size or position between steps. -->
+  <main id="dock">
+
+    <!-- HOME · the flight plan -->
+    <section class="screen home" id="screen-home" hidden aria-labelledby="home-h">
+      <div class="home-top">
+        <p class="eyebrow" id="home-meta"></p>
+        <button type="button" class="cal-btn" id="btn-archive" aria-label="Open the archive calendar"><span class="leaf" aria-hidden="true"><i id="leaf-m">OCT</i><b id="leaf-d">6</b></span><span>Archive</span></button>
+      </div>
+      <div class="home-main">
+        <div class="home-text">
+          <h1 class="home-title" id="home-h">Flight <span id="home-flight"></span></h1>
+          <p class="home-lede" id="home-lede">Seven guesses. Climb 100 km to the Kármán line, where space begins.</p>
+          <div class="home-status" id="home-status"></div>
+        </div>
+        <!-- Take off: a boarding pass you tear to board -->
+        <button type="button" class="hold-btn launch-ticket" id="btn-launch">
+          <span class="hold-fill" aria-hidden="true"></span>
+          <span class="hold-label">
+            <span class="hold-idle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 3.5 5 5.6 5 10.5A5 5 0 0 1 7 12.6c0-2 1-3.6 2.3-4.6.1 1.7.9 3 2.2 3.4C11 8.3 11 5 12 2z"/></svg>Take off</span>
+            <span class="hold-live">Firing the burner…</span>
+          </span>
+          <span class="launch-stub" aria-hidden="true"><small>Board</small><b id="launch-no"></b></span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ROUND · one estimate. Deliberately lean: the sky is the show. -->
+    <section class="screen round" id="screen-round" hidden aria-live="polite">
+      <div class="fuse" aria-hidden="true"><div class="fuse-fill" id="fuse"></div></div>
+      <div class="round-head">
+        <ol class="legs" id="legs" aria-label="Flight progress"></ol>
+        <span class="cat-tag" id="round-cat"></span>
+        <span class="round-timer" id="round-timer" aria-label="Seconds left"></span>
+        <button type="button" class="clue-chip" id="btn-clue"></button>
+      </div>
+      <h2 class="question" id="round-q"></h2>
+      <p class="hint" id="round-hint"></p>
+
+      <!-- Your range, big and plain: low ⟵ guess ⟶ high -->
+      <div class="readout" id="readout">
+        <span class="r-edge r-lo" id="r-lo"></span>
+        <span class="r-mid">
+          <span class="guess" id="guess-value"></span>
+          <button type="button" class="unit-toggle" id="unit-toggle"><span></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
+        </span>
+        <span class="r-edge r-hi" id="r-hi"></span>
+      </div>
+
+      <!-- Ruler: only appears at the reveal, around your own guess -->
+      <div class="scale" id="scale" aria-hidden="true">
+        <div class="track" id="track">
+          <div class="band" id="band"></div>
+          <div class="needle" id="needle" hidden><span class="needle-label"></span></div>
+          <div class="knob" id="knob"></div>
+        </div>
+        <div class="scale-ticks" id="scale-ticks"></div>
+      </div>
+
+      <!-- Width: how sure are you? five buttons, narrower pays more -->
+      <div class="wbtns" id="wbtns" role="radiogroup" aria-label="How sure are you?"></div>
+
+      <div class="controls" id="round-controls">
+        <div class="keypad" id="keypad" aria-label="Number pad"></div>
+        <p class="kbd-note">Type your guess · ← → width · Enter to lock</p>
+      </div>
+      <div class="result" id="round-result" hidden>
+        <div class="result-head"><span class="verdict"></span><span class="verdict-delta"></span></div>
+        <p class="result-line"></p>
+        <p class="result-fact"></p>
+        <button type="button" class="btn-primary" id="btn-next">Next leg</button>
+      </div>
+    </section>
+
+    <!-- RESULTS: one short screen; details on demand -->
+    <section class="screen results" id="screen-results" hidden aria-labelledby="res-tier">
+      <div class="res-main">
+        <p class="eyebrow" id="res-eyebrow"></p>
+        <div class="res-hero">
+          <span class="res-alt" id="res-alt"></span><span class="res-unit">points</span>
+        </div>
+        <p class="res-tier"><span id="res-km"></span> · <em id="res-tier"></em></p>
+
+        <!-- Today's pilots: one histogram, your balloon on your bar -->
+        <div class="crowd" id="crowd">
+          <div class="crowd-head" id="crowd-head"></div>
+          <div class="crowd-chart" id="crowd-chart"></div>
+          <p class="res-rank" id="res-rank" hidden></p>
+        </div>
+
+        <!-- Six legs, tap one to see its answer -->
+        <div class="legstrip" id="legstrip" role="tablist" aria-label="Your seven legs"></div>
+        <p class="legstrip-note" id="legstrip-note">Tap a leg for the answer</p>
+        <div class="leg-detail" id="leg-detail"></div>
+
+        <p class="res-note" id="res-note"></p>
+        <!-- Keep flying: an Unlimited run of 7 new questions -->
+        <button type="button" class="keep-ticket" id="btn-keep">
+          <span class="kt-main"><b>Keep flying</b><small id="keep-sub">7 new questions</small></span>
+          <span class="kt-stub" id="keep-stub">∞</span>
+        </button>
+        <div class="ticket-row">
+          <button type="button" class="ticket-btn" id="btn-share">
+            <span class="ticket-main"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share flight log</span>
+            <span class="ticket-stub" id="ticket-stub"></span>
+          </button>
+          <button type="button" class="ticket-btn ticket-img" id="btn-copy-img" aria-label="Copy your boarding-pass image">
+            <span class="ticket-main">Copy image</span>
+            <span class="ticket-stub" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg></span>
+          </button>
+        </div>
+        <button type="button" class="passport-row" id="passport-row"></button>
+        <button type="button" class="link-btn" id="btn-today" hidden>← Back to today’s flight</button>
+        <div class="res-foot">
+          <span>Next flight in <b id="countdown">--:--:--</b></span>
+          <span id="res-streak"></span>
+        </div>
+        <p class="site-foot">Found a bug? Wrong answer? <a id="contact-link" href="mailto:hello@karman.day">Contact us</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>
+      </div>
+      <div class="res-side">
+        <div class="recap-head"><h3>Answers</h3><span id="recap-count"></span></div>
+        <div class="recap" id="recap"></div>
+      </div>
+    </section>
+
+    <!-- CLOSED: before launch, or no flight stocked -->
+    <section class="screen" id="screen-closed" hidden>
+      <p class="eyebrow">Hangar</p>
+      <h2 class="home-title" id="closed-title"></h2>
+      <p class="home-lede" id="closed-copy"></p>
+    </section>
+  </main>
+
+  <div id="banner" class="banner" aria-live="polite"></div>
+  <canvas id="fx" aria-hidden="true"></canvas>
+
+  <!-- LOGBOOK sheet -->
+  <div class="sheet-wrap" id="sheet-logbook" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="logbook-h">
+      <div class="sheet-head"><div><h2 id="logbook-h">Logbook</h2><p class="sheet-sub" id="logbook-sub"></p></div><button type="button" class="icon-btn sheet-x" data-close="logbook" aria-label="Close logbook"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <div id="logbook-body"></div>
+    </div>
+  </div>
+
+  <!-- HELP sheet -->
+  <div class="sheet-wrap" id="sheet-archive" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="archive-h">
+      <div class="sheet-head"><div><h2 id="archive-h">Archive</h2><p class="sheet-sub">EVERY DAILY FLIGHT SINCE LAUNCH</p></div><button type="button" class="icon-btn sheet-x" data-close="archive" aria-label="Close archive"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <div class="cal-nav"><button type="button" class="icon-btn" id="cal-prev" aria-label="Previous month">‹</button><b id="cal-month"></b><button type="button" class="icon-btn" id="cal-next" aria-label="Next month">›</button></div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <p class="cal-key" id="cal-key"></p>
+    </div>
+  </div>
+
+  <div class="sheet-wrap" id="sheet-paywall" hidden>
+    <div class="sheet pay" role="dialog" aria-modal="true" aria-labelledby="pay-h">
+      <div class="sheet-head"><div><h2 id="pay-h">Unlimited</h2><p class="sheet-sub">ONE TICKET · EVERY FLIGHT</p></div><button type="button" class="icon-btn sheet-x" data-close="paywall" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <ul class="pay-list">
+        <li><b>Keep flying.</b> Endless runs of 7 new questions, never repeating.</li>
+        <li><b>The archive.</b> Play every past daily flight from the calendar.</li>
+        <li><b>Your logbook, backed up.</b> Saved to your Google account on any device.</li>
+      </ul>
+      <p class="pay-note">The daily flight stays free, always.</p>
+      <div class="pay-cta" id="pay-cta">
+        <button type="button" class="buy-ticket" id="btn-buy"><span class="bt-main">Unlock Unlimited</span><span class="bt-stub"><b id="pay-price">$6.99</b><small>ONE-TIME</small></span></button>
+        <div class="gsi" id="gsi-slot" hidden></div>
+      </div>
+      <div class="pay-links">
+        <button type="button" class="link-btn" id="btn-restore">Already bought? Restore with Google</button>
+        <button type="button" class="link-btn" id="btn-code-toggle">Have an unlock link?</button>
+      </div>
+      <form class="code-form" id="code-form" hidden><input id="code-input" autocomplete="off" spellcheck="false" placeholder="PILOT-XXXX" aria-label="Unlock code"><button type="submit" class="code-go">Unlock</button></form>
+      <p class="pay-fine">One payment, no subscription. Refundable only if you haven’t flown an Unlimited or archive flight since buying. <a href="terms.html" target="_blank" rel="noopener">Terms</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a></p>
+    </div>
+  </div>
+
+  <div class="sheet-wrap" id="sheet-help" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="help-h">
+      <div class="sheet-head"><div><h2 id="help-h">How to fly</h2><p class="sheet-sub">BRIEFING · READ BEFORE BOARDING</p></div><button type="button" class="icon-btn sheet-x" data-close="help" aria-label="Close help"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <ol class="brief">
+        <li><span class="br-n">1</span><div class="br-t"><b>Guess the number.</b> Every question has a numeric answer. Type your best guess.</div>
+          <svg class="br-ill" viewBox="0 0 64 40" aria-hidden="true"><line x1="4" y1="24" x2="60" y2="24" class="il-track"/><line x1="34" y1="14" x2="34" y2="30" class="il-pin"/><circle cx="34" cy="12" r="3" class="il-dot"/></svg></li>
+        <li><span class="br-n">2</span><div class="br-t"><b>Pick how sure you are.</b> A narrower range pays more, if the answer lands inside it.</div>
+          <svg class="br-ill" viewBox="0 0 64 40" aria-hidden="true"><line x1="4" y1="24" x2="60" y2="24" class="il-track"/><rect x="20" y="20.5" width="28" height="7" rx="3.5" class="il-range"/><line x1="34" y1="14" x2="34" y2="30" class="il-pin"/></svg></li>
+        <li class="br-ladder-row"><div class="ladder" id="help-ladder"></div></li>
+        <li><span class="br-n">3</span><div class="br-t"><b>Climb.</b> <span id="help-climb"></span></div>
+          <svg class="br-ill" viewBox="0 0 64 40" aria-hidden="true"><line x1="14" y1="4" x2="14" y2="38" class="il-rail"/><path d="M11 30h6M11 22h6M11 14h6M11 6h6" class="il-tick"/><line x1="14" y1="38" x2="14" y2="22" class="il-climb"/><g transform="translate(36 16)"><path d="M0-10c-6 0-9 4-9 8.5 0 3.6 3 6.6 5.4 8.5h7.2C6 5.1 9 2.1 9-1.5 9-6 6-10 0-10z" class="il-env"/><rect x="-3" y="8" width="6" height="4" rx="1" class="il-basket"/></g></svg></li>
+        <li><span class="br-n">4</span><div class="br-t"><b>Reach space.</b> <span id="help-space"></span></div>
+          <svg class="br-ill" viewBox="0 0 64 40" aria-hidden="true"><path d="M2 38 Q32 26 62 38" class="il-earth"/><line x1="4" y1="10" x2="60" y2="10" class="il-karman"/><text x="60" y="7" text-anchor="end" class="il-lbl">100 KM</text><path d="M32 30 L32 16" class="il-climb"/><path d="M28.5 18 L32 13 L35.5 18Z" class="il-dot"/></svg></li>
+      </ol>
+      <div class="br-cards">
+        <div class="br-card"><span class="br-tag"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg>CLUE ×1</span><p>Once a flight, see a window the answer sits in. That question scores half.</p></div>
+        <div class="br-card"><span class="br-tag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c-4 0-6.5 3-6.5 6.5 0 2.8 2.4 5.2 4.2 6.5h4.6c1.8-1.3 4.2-3.7 4.2-6.5C18.5 6 16 3 12 3z"/><path d="M9 20l3-2 3 2"/></svg>THERMAL ×2</span><p>Every 7-day streak earns one. Miss a day and it keeps your streak alive.</p></div>
+      </div>
+      <div class="why">
+        <svg class="why-arc" viewBox="0 0 320 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0 60 Q160 18 320 60" class="why-earth"/><path d="M0 34 Q160 -8 320 34" class="why-line"/></svg>
+        <span class="why-km">100 KM</span>
+        <h3>Why KÁRMÁN?</h3>
+        <p>The Kármán line, 100 km up, is where space officially begins. It's named after Theodore von Kármán, who showed that around that height the air is too thin for wings. Above it, only rockets fly, and that's your finish line.</p>
+      </div>
+      <div class="br-foot">
+        <button type="button" class="ready-ticket" id="btn-ready"><span class="rt-main"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 3.5 5 5.6 5 10.5A5 5 0 0 1 7 12.6c0-2 1-3.6 2.3-4.6.1 1.7.9 3 2.2 3.4C11 8.3 11 5 12 2z"/></svg>Ready for take-off</span><span class="rt-stub">GATE ▸ SKY</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="dev" hidden></div>
+  <div id="toast" role="status"></div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/prng.js"></script>
+<script src="js/date.js"></script>
+<script src="js/data/content.js"></script>
+<script src="js/units.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/scoring.js"></script>
+<script src="js/daily.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/access.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/vehicle.js"></script>
+<script src="js/scene.js"></script>
+<script src="js/ambient.js"></script>
+<script src="js/round.js"></script>
+<script src="js/share.js"></script>
+<script src="js/shareimg.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
