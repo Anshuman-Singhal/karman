@@ -63,18 +63,35 @@ K.ui = (() => {
 
   /** Take-off: grow the card to its round size NOW and aim the balloon at its
       final perch, so the climb is the only movement (no settle afterwards). */
+  /* Take-off choreography: the home card slides away, the balloon has the sky to
+     itself for the lift-off, then the question card rises into place. */
   function prepareLaunch() {
     const dock = $('dock');
-    const h0 = dock.getBoundingClientRect().height;
+    // Measure where the round card's top edge will be, without showing it.
     dock.style.transition = 'none';
     document.body.dataset.screen = 'round';
     const finalTop = dock.getBoundingClientRect().top;
-    dock.style.height = `${h0}px`;
+    document.body.dataset.screen = 'home';
     void dock.offsetHeight;
     dock.style.transition = '';
-    dock.style.height = '';
     $('screen-home').classList.add('leaving-slow');
+    dock.classList.add('away');
     K.scene.planAnchor(finalTop - 10);
+  }
+  /** After lift-off: size the card for the round while it's off-screen… */
+  function dockReady() {
+    const dock = $('dock');
+    dock.style.transition = 'none';
+    document.body.dataset.screen = 'round';
+    void dock.offsetHeight;
+    dock.style.transition = '';
+  }
+  /** …then let it rise. */
+  function dockIn() {
+    const dock = $('dock');
+    if (!dock.classList.contains('away')) return Promise.resolve();
+    dock.classList.remove('away');
+    return new Promise((done) => setTimeout(done, K.fx.reduced() ? 0 : 420));
   }
 
   /** The home strip never scrolls: if its content is taller than the dock
@@ -91,6 +108,7 @@ K.ui = (() => {
 
   /** Keep the basket just above the gondola. */
   function anchorBalloon(instant) {
+    if ($('dock').classList.contains('away')) return;   // mid take-off: the lift plan owns the balloon
     const top = $('dock').getBoundingClientRect().top;
     K.scene.setAnchor(top - 10, instant === true);
   }
@@ -133,86 +151,65 @@ K.ui = (() => {
   }
 
   /* ------------------------------------------------------------ results: today's pilots
-     One plain histogram of today's scores: 25-point bars from 0 to the maximum
-     (500), numbered along the bottom. Your bar is amber with your balloon on it. */
-  const HIST = { w: 358, h: 122, base: 98, top: 22, left: 6, right: 352, bin: 25 };
-  const binsN = () => Math.ceil(S.MAX_PTS / HIST.bin);           // 20
+     The live histogram of today's scores, printed on the paper pass:
+     25-point bars from 0 to MAX_PTS (700), numbered every 100 along the
+     bottom. Your bar is amber; a YOU flag on the top row (where nothing else
+     is ever drawn, so it can't collide) points down to it. No median.
+     It is rebuilt every time results open, so a pilot who comes back later
+     in the day sees the crowd as it is now. */
+  const HIST = { w: 358, h: 110, flag: 15, top: 26, base: 86, left: 4, right: 354, bin: 25 };
+  const binsN = () => Math.ceil(S.MAX_PTS / HIST.bin);           // 28
 
   function binOf(pts) { return clamp(Math.floor(pts / HIST.bin), 0, binsN() - 1); }
 
-  function histogram(record, stats) {
+  function histogram(record, stats, alone) {
     const bins = binsN();
     // Re-bin the server's buckets (any step) by bucket centre.
     const counts = new Array(bins).fill(0);
     for (const [from, c] of stats.buckets) counts[binOf(from + stats.step / 2)] += c;
     const mine = binOf(record.pts);
+    if (!counts[mine]) counts[mine] = 1;        // you're in today's crowd even if the server hasn't counted you yet
     const peak = Math.max(1, ...counts);
     const slot = (HIST.right - HIST.left) / bins;
-    const barW = slot - 3;
-    const X = (i) => HIST.left + i * slot + 1.5;
-    const H = (c) => (c ? Math.max(3, (c / peak) * (HIST.base - HIST.top)) : 0);
+    const barW = slot - 2.6;
+    const X = (i) => HIST.left + i * slot + 1.3;
+    const full = HIST.base - HIST.top;
+    const H = (c) => (alone ? 22 : c ? Math.max(2.5, (c / peak) * full) : 0);
     const xOfPts = (p) => HIST.left + (p / S.MAX_PTS) * (HIST.right - HIST.left);
 
     const bars = counts.map((c, i) => {
+      if (!c && i !== mine) return '';
       const h = i === mine ? Math.max(H(c), 6) : H(c);
-      return `<rect x="${X(i).toFixed(1)}" y="${(HIST.base - h).toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="2" class="h-bar${i === mine ? ' mine' : ''}" style="--i:${i}"/>`;
+      return `<rect x="${X(i).toFixed(1)}" y="${(HIST.base - h).toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" class="h-bar${i === mine ? ' mine' : ''}" style="--i:${i}"/>`;
     }).join('');
 
-    // Median, in points
-    let acc = 0, medianPts = 0;
-    for (let i = 0; i < counts.length; i++) { acc += counts[i]; if (acc >= stats.players / 2) { medianPts = i * HIST.bin + HIST.bin / 2; break; } }
-    const mx = xOfPts(medianPts);
-    const median = `<line x1="${mx.toFixed(1)}" x2="${mx.toFixed(1)}" y1="${HIST.top - 6}" y2="${HIST.base}" class="h-median"/>
-      <text x="${(mx + 4).toFixed(1)}" y="${HIST.top - 8}" class="h-mlabel">MEDIAN ${Math.round(medianPts)}</text>`;
-
-    // Axis numbers: 0 … MAX_PTS
+    // Axis: a baseline, a tick and a number every 100 points.
     const ticks = [];
     for (let p = 0; p <= S.MAX_PTS; p += 100) {
       const x = xOfPts(p);
       const anchor = p === 0 ? 'start' : p === S.MAX_PTS ? 'end' : 'middle';
-      ticks.push(`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${HIST.base + 1}" y2="${HIST.base + 4}" class="h-tickline"/><text x="${x.toFixed(1)}" y="${HIST.base + 15}" text-anchor="${anchor}" class="h-num">${p}</text>`);
+      ticks.push(`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${HIST.base}" y2="${HIST.base + 4}" class="h-tickline"/><text x="${x.toFixed(1)}" y="${HIST.base + 16}" text-anchor="${anchor}" class="h-num">${p}</text>`);
     }
 
-    // Your balloon on your bar, with a small opaque "YOU" pill above it.
+    // YOU: a small ink flag on the reserved top row, a dotted line down to your bar.
     const bx = X(mine) + barW / 2;
     const by = HIST.base - Math.max(H(counts[mine]), 6);
-    const pillW = 30, pillH = 13;
-    const px = clamp(bx - pillW / 2, HIST.left, HIST.right - pillW);
-    const py = Math.max(0, by - 22 - pillH);
+    const flagW = 34;
+    const fx = clamp(bx - flagW / 2, HIST.left, HIST.right - flagW);
     const you = `<g class="h-you">
-        <line x1="${bx.toFixed(1)}" x2="${bx.toFixed(1)}" y1="${(by - 7).toFixed(1)}" y2="${(by - 2).toFixed(1)}" class="h-string"/>
-        <circle cx="${bx.toFixed(1)}" cy="${(by - 13).toFixed(1)}" r="6.5" class="h-balloon"/>
-        <path d="M${(bx - 6.5).toFixed(1)} ${(by - 13).toFixed(1)}h13" class="h-stripe"/>
-      </g>
-      <g class="h-youtag"><rect x="${px.toFixed(1)}" y="${py.toFixed(1)}" width="${pillW}" height="${pillH}" rx="6.5" class="h-pill"/>
-      <text x="${(px + pillW / 2).toFixed(1)}" y="${(py + 9.2).toFixed(1)}" text-anchor="middle" class="h-youlabel">YOU</text></g>`;
+        <line x1="${bx.toFixed(1)}" x2="${bx.toFixed(1)}" y1="${HIST.flag + 1}" y2="${(by - 3).toFixed(1)}" class="h-lead"/>
+        <rect x="${fx.toFixed(1)}" y="0" width="${flagW}" height="${HIST.flag}" rx="3" class="h-flag"/>
+        <path d="M${(bx - 3.5).toFixed(1)} ${HIST.flag - 0.5}l3.5 4l3.5 -4z" class="h-flag"/>
+        <text x="${(fx + flagW / 2).toFixed(1)}" y="${(HIST.flag / 2 + 3.4).toFixed(1)}" text-anchor="middle" class="h-youlabel">YOU</text>
+      </g>`;
 
-    return `<svg viewBox="0 0 ${HIST.w} ${HIST.h}" class="hist-svg" role="img" aria-label="Today's scores from 0 to ${S.MAX_PTS} points. You scored ${record.pts}.">
+    const label = alone ? `Only your flight so far today: ${record.pts} points.`
+      : `Today's scores from 0 to ${S.MAX_PTS} points across ${stats.players.toLocaleString('en-US')} pilots. You scored ${record.pts}.`;
+    return `<svg viewBox="0 0 ${HIST.w} ${HIST.h}" class="hist-svg" role="img" aria-label="${label}">
+      <g class="h-bars">${bars}</g>
       <line x1="${HIST.left}" x2="${HIST.right}" y1="${HIST.base + 0.5}" y2="${HIST.base + 0.5}" class="h-axis"/>
-      ${median}<g class="h-bars">${bars}</g>${ticks.join('')}${you}
+      ${ticks.join('')}${you}
     </svg>`;
-  }
-
-  /** One honest sentence for everyone, with a little warmth for edge cases. */
-  function rankSentence(record, stats, pct) {
-    const players = stats.players;
-    const higher = stats.buckets.filter(([from]) => from > record.pts).reduce((a, b) => a + b[1], 0);
-    if (players <= 1) return 'First balloon up today.';
-    if (record.pts === 0) return 'Grounded today. The meadow resets at midnight.';
-    if (higher === 0) return 'Highest balloon in the sky today.';
-    return `Higher than <b data-count="${pct}">${pct}%</b> of today's pilots.`;
-  }
-
-  function countUp(el) {
-    const target = Number(el.dataset.count);
-    if (!target || K.fx.reduced()) return;
-    const t0 = performance.now();
-    const step = (now) => {
-      const p = Math.min(1, (now - t0) / 600);
-      el.textContent = `${Math.round(target * (1 - Math.pow(1 - p, 3)))}%`;
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
   }
 
   /* ------------------------------------------------------------ results: passport row
@@ -350,15 +347,16 @@ K.ui = (() => {
 
   let lastStats = null;
 
-  /** Today's pilots as ONE percentile: a figure, a sentence, a gauge.
+  /** Today's pilots: one sentence (with a figure) over the live histogram.
       Never shows a number it can't stand behind:
         no stats (offline, Unlimited, no backend)  → nothing at all
-        only you so far                            → one line, no figure
-        0 points                                   → "grounded", no figure        */
+        only you so far                            → your single bar, "first pilot up"
+        0 points                                   → "grounded", no figure, chart kept   */
   function renderPercentile(record, stats) {
     const box = $('pctl');
-    box.classList.remove('sweep');
-    if (!stats || !stats.players) { box.hidden = true; return; }
+    const chart = $('crowd-chart');
+    chart.classList.remove('draw');
+    if (!stats || !stats.players) { box.hidden = true; chart.innerHTML = ''; return; }
     const players = stats.players;
     const many = players.toLocaleString('en-US');
     const higher = stats.buckets.filter(([from]) => from > record.pts).reduce((a, b) => a + b[1], 0);
@@ -370,18 +368,18 @@ K.ui = (() => {
     else if (record.pts === 0) { kind = 'grounded'; txt = said = 'Grounded today. The meadow resets at midnight.'; }
     else if (higher === 0) { txt = `of today’s <b>${many}</b> pilots flew lower. Nobody flew higher.`; said = `Highest balloon of today's ${many} pilots.`; }
     box.dataset.kind = kind;
-    box.style.setProperty('--p', kind === 'rank' ? (pct / 100).toFixed(3) : '0');
     box.setAttribute('aria-label', said);
     $('pctl-num').textContent = String(pct);
-    $('pctl-txt').innerHTML = txt + (stats.sample ? ' <span class="sample">Sample</span>' : '');
+    $('pctl-txt').innerHTML = (kind === 'rank' ? `<span class="sr-only">${pct}% </span>` : '') + txt + (stats.sample ? ' <span class="sample">Sample</span>' : '');
+    chart.innerHTML = histogram(record, stats, kind === 'first');
     box.hidden = false;
+    void chart.offsetWidth;
+    chart.classList.add('draw');
     if (kind === 'rank' && !K.fx.reduced()) {
-      void box.offsetWidth;
-      box.classList.add('sweep');
       const el = $('pctl-num');
-      const t0 = performance.now() + 250;
+      const t0 = performance.now() + 150;
       const step = (now) => {
-        const p = Math.min(1, Math.max(0, (now - t0) / 900));
+        const p = Math.min(1, Math.max(0, (now - t0) / 800));
         el.textContent = String(Math.round(pct * (1 - Math.pow(1 - p, 3))));
         if (p < 1) requestAnimationFrame(step);
       };
@@ -391,8 +389,11 @@ K.ui = (() => {
   }
 
   /** Fetch today's crowd, then show the percentile. */
+  let statsTicket = 0;
   async function applyStats(record, n) {
+    const mine = ++statsTicket;
     const stats = await K.stats.get(n);
+    if (mine !== statsTicket) return;           // results were reopened meanwhile; the newer fetch wins
     lastStats = stats;
     renderPercentile(record, stats);
   }
@@ -430,7 +431,7 @@ K.ui = (() => {
     const recap = $('recap');
     recap.innerHTML = record.rounds.map((_, i) => answerRow(record, i)).join('');
     recap.classList.toggle('reveal-seq', Boolean(isFresh));
-    if (mode === 'unlimited') { $('pctl').hidden = true; lastStats = null; } else applyStats(record, n);
+    if (mode === 'unlimited') { statsTicket++; $('pctl').hidden = true; lastStats = null; } else applyStats(record, n);
 
     $('res-streak').textContent = `${streak}-day streak · ${thermals} thermal${thermals === 1 ? '' : 's'}`;
   }
@@ -751,7 +752,7 @@ K.ui = (() => {
   }
 
   return {
-    init, show, topbar, setAltitude, home, results, closed, prepareLaunch, refreshAccess, startGoogle,
+    init, show, topbar, setAltitude, home, results, closed, prepareLaunch, dockReady, dockIn, refreshAccess, startGoogle,
     calStep(d) { calM += d; if (calM < 0) { calM = 11; calY -= 1; } if (calM > 11) { calM = 0; calY += 1; } renderArchive(); },
     openSheet, closeSheet, dev, anchorBalloon, renderMenu,
     get lastRecord() { return lastRecord; },

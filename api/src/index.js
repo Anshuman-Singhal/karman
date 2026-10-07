@@ -63,7 +63,8 @@ async function getStats(n, env, ctx, request) {
   // Cache each flight's stats at the edge for 60 s, so a viral day costs one query a minute.
   const cache = caches.default;
   const key = new Request(new URL(`/api/stats/${n}`, request.url).toString());
-  const hit = await cache.match(key);
+  // ?fresh=1 right after your own submit: skip the cached copy so you see yourself.
+  const hit = new URL(request.url).searchParams.has('fresh') ? null : await cache.match(key);
   if (hit) return hit;
 
   // Only count rows recorded from the day before this flight's date onward, so

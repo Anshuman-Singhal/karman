@@ -94,6 +94,10 @@
   --paper: #F3E9D6;
 }
 
+/* Desktop: tall enough for the question AND the reveal, so the card never scrolls */
+@media (min-width: 720px) {
+  :root { --gondola-h: clamp(464px, 60vh, 480px); }
+}
 /* Phones: a taller card, so the keypad fits without scrolling */
 @media (max-width: 719px) {
   :root { --gondola-h: clamp(420px, 58vh, 500px); }

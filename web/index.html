@@ -156,13 +156,13 @@
         </div>
         <p class="res-tier"><span id="res-km"></span> · <em id="res-tier"></em></p>
 
-        <!-- Today's pilots: one percentile, one gauge (ui.js renderPercentile) -->
+        <!-- Today's pilots: one percentile sentence over the live histogram (ui.js renderPercentile) -->
         <div class="pctl" id="pctl" hidden>
           <div class="pctl-read">
             <span class="pctl-fig" aria-hidden="true"><b id="pctl-num">0</b><i>%</i></span>
             <p class="pctl-txt" id="pctl-txt"></p>
           </div>
-          <div class="pctl-gauge" aria-hidden="true"><i class="pg-lit"></i><i class="pg-needle"></i></div>
+          <div class="crowd-chart" id="crowd-chart"></div>
         </div>
 
         <!-- Six legs, tap one to see its answer -->
@@ -171,6 +171,8 @@
         <div class="leg-detail" id="leg-detail"></div>
 
         <p class="res-note" id="res-note"></p>
+        <!-- Phone: the pass tears off here; everything below is the stub you act on -->
+        <div class="res-tear" aria-hidden="true"></div>
         <!-- Keep flying: an Unlimited run of 7 new questions -->
         <button type="button" class="keep-ticket" id="btn-keep">
           <span class="kt-main"><b>Keep flying</b><small id="keep-sub">7 new questions</small></span>

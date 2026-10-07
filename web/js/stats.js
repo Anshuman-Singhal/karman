@@ -13,14 +13,21 @@
 
 K.stats = (() => {
   const C = K.CONFIG;
-  const cache = new Map();
+  const cache = new Map();          // n → { data, at }
+  const FRESH_MS = 60 * 1000;
 
   const live = () => Boolean(C.STATS);
   const sampling = () => !live() && C.DEV && C.SAMPLE_STATS;
 
   /** Send a finished flight. Fire-and-forget; failures are ignored. */
-  async function submit(record) {
-    if (!live()) return;
+  let pending = Promise.resolve();
+  const justSent = new Set();        // flights you just submitted: next read skips the edge cache   // stats.get waits for your own result to land first
+  function submit(record) {
+    if (!live()) return pending;
+    pending = send(record);
+    return pending;
+  }
+  async function send(record) {
     try {
       await fetch(`${C.API_BASE}/api/result`, {
         method: 'POST',
@@ -35,6 +42,7 @@ K.stats = (() => {
         keepalive: true,
       });
       cache.delete(record.n);
+      justSent.add(record.n);
     } catch (e) { /* offline: stats just won't include this flight */ }
   }
 
@@ -49,15 +57,20 @@ K.stats = (() => {
 
   /** Today's distribution, or null when unavailable. */
   async function get(n) {
+    await pending;
     if (sampling()) return sample(n);
     if (!live()) return null;
-    if (cache.has(n)) return cache.get(n);
+    // Short-lived: the crowd keeps growing all day, so reopening results later
+    // (or after the tab sat open) refetches instead of showing a morning snapshot.
+    const hit = cache.get(n);
+    if (hit && Date.now() - hit.at < FRESH_MS) return hit.data;
     try {
-      const res = await fetch(`${C.API_BASE}/api/stats/${n}`);
+      const fresh = justSent.delete(n) ? '?fresh=1' : '';
+      const res = await fetch(`${C.API_BASE}/api/stats/${n}${fresh}`);
       if (!res.ok) return null;
       const data = await res.json();
       if (!data || !data.players) return null;
-      cache.set(n, data);
+      cache.set(n, { data, at: Date.now() });
       return data;
     } catch (e) {
       return null;

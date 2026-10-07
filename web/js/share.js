@@ -43,7 +43,17 @@ K.share = (() => {
       await navigator.clipboard.writeText(str);
       return 'copied';
     } catch (e) {
-      return 'manual'; // caller selects the text so the player can copy it
+      // Older browsers / no clipboard permission: the classic hidden-textarea copy.
+      try {
+        const ta = Object.assign(document.createElement('textarea'), { value: str, readOnly: true });
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        ta.remove();
+        if (ok) return 'copied';
+      } catch (e2) { /* fall through */ }
+      return 'manual'; // caller tells the player to copy it by hand
     }
   }
 

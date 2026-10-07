@@ -83,20 +83,14 @@
     btn.classList.add('torn');
     K.audio.tick();
     const str = K.share.text(last.record, last.streak);
-    let result = 'manual';
-    try {
-      let file = null;
-      if (navigator.canShare) {
-        const blob = await K.shareImage.render(last.record, last.n, last.streak, K.ui.lastStats);
-        const f = blob && new File([blob], `karman-${last.n}.png`, { type: 'image/png' });
-        if (f && navigator.canShare({ files: [f] })) file = f;
-      }
-      result = await K.share.share(str, file);
-    } catch (e) {
-      result = await K.share.copy(str);
-    }
+    // Copy first, inside the tap, so the text is always on the clipboard.
+    const result = await K.share.copy(str);
     if (result === 'copied') K.fx.toast('Flight log copied. Paste it in the group chat.');
-    if (result === 'manual') K.fx.toast('Couldn\'t reach the clipboard. Long-press to copy.');
+    else K.fx.toast('Couldn\'t reach the clipboard. Long-press to copy.');
+    // Phones also get the share sheet (text only; the picture has its own ticket).
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+      try { await navigator.share({ text: str }); } catch (e) { /* cancelled: it's already copied */ }
+    }
     setTimeout(() => { sharing = false; }, 400);
   });
 

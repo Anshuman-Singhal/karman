@@ -220,7 +220,9 @@ K.game = (() => {
     }, 110);
     await climb;
     clearInterval(trail);
+    K.ui.dockReady();
     startRound(false);
+    K.ui.dockIn();
   }
 
   /* ------------------------------------------------------------ rounds */

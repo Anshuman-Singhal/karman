@@ -2006,3 +2006,336 @@ body[data-screen="round"] .menu-btn .mb-live { display: block; }
 @media (prefers-reduced-motion: reduce) {
   .menu-wrap .sheet { transition: opacity 120ms linear; transform: none; }
 }
+
+/* ================= v12 · paper results pass, cream Lock ticket, histogram (keep last) ================= */
+/* ================= v12 · paper Lock ticket, paper results pass, live histogram (keep last) ================= */
+/* ==========================================================================
+   KÁRMÁN · v12
+   Append to the END of web/css/ui.css (after the v11 block).
+
+   1  Lock it in / Next leg: cream boarding-pass stock, navy ink, the bet on
+      the tear-off stub. States: empty (blank stock), ready, last 5 s (ember
+      ink + ember priority edge), reveal (Next leg).
+   2  Results card: a paper boarding pass. Cream stock, faint fibre, navy ink.
+      Every dark-glass colour inside #screen-results is re-pointed at ink
+      through the custom properties, so older rules follow automatically.
+   3  Today's pilots: the live histogram, printed in ink, your bar in amber.
+   4  Legs + answers on paper. Desktop answers are ruled like a ledger, the
+      waypoint number sitting on each rule.
+   5  Tickets, passport and footer on paper.
+   ========================================================================== */
+
+:root {
+  --stock: #F3E9D6;          /* = --paper */
+  --stock-hi: #FAF4E8;
+  --stock-lo: #E8DAC0;
+  --ink: #14213D;            /* the share ticket's navy */
+  --ink-2: rgba(20, 33, 61, 0.72);
+  --ink-3: rgba(20, 33, 61, 0.52);
+  --ink-rule: rgba(20, 33, 61, 0.14);
+  --amber-ink: #B4600C;      /* amber that reads as text on cream */
+  --ember-ink: #CC4218;      /* ember that reads as text on cream */
+}
+
+/* ---------------------------------------------------------------- 1 · Lock / Next ticket */
+.round .key-lock, .round .next-ticket {
+  --stock-g: linear-gradient(180deg, #FBF5EA 0%, #F3E9D6 58%, #EBDDC4 100%);
+  background:
+    linear-gradient(90deg, transparent var(--cut), rgba(20, 33, 61, 0.055) var(--cut)),
+    var(--stock-g);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), inset 0 -2px 0 rgba(120, 88, 36, 0.2);
+  filter: none;
+}
+.round .key-lock::after, .round .next-ticket::after { border-left-color: rgba(20, 33, 61, 0.32); }
+.round .key-lock .kl-main, .round .next-ticket .kl-main {
+  gap: 9px; font: 800 19px/1 var(--f-display); letter-spacing: 0.09em; text-transform: uppercase;
+}
+.round .key-lock .kl-stub, .round .next-ticket .kl-stub {
+  gap: 7px; font: 800 18px/1 var(--f-display); letter-spacing: 0.04em; color: var(--ink);
+}
+.round .kl-stub .kl-pip {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--chip, var(--c-snug)); box-shadow: 0 0 0 1.5px var(--ink);
+}
+.round .key-lock:hover, .round .next-ticket:hover { filter: brightness(1.025); }
+.round .key-lock:active, .round .next-ticket:active {
+  transform: translateY(1px) scale(0.99);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), inset 0 0 0 transparent;
+}
+.round .key-lock:focus-visible, .round .next-ticket:focus-visible {
+  outline: none; box-shadow: inset 0 0 0 2px var(--stock-hi), inset 0 0 0 3.5px var(--ink);
+}
+
+/* Empty: the same stock, unprinted and in shadow. Clearly a ticket, clearly not ready. */
+.round.empty .key-lock {
+  --stock-g: linear-gradient(180deg, #D0C6B4 0%, #C3B8A4 100%);
+  background:
+    linear-gradient(90deg, transparent var(--cut), rgba(20, 33, 61, 0.04) var(--cut)),
+    var(--stock-g);
+  color: rgba(20, 33, 61, 0.5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28); filter: none;
+}
+.round.empty .key-lock::after { border-left-color: rgba(20, 33, 61, 0.22); }
+.round.empty .key-lock .kl-main { font: 600 15px/1 var(--f-ui); letter-spacing: 0.01em; text-transform: none; }
+.round.empty .key-lock .kl-stub { color: rgba(20, 33, 61, 0.42); }
+.round.empty .kl-pip { opacity: 1; background: transparent; box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.38); }
+
+/* Last 5 s: ember ink and an ember priority edge down the left, like a
+   rush-handling strip printed on the pass. No orange slab. */
+.round.t-low .key-lock {
+  --stock-g: linear-gradient(180deg, #FDF2E6 0%, #F6E5D0 58%, #EED6BD 100%);
+  background:
+    linear-gradient(90deg, var(--ember) 0 6px, transparent 6px),
+    repeating-linear-gradient(135deg, rgba(255, 106, 61, 0.9) 0 3px, transparent 3px 6px) 6px 0 / 4px 100% no-repeat,
+    linear-gradient(90deg, transparent var(--cut), rgba(204, 66, 24, 0.07) var(--cut)),
+    var(--stock-g);
+  color: var(--ember-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1.5px rgba(204, 66, 24, 0.55);
+}
+.round.t-low .key-lock::after { border-left-color: rgba(204, 66, 24, 0.5); }
+.round.t-low .key-lock .kl-stub { color: var(--ember-ink); }
+.round.t-low .key-lock .kl-pip { box-shadow: 0 0 0 1.5px var(--ember-ink); }
+.round.t-low.empty .key-lock {
+  --stock-g: linear-gradient(180deg, #CDBDAA 0%, #C0AE99 100%);
+  background:
+    linear-gradient(90deg, var(--ember) 0 6px, transparent 6px),
+    linear-gradient(90deg, transparent var(--cut), rgba(20, 33, 61, 0.04) var(--cut)),
+    var(--stock-g);
+  color: rgba(160, 50, 20, 0.75); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+/* the edge beats with the dial, once a second */
+.round.t-low:has(.round-timer.beat) .key-lock { animation: lockBeat 1s var(--ease-out); }
+@keyframes lockBeat { 0% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 2.5px rgba(255, 106, 61, 0.8); } 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1.5px rgba(204, 66, 24, 0.55); } }
+
+/* Next leg (reveal) rides the same stock; its stub says where you go next. */
+.round .next-ticket .kl-main { font-size: 20px; }
+.round .next-ticket .kl-stub { font-size: 15px; letter-spacing: 0.1em; color: var(--ink-2); }
+.round .next-ticket .kl-stub svg { width: 15px; height: 15px; stroke: var(--ink); }
+
+@media (pointer: fine) {
+  .round .key-lock { height: 54px; min-height: 54px; --cut: 80%; }
+  .round .key-lock .kl-main { font-size: 21px; }
+  .round.empty .key-lock .kl-main { font-size: 16px; }
+  .round .next-ticket { --cut: 80%; }
+}
+
+/* ---------------------------------------------------------------- 2 · results: a paper pass */
+body[data-screen="results"] #dock {
+  background: var(--stock);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  border-top-color: transparent;
+  box-shadow: 0 -18px 50px rgba(2, 4, 14, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+body[data-screen="results"] #dock::before, body[data-screen="results"] #dock::after { display: none; }
+
+/* The stock: a soft light falloff, a faint fibre speckle (three offset dot
+   lattices with co-prime pitches, so the pattern never visibly repeats) and a
+   barely-there edge tone. It scrolls with the content, like real paper. */
+#screen-results {
+  --text: var(--ink);
+  --text-dim: var(--ink-2);
+  --text-faint: var(--ink-3);
+  --hairline: var(--ink-rule);
+  --hairline-strong: rgba(20, 33, 61, 0.24);
+  --amber: var(--amber-ink);
+  --ember: var(--ember-ink);
+  /* chip colours, tuned to read on cream (each also gets an ink edge where drawn) */
+  --c-wide: #FFFFFF;
+  --c-fair: #4A90F2;
+  --c-snug: #34B97C;
+  --c-tight: #F2C531;
+  --c-pinpoint: #EE4A4F;
+  --c-miss: #8E95A6;
+  color: var(--ink);
+  background:
+    /* light falls on the top-left of the stock */
+    radial-gradient(130% 60% at 12% 0%, rgba(255, 252, 244, 0.7), transparent 62%),
+    /* mottling: broad, uneven tone, the way real card stock absorbs ink */
+    radial-gradient(38% 26% at 82% 34%, rgba(214, 190, 146, 0.16), transparent 70%),
+    radial-gradient(46% 30% at 18% 72%, rgba(214, 190, 146, 0.13), transparent 70%),
+    radial-gradient(30% 22% at 64% 88%, rgba(255, 250, 238, 0.4), transparent 70%),
+    /* fibre: short, faint strands, each in its own odd-sized tile so the
+       layers drift against each other and never line up into a grid */
+    radial-gradient(9px 0.8px at 31% 42%, rgba(130, 98, 46, 0.16), transparent) 0 0 / 97px 41px,
+    radial-gradient(12px 0.7px at 62% 18%, rgba(130, 98, 46, 0.12), transparent) 0 0 / 131px 59px,
+    radial-gradient(0.8px 8px at 44% 66%, rgba(130, 98, 46, 0.12), transparent) 0 0 / 59px 113px,
+    radial-gradient(14px 0.9px at 70% 70%, rgba(255, 255, 255, 0.5), transparent) 0 0 / 173px 83px,
+    radial-gradient(0.9px 10px at 20% 30%, rgba(255, 255, 255, 0.45), transparent) 0 0 / 151px 127px,
+    linear-gradient(180deg, transparent 70%, rgba(214, 196, 160, 0.22));
+  background-attachment: local;
+}
+#screen-results ::selection { background: rgba(255, 181, 71, 0.45); }
+
+#screen-results .eyebrow { color: var(--ember-ink); letter-spacing: 0.1em; }
+#screen-results .res-alt { color: var(--ink); text-shadow: none; }
+#screen-results .res-unit { color: var(--amber-ink); }
+#screen-results .res-tier { color: var(--ink-2); font: 500 15px/1.2 var(--f-ui); }
+#screen-results .res-tier em { font: italic 400 1.55rem/1 var(--f-serif); color: var(--ink); }
+#screen-results .res-note { color: var(--amber-ink); font-weight: 600; }
+#screen-results .sample { border-color: rgba(20, 33, 61, 0.35); color: var(--ink-3); }
+
+/* ---------------------------------------------------------------- 3 · today's pilots */
+.pctl { margin-top: 20px; padding-top: 16px; border-top-color: var(--ink-rule); }
+#screen-results .pctl-fig { color: var(--ink); }
+#screen-results .pctl-fig i { color: var(--amber-ink); }
+#screen-results .pctl-txt { color: var(--ink-2); }
+#screen-results .pctl-txt b { color: var(--ink); }
+.pctl[data-kind="first"] .pctl-read { min-height: 0; }
+
+.crowd-chart { margin: 14px 0 0; }
+.crowd-chart:empty { display: none; }
+.hist-svg { display: block; width: 100%; height: auto; overflow: visible; }
+#screen-results .h-axis { stroke: rgba(20, 33, 61, 0.55); stroke-width: 1; }
+#screen-results .h-tickline { stroke: rgba(20, 33, 61, 0.45); stroke-width: 1; }
+#screen-results .h-num { font: 600 9px var(--f-ui); fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+#screen-results .h-bar { fill: rgba(20, 33, 61, 0.26); transform-box: fill-box; transform-origin: 50% 100%; transform: scaleY(0); }
+#screen-results .h-bar.mine { fill: var(--amber-real, #FFB547); stroke: #C26A12; stroke-width: 1; filter: none; }
+#screen-results .h-lead { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 1.5 2; opacity: 0.7; }
+#screen-results .h-flag { fill: var(--ink); }
+#screen-results .h-youlabel { font: 700 8.5px var(--f-ui); letter-spacing: 0.12em; fill: var(--stock); }
+#screen-results .h-you { opacity: 0; }
+#screen-results .crowd-chart.draw .h-bar { transform: scaleY(1); transition: transform 520ms var(--ease-out); transition-delay: calc(60ms + var(--i) * 16ms); }
+#screen-results .crowd-chart.draw .h-you { animation: hFlag 420ms var(--ease-out) 640ms forwards; }
+@keyframes hFlag { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.pctl[data-kind="first"] .h-bar.mine { fill: #FFB547; }
+
+/* ---------------------------------------------------------------- 4 · legs + answers on paper */
+/* Phone leg tiles: little paper chits */
+#screen-results .leg-tile {
+  border: 1px solid rgba(20, 33, 61, 0.13);
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.75), rgba(255, 253, 248, 0.35));
+  color: var(--ink);
+}
+#screen-results .leg-tile:hover { background: rgba(255, 253, 248, 0.95); }
+#screen-results .leg-tile.open { border-color: var(--ink); background: #FFFDF8; box-shadow: 0 0 0 1px var(--ink); }
+#screen-results .lt-no { color: var(--ink-3); }
+#screen-results .leg-tile .lt-glyph { box-shadow: 0 0 0 1px rgba(20, 33, 61, 0.55); border-width: 2px; }
+#screen-results .leg-tile.hit .lt-glyph { border-color: var(--c); background: var(--c); box-shadow: 0 0 0 1.5px var(--ink); }
+#screen-results .leg-tile.miss .lt-glyph { border-color: rgba(20, 33, 61, 0.3); box-shadow: none; }
+#screen-results .leg-tile.none .lt-glyph { border-color: rgba(20, 33, 61, 0.3); box-shadow: none; }
+#screen-results .leg-tile .lt-pts { color: var(--amber-ink); }
+#screen-results .leg-tile.miss .lt-pts, #screen-results .leg-tile.none .lt-pts { color: var(--ink-3); }
+#screen-results .legstrip-note { color: var(--ink-3); }
+
+/* One answer row, on paper */
+#screen-results .ans-q, #screen-results .recap .ans-q { color: var(--ink); }
+#screen-results .ans.none .ans-q { color: var(--ink-3); }
+#screen-results .ans-pts { color: var(--amber-ink); }
+#screen-results .ans.miss .ans-pts, #screen-results .ans.none .ans-pts { color: var(--ink-3); }
+#screen-results .ans-track { background: rgba(20, 33, 61, 0.18); }
+#screen-results .ans-track.dash { background: repeating-linear-gradient(90deg, rgba(20, 33, 61, 0.32) 0 4px, transparent 4px 8px); }
+#screen-results .ans-range { background: var(--c); box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.5); }
+#screen-results .ans.hit .ans-range { box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.55), 0 1px 0 rgba(20, 33, 61, 0.12); }
+#screen-results .ans.miss .ans-range { opacity: 1; background: color-mix(in srgb, var(--c) 40%, var(--stock)); box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.3); }
+#screen-results .ans-gmark { border-top-color: var(--ink); }
+#screen-results .ans.miss .ans-gmark { border-top-color: var(--ink-3); }
+#screen-results .ans-pin { background: var(--ink); box-shadow: 0 0 0 2px var(--stock); }
+/* YOU above, ANSWER below: ink type, the bar carries the colour */
+#screen-results .ans-you { color: var(--ink); }
+#screen-results .ans.miss .ans-you { color: var(--ink-2); }
+#screen-results .ans-you em { color: var(--ink-3); opacity: 1; }
+#screen-results .ans-you.none { color: var(--ink-3); }
+#screen-results .ans-val { color: var(--ink); }
+#screen-results .ans-val em { color: var(--ink-3); }
+#screen-results .ans-val small { color: var(--ink-2); }
+#screen-results .ans-end { background: var(--stock); color: var(--ink-2); }
+#screen-results .ans-off { color: var(--ink-3); }
+#screen-results .ans-fact, #screen-results .recap .ans-fact, #screen-results .leg-detail .ans-fact {
+  font: italic 400 15px/20px var(--f-serif); color: rgba(20, 33, 61, 0.66);
+}
+#screen-results .leg-detail .ans { border-top-color: var(--ink-rule); }
+
+/* Desktop answers: a ruled ledger. Every leg opens on a full-width hairline;
+   its waypoint number sits ON the rule at the left, its points ON the rule at
+   the right, so each entry is bounded and the eye can't slip between two. */
+#screen-results .recap::before { display: none; }
+#screen-results .recap .ans, #screen-results .recap .ans:first-child { padding: 0 0 26px; border: 0; }
+#screen-results .recap .ans:first-child { margin-top: 16px; }
+#screen-results .recap .ans-top {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; grid-template-areas: "no rule pts" "q q q";
+  gap: 0 10px; align-items: center;
+}
+#screen-results .recap .ans-top::before {   /* the rule between number and points */
+  content: ""; grid-area: rule; height: 0; border-top: 1px solid rgba(20, 33, 61, 0.22);
+}
+#screen-results .recap .ans-no {
+  grid-area: no; position: static; display: grid; place-items: center; width: 26px; height: 26px; margin: 0;
+  border-radius: 50%; outline: 0; background: transparent;
+  box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.45);
+  font: 800 14px/1 var(--f-display); color: var(--ink);
+}
+#screen-results .recap .ans.hit .ans-no { background: var(--c); box-shadow: inset 0 0 0 1.5px var(--ink); }
+#screen-results .recap .ans.none .ans-no { box-shadow: none; outline: 1.5px dashed rgba(20, 33, 61, 0.4); outline-offset: -1.5px; color: var(--ink-3); }
+#screen-results .recap .ans-pts { grid-area: pts; font-size: 21px; line-height: 21px; }
+#screen-results .recap .ans.miss .ans-pts, #screen-results .recap .ans.none .ans-pts { font-size: 18px; }
+#screen-results .recap .ans-q { grid-area: q; margin: 12px 0 0; font: 500 15.5px/22px var(--f-ui); max-width: 54ch; }
+#screen-results .recap .ans-line, #screen-results .recap .ans-fact { margin-left: 0; }
+#screen-results .recap .ans-line { margin-top: 14px; }
+#screen-results .recap-head { padding-left: 0; }
+#screen-results .recap-head h3 { color: var(--ink-2); }
+
+/* ---------------------------------------------------------------- 5 · tickets, passport, foot */
+/* Phone: the pass tears here; the actions below are its stub. */
+.res-tear {
+  position: relative; height: 0; margin: 26px -20px 0;
+  border-top: 1.5px dashed rgba(20, 33, 61, 0.28);
+}
+.res-tear::before, .res-tear::after {   /* punched ends, in the sky's colour */
+  content: ""; position: absolute; top: -8px; width: 16px; height: 16px; border-radius: 50%;
+  background: #18234A; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.res-tear::before { left: -8px; }
+.res-tear::after { right: -8px; }
+#screen-results .res-tear + .keep-ticket { margin-top: 24px; }
+
+/* Keep flying stays a night ticket: the one dark object on the paper. */
+#screen-results .keep-ticket { --amber: #FFB547; box-shadow: inset 0 0 0 1px rgba(255, 181, 71, 0.35); }
+/* (fix) the main part's padding was added on top of --cut, squeezing the stub ("FREE" clipped) */
+.keep-ticket .kt-main { box-sizing: border-box; }
+.keep-ticket .kt-stub { font-size: 20px; letter-spacing: 0.05em; white-space: nowrap; }
+
+/* Share + Copy: separate tickets lying on the pass. The row casts the shadow
+   because each ticket's mask would clip its own. */
+#screen-results .ticket-row { filter: drop-shadow(0 1px 0 rgba(20, 33, 61, 0.12)) drop-shadow(0 6px 10px rgba(80, 56, 20, 0.12)); }
+#screen-results .ticket-btn#btn-share { background: linear-gradient(180deg, #FFFDF8, #FBF5EA); box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.14); }
+#screen-results .ticket-img { background: linear-gradient(180deg, #E3EBF6, #D5E0F0); box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.12); }
+#screen-results .ticket-btn:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ink); }
+
+#screen-results .passport-row { border-color: rgba(20, 33, 61, 0.13); background: rgba(255, 253, 248, 0.55); color: var(--ink); }
+#screen-results .passport-row:hover { background: rgba(255, 253, 248, 0.9); }
+#screen-results .passport-row .ink { background: #FFFDF8; }
+#screen-results .pr-title { color: var(--ink); }
+#screen-results .pr-chev { color: var(--ink-3); }
+
+#screen-results .res-foot { color: var(--ink-3); border-top-color: var(--ink-rule); }
+#screen-results .res-foot b { color: var(--ink); }
+#screen-results .link-btn { color: var(--ink-2); text-decoration-color: rgba(20, 33, 61, 0.3); }
+#screen-results .link-btn:hover { color: var(--ink); }
+#screen-results .site-foot { color: var(--ink-3); }
+#screen-results .site-foot a { color: var(--ink-2); text-decoration-color: rgba(20, 33, 61, 0.3); }
+#screen-results .site-foot a:hover { color: var(--ember-ink); }
+
+/* ---------------------------------------------------------------- desktop: two-column pass */
+@media (min-width: 1024px) {
+  body[data-screen="results"] #dock {
+    box-shadow: 0 30px 80px rgba(2, 4, 14, 0.5), 0 2px 6px rgba(2, 4, 14, 0.25);
+  }
+  /* The grain belongs to the whole card here: columns scroll on their own. */
+  .results::before { border-left-color: rgba(20, 33, 61, 0.26); }
+  .res-tear { display: none; }
+  #screen-results .res-tear + .keep-ticket { margin-top: 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #screen-results .h-bar { transform: none !important; transition: none !important; }
+  #screen-results .h-you { opacity: 1 !important; animation: none !important; }
+  .round.t-low .key-lock { animation: none !important; }
+}
+
+/* Take-off: the home card slides out of the way for the lift-off, then the round card rises */
+#dock { transition: border-color var(--d-state), width var(--d-sheet) var(--ease-out), height var(--d-sheet) var(--ease-out), translate 420ms var(--ease-out), opacity 300ms ease; }
+#dock.away { translate: 0 calc(100% + 80px); opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { #dock { transition: none; } }
+
+/* The question card is a fixed instrument: it never scrolls (wheel or touch). */
+#screen-round { overflow: hidden; overscroll-behavior: none; }
