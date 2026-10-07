@@ -7,6 +7,8 @@
 
      🚀✈️💨🛰️🎈
 
+     karman.day
+
    One emoji per question: how sure you were if it landed, 💨 if it missed.
    Never the answers.
    ========================================================================== */
@@ -20,7 +22,7 @@ K.share = (() => {
     const legs = record.rounds.map((r) => (r.hit ? S.CHIPS[r.chip].glyph : S.MISS_GLYPH)).join('');
     const pts = record.pts != null ? record.pts : S.ptsOf(record.alt);
     const title = record.mode === 'unlimited' ? 'KÁRMÁN Unlimited' : `KÁRMÁN #${record.n}`;
-    return [`${title} 🚀`, `${pts} points`, '', legs].join('\n');
+    return [`${title} 🚀`, `${pts} points`, '', legs, '', K.CONFIG.SHARE_URL].join('\n');
   }
 
   /** Try the system share sheet (with the image when given), then the clipboard. Returns what happened. */

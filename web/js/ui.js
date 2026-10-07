@@ -77,6 +77,18 @@ K.ui = (() => {
     K.scene.planAnchor(finalTop - 10);
   }
 
+  /** The home strip never scrolls: if its content is taller than the dock
+      (narrow phone, big text setting), grow the dock to fit instead. */
+  function fitHome() {
+    const s = $('screen-home'), dock = $('dock');
+    if (s.hidden) return;
+    dock.style.removeProperty('--home-fit');
+    requestAnimationFrame(() => {
+      const extra = s.scrollHeight - s.clientHeight;
+      if (extra > 0) { dock.style.setProperty('--home-fit', `${dock.offsetHeight + extra}px`); anchorBalloon(true); }
+    });
+  }
+
   /** Keep the basket just above the gondola. */
   function anchorBalloon(instant) {
     const top = $('dock').getBoundingClientRect().top;
@@ -664,7 +676,8 @@ K.ui = (() => {
     document.querySelectorAll('.sheet-wrap').forEach((w) => {
       w.addEventListener('click', (e) => { if (e.target === w) closeSheet(w.id.replace('sheet-', '')); });
     });
-    window.addEventListener('resize', () => anchorBalloon(true));
+    window.addEventListener('resize', () => { fitHome(); anchorBalloon(true); });
+    if (document.fonts) document.fonts.ready.then(fitHome);
   }
 
   return {

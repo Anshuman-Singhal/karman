@@ -31,11 +31,13 @@ K.round = (() => {
   let onChange = () => {};
   let ruler = null;
   let clueArmTimer = 0;
+  let lastSec = 0;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
 
   /* ------------------------------------------------------------ setup */
   function init() {
     els = {
-      card: $('screen-round'), fuse: $('fuse'), legs: $('legs'), cat: $('round-cat'),
+      card: $('screen-round'), timerLive: $('timer-live'), legs: $('legs'), cat: $('round-cat'),
       timer: $('round-timer'), clue: $('btn-clue'), q: $('round-q'), hint: $('round-hint'),
       lo: $('r-lo'), hi: $('r-hi'), guess: $('guess-value'), unitBtn: $('unit-toggle'),
       ticks: $('scale-ticks'), track: $('track'), band: $('band'), needle: $('needle'),
@@ -73,9 +75,12 @@ K.round = (() => {
     lock.type = 'button';
     lock.id = 'btn-lock';
     lock.className = 'btn-primary key-lock';
-    lock.textContent = 'Lock it in';
+    lock.innerHTML = '<span class="kl-main">Lock it in</span><span class="kl-stub"></span>';
     els.pad.appendChild(lock);
     els.lock = lock;
+    els.lockMain = lock.querySelector('.kl-main');
+    els.lockStub = lock.querySelector('.kl-stub');
+    els.timerNum = els.timer.querySelector('b');
 
     els.unitBtn.addEventListener('click', toggleUnits);
     els.clue.addEventListener('click', clueTap);
@@ -86,21 +91,27 @@ K.round = (() => {
     fact = opts.fact;
     view = K.units.view(fact);
     ctx = {
-      clueUsed: Boolean(opts.clueUsed), clueHere: Boolean(opts.clueHere), onClue: opts.onClue,
+      clueUsed: Boolean(opts.clueUsed), clueHere: Boolean(opts.clueHere), clueLeg: opts.clueLeg, onClue: opts.onClue,
     };
     onChange = opts.onChange;
     locked = false;
 
-    els.card.classList.remove('is-locked', 'is-revealed', 'low-time', 'clued', 'show-ruler');
+    els.card.classList.remove('is-locked', 'is-revealed', 't-mid', 't-low', 'clued', 'show-ruler');
     els.band.className = 'band';
     els.needle.hidden = true;
     els.needle.className = 'needle';
     els.result.hidden = true;
     els.controls.hidden = false;
     els.pad.classList.toggle('years', fact.scale === 'year');
-    els.timer.textContent = '';
+    els.card.style.setProperty('--left', '1');
+    lastSec = K.CONFIG.ROUND_SECONDS;
+    els.timerNum.textContent = String(lastSec);
+    els.timer.setAttribute('aria-label', `${lastSec} seconds left`);
 
-    els.cat.textContent = `Leg ${opts.index + 1} · ${fact.cat}`;
+    els.cat.innerHTML = '';
+    [['leg-no', `Leg ${opts.index + 1}`], ['leg-of', `/ ${K.CONFIG.LEGS}`], ['leg-cat', fact.cat]]
+      .forEach(([c, t]) => { const s = document.createElement('span'); s.className = c; s.textContent = t; els.cat.appendChild(s); });
+    els.cat.setAttribute('aria-label', `Leg ${opts.index + 1} of ${K.CONFIG.LEGS}, ${fact.cat}`);
     els.q.textContent = fact.q;
     renderHint();
     renderClue();
@@ -116,10 +127,10 @@ K.round = (() => {
   }
 
   function renderHint() {
-    els.hint.classList.remove('is-clue');
+    els.hint.classList.remove('is-clue', 'is-cost');
     if (ctx.clueHere) {
       const w = S.clueWindow(fact);
-      els.hint.innerHTML = `<b>Clue:</b> between <b>${view.fmt(w.lo, true)}</b> and <b>${view.fmt(w.hi, true)}</b>${view.short ? ' ' + view.short : ''}`;
+      els.hint.innerHTML = `<b>Clue</b>Between <b>${view.fmt(w.lo, true)}</b> and <b>${view.fmt(w.hi, true)}</b>${view.short ? ' ' + view.short : ''}`;
       els.hint.classList.add('is-clue');
       els.card.classList.add('clued');
     } else {
@@ -127,25 +138,38 @@ K.round = (() => {
     }
   }
 
-  /** Clue chip: one per flight, needs a confirming second tap. */
+  /** Clue tag: one per flight, needs a confirming second tap. data-state: ready | armed | on | spent */
   function renderClue() {
     const c = els.clue;
     clearTimeout(clueArmTimer);
-    c.classList.remove('armed');
     c.hidden = false;
-    c.disabled = ctx.clueUsed && !ctx.clueHere;
-    c.classList.toggle('used', ctx.clueUsed);
-    c.innerHTML = ctx.clueHere ? 'Clue on · ½ pts' : ctx.clueUsed ? 'Clue used' : '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg>Clue · ½ pts';
-    c.setAttribute('aria-label', ctx.clueUsed ? 'Clue already used this flight' : 'Use your one clue for this flight. This leg scores half points');
+    const st = ctx.clueHere ? 'on' : ctx.clueUsed ? 'spent' : 'ready';
+    const leg = ctx.clueLeg != null ? ctx.clueLeg + 1 : '';
+    c.dataset.state = st;
+    c.disabled = st === 'spent';
+    c.innerHTML = {
+      ready: '<span class="ct-main">Clue</span><span class="ct-stub">½<small>pts</small></span>',
+      on: '<span class="ct-main">Clue on</span>',
+      spent: `<span class="ct-main">Used on leg ${leg}</span>`,
+    }[st];
+    c.setAttribute('aria-label', {
+      ready: 'Use your one clue for this flight. This leg scores half points',
+      on: 'Clue on. This leg scores half points',
+      spent: `Clue already used on leg ${leg}`,
+    }[st]);
   }
 
   function clueTap() {
-    if (locked || ctx.clueUsed) return;
+    if (locked || ctx.clueUsed || ctx.clueHere) return;
     const c = els.clue;
-    if (!c.classList.contains('armed')) {
-      c.classList.add('armed');
-      c.textContent = 'Halve this leg? Tap again';
-      clueArmTimer = setTimeout(renderClue, 2500);
+    if (c.dataset.state !== 'armed') {
+      c.dataset.state = 'armed';
+      c.innerHTML = '<span class="ct-main">Confirm</span><span class="ct-stub">½<small>pts</small></span>';
+      c.setAttribute('aria-label', 'Tap again to use your clue. This leg pays half');
+      els.hint.classList.remove('is-clue');
+      els.hint.classList.add('is-cost');
+      els.hint.textContent = 'Tap again to use it. This leg pays half.';
+      clueArmTimer = setTimeout(() => { renderClue(); renderHint(); }, 2500);
       return;
     }
     clearTimeout(clueArmTimer);
@@ -354,7 +378,10 @@ K.round = (() => {
       els.hi.textContent = '—';
     }
     els.lock.disabled = guess == null;
-    els.lock.textContent = guess == null ? 'Type a guess' : 'Lock it in';
+    els.lockMain.textContent = guess == null ? 'Type a guess' : 'Lock it in';
+    const bet = ctx.clueHere ? Math.round(S.legPoints(state.chip) * S.CLUE_FACTOR) : S.legPoints(state.chip);
+    els.lockStub.textContent = `+${bet}`;
+    els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `Lock it in for ${bet} points`);
 
     // Width buttons: the chosen one lights up; values halve when the clue is on.
     els.wbtnEls.forEach((b, i) => {
@@ -366,11 +393,20 @@ K.round = (() => {
   }
 
   /* ------------------------------------------------------------ timer */
+  /** The dial: --left drives the arc every frame; numerals and colour change once a second. */
   function setTimer(remaining, total) {
-    els.fuse.style.transform = `scaleX(${clamp(remaining / total, 0, 1).toFixed(4)})`;
-    const low = remaining <= 10 && !locked;
-    els.timer.textContent = low ? Math.max(0, Math.ceil(remaining)) : '';
-    els.card.classList.toggle('low-time', low);
+    if (locked) return;
+    const sec = Math.max(0, Math.ceil(remaining));
+    const frac = reduce.matches ? sec / total : remaining / total;   // stepped under reduced motion
+    els.card.style.setProperty('--left', clamp(frac, 0, 1).toFixed(4));
+    if (sec === lastSec) return;
+    lastSec = sec;
+    els.timerNum.textContent = sec;
+    els.timer.setAttribute('aria-label', `${sec} seconds left`);
+    els.card.classList.toggle('t-mid', sec <= 15 && sec > 5);
+    els.card.classList.toggle('t-low', sec <= 5);
+    if (sec <= 5 && sec > 0) { els.timer.classList.remove('beat'); void els.timer.offsetWidth; els.timer.classList.add('beat'); }
+    if (sec === 10 || sec === 5) els.timerLive.textContent = `${sec} seconds`;
   }
 
   /* ------------------------------------------------------------ reveal visuals */
@@ -378,8 +414,8 @@ K.round = (() => {
     locked = true;
     clearTimeout(clueArmTimer);
     els.card.classList.add('is-locked');
-    els.card.classList.remove('low-time');
-    els.timer.textContent = '';
+    els.card.classList.remove('t-mid', 't-low');
+    els.timer.classList.remove('beat');
   }
 
   /** The ruler slides in; the needle hovers, then drops onto the answer. */

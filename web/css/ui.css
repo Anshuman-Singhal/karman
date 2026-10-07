@@ -967,7 +967,8 @@ input[type="range"]#width {
    v6 · A short, wide home strip (the sky and balloon are the hero) and a
    boarding-pass Take off ticket.
    ========================================================================== */
-body[data-screen="home"] #dock { height: calc(208px + env(safe-area-inset-bottom, 0px)); }
+body[data-screen="home"] #dock { height: max(calc(268px + env(safe-area-inset-bottom, 0px)), var(--home-fit, 0px)); }
+#screen-home { overflow: hidden; touch-action: manipulation; }   /* a fixed strip: never scrolls */
 .home { padding-top: 18px; gap: 12px; justify-content: space-between; }
 .home-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .home-top .eyebrow { margin: 0; }
@@ -1003,7 +1004,7 @@ body[data-screen="home"] #dock { height: calc(208px + env(safe-area-inset-bottom
 .launch-ticket.fired .launch-stub { animation: tear 620ms var(--ease-out); transform-origin: 0 50%; }
 
 @media (min-width: 720px) {
-  body[data-screen="home"] #dock { width: min(680px, calc(100% - 48px)); height: 176px; }
+  body[data-screen="home"] #dock { width: min(680px, calc(100% - 48px)); height: max(204px, var(--home-fit, 0px)); }
   .home-main { flex-direction: row; align-items: flex-end; justify-content: space-between; gap: 24px; }
   .launch-ticket { width: 280px; flex: none; }
   .home .home-title { font-size: 3rem; }
@@ -1318,3 +1319,292 @@ body[data-screen="home"] #dock { height: calc(208px + env(safe-area-inset-bottom
 .pp-stamp:hover { transform: rotate(-4deg) scale(1.06); }
 .pp-stamp.thunk { animation: thunk 380ms var(--ease-out); }
 @keyframes thunk { 0% { transform: rotate(-12deg) scale(1.3); opacity: 0.6; } 55% { transform: rotate(-12deg) scale(0.92); opacity: 1; } 100% { transform: rotate(-12deg) scale(1); } }
+
+/* ================= v10 · round card "flight strip" (keep last) ================= */
+/* ==========================================================================
+   KÁRMÁN · round card v5 "flight strip"
+   Append to the END of web/css/ui.css (it overrides the v4 round rules).
+
+   The card reads like a boarding pass laid on an instrument panel:
+     stub row   chronometer dial · leg + category over a 7-waypoint route · clue tag
+     ---- perforation (notches cut into the card edge) ----
+     body       question · scale hint (serif annotation) · range readout
+                five-way width selector (one switch, not five cards)
+                keypad, with the Lock ticket whose stub shows what you're betting
+
+   Driven by round.js through:
+     .round  --left       0..1, fraction of the 30 s remaining (set every frame)
+     .round  .t-mid       ≤ 15 s left
+     .round  .t-low       ≤ 5 s left   (replaces .low-time)
+     #round-timer .beat   re-added on each whole second while .t-low
+     #btn-clue[data-state] ready | armed | on | spent
+   ========================================================================== */
+
+.round { --left: 1; --perf-y: 74px; padding-top: 14px; }
+
+/* ---------------------------------------------------------------- stub row */
+.round .round-head {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center;
+  column-gap: 12px; height: 48px; min-height: 0; margin: 0 0 24px;
+}
+
+/* Leg block: "LEG 3 / 7" over the route line */
+.round .leg-block { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.round .cat-tag {
+  display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: none;
+  font: 800 15px/1 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text); white-space: nowrap; overflow: hidden;
+}
+.round .cat-tag .leg-no { color: var(--amber); flex: none; }
+.round .cat-tag .leg-of { color: var(--text-faint); font-weight: 700; margin-left: -3px; }
+.round .cat-tag .leg-cat { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; }
+
+/* Route: 7 waypoints on a dashed line, flown legs filled in their width colour */
+.round .legs {
+  position: relative; display: flex; justify-content: space-between; align-items: center;
+  gap: 0; width: 100%; max-width: 150px; height: 8px; margin: 0; padding: 0; list-style: none;
+}
+.round .legs::before {
+  content: ""; position: absolute; left: 3px; right: 3px; top: 50%; height: 0;
+  border-top: 1.5px dashed rgba(238, 241, 250, 0.22);
+}
+.round .leg {
+  position: relative; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--night); box-shadow: inset 0 0 0 1.5px rgba(238, 241, 250, 0.3);
+  transition: background var(--d-state), box-shadow var(--d-state);
+}
+.round .leg-hit { background: var(--c); box-shadow: none; }
+.round .leg-miss { background: var(--night); box-shadow: inset 0 0 0 1.5px var(--c-miss); }
+.round .leg-miss::after { /* a small × through a missed waypoint */
+  content: ""; position: absolute; inset: 3px 0 auto; height: 1.5px; background: var(--c-miss); transform: rotate(-45deg);
+}
+.round .leg-now { width: 9px; height: 9px; background: var(--amber); box-shadow: 0 0 0 3px rgba(255, 181, 71, 0.22); }
+
+/* ---------------------------------------------------------------- chronometer
+   A 48 px aviation clock: 30 second ticks on the bezel, an arc of what's left,
+   the whole seconds in the middle. Calm (cream), mid (amber), last 5 s (ember). */
+.round .round-timer {
+  --arc: rgba(243, 233, 214, 0.9);
+  --face: rgba(6, 8, 20, 0.72);
+  position: relative; display: grid; place-items: center;
+  width: 48px; height: 48px; margin: 0; border-radius: 50%;
+  background: var(--face);
+  box-shadow: inset 0 0 0 1px var(--hairline-strong), 0 0 0 0 transparent;
+  color: var(--text); font: 800 21px/1 var(--f-display); font-variant-numeric: tabular-nums;
+  transition: box-shadow var(--d-state), color var(--d-state);
+}
+.round .round-timer:empty { display: grid; }
+/* the arc of time remaining; its leading edge moves clockwise like a sweep hand */
+.round .round-timer::before {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(rgba(238, 241, 250, 0.07) calc((1 - var(--left)) * 360deg), var(--arc) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3px));
+  transition: background var(--d-state);
+}
+/* the bezel: 30 second ticks, longer every 5 s */
+.round .round-timer::after {
+  content: ""; position: absolute; inset: 6px; border-radius: 50%;
+  background:
+    repeating-conic-gradient(from -1deg, rgba(238, 241, 250, 0.55) 0 2deg, transparent 2deg 60deg),
+    repeating-conic-gradient(from -0.6deg, rgba(238, 241, 250, 0.22) 0 1.2deg, transparent 1.2deg 12deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+          mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+}
+.round .round-timer b { position: relative; z-index: 1; font: inherit; margin: 0; color: inherit; letter-spacing: 0.01em; }
+.round.t-mid .round-timer { --arc: var(--amber); }
+.round.t-low .round-timer {
+  --arc: var(--ember); color: var(--ember);
+  box-shadow: inset 0 0 0 1px rgba(255, 106, 61, 0.55), 0 0 18px rgba(255, 106, 61, 0.35);
+}
+.round.t-low .round-timer.beat b { animation: beat 1000ms var(--ease-out); }
+@keyframes beat { 0% { transform: scale(1.22); } 35% { transform: scale(1); } }
+.round.is-locked .round-timer { opacity: 0.35; }
+
+/* ---------------------------------------------------------------- clue tag
+   A small paper luggage tag with a tear-off stub. The stub is the price. */
+.round .clue-tag {
+  --paper-ink: #14213D;
+  position: relative; display: flex; align-items: stretch;
+  height: 36px; padding: 0; border: 0; border-radius: 7px;
+  background: var(--paper); color: var(--paper-ink); cursor: pointer;
+  font: inherit;
+  -webkit-mask: radial-gradient(circle at var(--cut, 58%) 0, transparent 4px, #000 4.5px) top / 100% 51% no-repeat,
+                radial-gradient(circle at var(--cut, 58%) 100%, transparent 4px, #000 4.5px) bottom / 100% 51% no-repeat;
+          mask: radial-gradient(circle at var(--cut, 58%) 0, transparent 4px, #000 4.5px) top / 100% 51% no-repeat,
+                radial-gradient(circle at var(--cut, 58%) 100%, transparent 4px, #000 4.5px) bottom / 100% 51% no-repeat;
+  transition: transform var(--d-press) var(--ease-out), background var(--d-state), opacity var(--d-state);
+}
+.round .clue-tag::after { /* perforation */
+  content: ""; position: absolute; left: var(--cut, 58%); top: 7px; bottom: 7px;
+  border-left: 1.5px dashed rgba(20, 33, 61, 0.35);
+}
+.round .clue-tag:active { transform: scale(0.96); }
+.round .ct-main {
+  display: flex; align-items: center; gap: 6px; padding: 0 9px 0 10px;
+  font: 800 15px/1 var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+}
+.round .ct-main svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.round .ct-stub {
+  display: flex; align-items: center; justify-content: center; padding: 0 9px 0 10px;
+  font: 800 15px/1 var(--f-display); letter-spacing: 0.02em; white-space: nowrap;
+  color: rgba(20, 33, 61, 0.62); transform-origin: 0 100%;
+  transition: transform var(--d-state) var(--ease-out);
+}
+.round .ct-stub small { font: 600 10px/1 var(--f-ui); letter-spacing: 0.04em; margin-left: 3px; }
+.round .clue-tag:hover { filter: brightness(1.05); }
+
+/* armed: the tag turns amber and the stub starts to tear */
+.round .clue-tag[data-state="armed"] { background: var(--amber); --paper-ink: var(--on-amber); }
+.round .clue-tag[data-state="armed"] .ct-stub { transform: rotate(9deg) translate(1px, -1px); color: var(--on-amber); }
+.round .clue-tag[data-state="armed"]::after { border-color: rgba(29, 18, 4, 0.45); }
+
+/* on (this leg): the stub is gone, the tag hangs outlined in amber */
+.round .clue-tag[data-state="on"] {
+  background: transparent; color: var(--amber); cursor: default; -webkit-mask: none; mask: none;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 181, 71, 0.75);
+}
+.round .clue-tag[data-state="on"]::after, .round .clue-tag[data-state="on"] .ct-stub { display: none; }
+
+/* spent (used on another leg): a voided ghost of the tag */
+.round .clue-tag[data-state="spent"] {
+  background: transparent; color: var(--text-faint); cursor: default; -webkit-mask: none; mask: none;
+  box-shadow: inset 0 0 0 1px var(--hairline-strong);
+}
+.round .clue-tag[data-state="spent"]::after, .round .clue-tag[data-state="spent"] .ct-stub { display: none; }
+.round .clue-tag[data-state="spent"] .ct-main { font: 600 12px/1 var(--f-ui); letter-spacing: 0; text-transform: none; }
+.round .clue-tag:disabled { pointer-events: none; }
+
+/* ---------------------------------------------------------------- perforation
+   The dashed tear line between the stub row and the body. The notches are cut
+   into #dock itself (see body[data-screen="round"] #dock below). */
+.round .round-head::after {
+  content: ""; position: absolute; left: 0; right: 0; top: var(--perf-y); height: 0;
+  border-top: 1.5px dashed rgba(238, 241, 250, 0.13);
+  pointer-events: none;
+}
+body[data-screen="round"] #dock {
+  -webkit-mask: radial-gradient(circle at 0 var(--perf-y, 74px), transparent 9px, #000 9.5px) left / 51% 100% no-repeat,
+                radial-gradient(circle at 100% var(--perf-y, 74px), transparent 9px, #000 9.5px) right / 51% 100% no-repeat;
+          mask: radial-gradient(circle at 0 var(--perf-y, 74px), transparent 9px, #000 9.5px) left / 51% 100% no-repeat,
+                radial-gradient(circle at 100% var(--perf-y, 74px), transparent 9px, #000 9.5px) right / 51% 100% no-repeat;
+}
+
+/* ---------------------------------------------------------------- question + hint */
+.round .question { margin: 0 0 6px; font: 600 19px/1.25 var(--f-ui); letter-spacing: -0.005em; color: var(--text); text-wrap: balance; }
+.round .hint {
+  margin: 0 0 14px; font: 400 italic 16px/1.25 var(--f-serif); color: rgba(238, 241, 250, 0.62);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* the clue, once bought, replaces the scale hint as an amber dispatch */
+.round .hint.is-clue {
+  display: block; white-space: normal;
+  font: 500 15px/1.25 var(--f-ui); font-style: normal; color: #FFD48A;
+  padding: 5px 0 5px 10px; border-left: 2px solid var(--amber);
+}
+.round .hint.is-clue > b:first-child { margin-right: 6px; font: 800 13px/1 var(--f-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--amber); }
+.round .hint.is-clue b { font-weight: 700; color: #FFE6BA; }
+/* while armed: the cost, spelled out, for 2.5 s */
+.round .hint.is-cost { font: 500 15px/1.25 var(--f-ui); font-style: normal; color: var(--amber); white-space: normal; }
+
+/* ---------------------------------------------------------------- readout
+   low ├ - - - 1,896 - - - ┤ high : the scoring range as a bracketed span */
+.round .readout {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center;
+  gap: 10px; min-height: 66px; margin: 0;
+}
+.round .r-edge {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
+  font: 700 clamp(22px, 7vw, 28px)/1 var(--f-display); color: rgba(238, 241, 250, 0.8); font-variant-numeric: tabular-nums;
+}
+.round .r-edge::before, .round .r-edge::after { content: none; }
+.round .r-lo::after, .round .r-hi::before {
+  content: ""; display: block; flex: 1; min-width: 12px; height: 12px;
+  background:
+    linear-gradient(rgba(238, 241, 250, 0.4), rgba(238, 241, 250, 0.4)) var(--cap) / 1.5px 100% no-repeat,
+    repeating-linear-gradient(90deg, rgba(238, 241, 250, 0.32) 0 5px, transparent 5px 9px) center / 100% 1.5px no-repeat;
+}
+.round .r-lo::after { --cap: left center; }
+.round .r-hi::before { --cap: right center; }
+.round .r-hi { justify-content: flex-end; }
+.round .r-mid { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.round .guess { font: 800 clamp(40px, 12.5vw, 50px)/0.95 var(--f-display); color: var(--amber); font-variant-numeric: tabular-nums; text-shadow: none; }
+.round .unit-toggle { padding: 3px 7px; border: 0; background: none; font: 600 12px/1 var(--f-ui); color: var(--text-dim); border-radius: 6px; }
+.round .unit-toggle.swap { background: rgba(255, 255, 255, 0.07); }
+.round.empty .r-edge { color: rgba(238, 241, 250, 0.25); }
+
+/* ---------------------------------------------------------------- width selector
+   One five-position switch. Lit segment = your width, filled in its colour. */
+.round .wbtns {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0;
+  margin-top: 14px; padding: 3px; border-radius: 13px;
+  background: rgba(4, 6, 16, 0.45); box-shadow: inset 0 0 0 1px var(--hairline);
+}
+.round .wbtn {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  height: 48px; padding: 0 2px; border: 0; border-radius: 10px;
+  background: transparent; color: var(--text-dim); box-shadow: none; cursor: pointer;
+  transition: background var(--d-state) var(--ease-out), color var(--d-state);
+}
+.round .wbtn + .wbtn::before { /* hairline dividers between unlit segments */
+  content: ""; position: absolute; left: 0; top: 13px; bottom: 13px; width: 1px; background: var(--hairline);
+}
+.round .wbtn.on::before, .round .wbtn.on + .wbtn::before { display: none; }
+.round .wbtn span { font: 600 11.5px/1 var(--f-ui); }
+.round .wbtn b { font: 800 17px/1 var(--f-display); letter-spacing: 0.02em; color: var(--c); font-variant-numeric: tabular-nums; }
+.round .wbtn:hover { background: rgba(255, 255, 255, 0.05); }
+.round .wbtn.on { background: var(--c); color: rgba(10, 13, 28, 0.72); box-shadow: 0 4px 14px color-mix(in srgb, var(--c) 28%, transparent); }
+.round .wbtn.on b { color: var(--night); }
+.round .wbtn:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+
+/* ---------------------------------------------------------------- keypad + lock ticket */
+.round .controls { padding-top: 14px; }
+.round .keypad { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.round .key { height: 44px; border-radius: 10px; background: rgba(255, 255, 255, 0.07); font: 600 19px/1 var(--f-ui); }
+.round .key-del, .round .key-dot { background: rgba(255, 255, 255, 0.035); }
+.round .key-lock {
+  --cut: 70%;
+  grid-column: span 3; position: relative; display: flex; align-items: stretch; justify-content: flex-start;
+  height: 44px; min-height: 44px; padding: 0; gap: 0; border: 0; border-radius: 10px;
+  background: var(--amber); color: var(--on-amber); box-shadow: 0 6px 18px rgba(255, 160, 60, 0.22);
+  -webkit-mask: radial-gradient(circle at var(--cut) 0, transparent 5px, #000 5.5px) top / 100% 51% no-repeat,
+                radial-gradient(circle at var(--cut) 100%, transparent 5px, #000 5.5px) bottom / 100% 51% no-repeat;
+          mask: radial-gradient(circle at var(--cut) 0, transparent 5px, #000 5.5px) top / 100% 51% no-repeat,
+                radial-gradient(circle at var(--cut) 100%, transparent 5px, #000 5.5px) bottom / 100% 51% no-repeat;
+}
+.round .key-lock::after { content: ""; position: absolute; left: var(--cut); top: 8px; bottom: 8px; border-left: 1.5px dashed rgba(29, 18, 4, 0.35); }
+.round .kl-main { flex: 0 0 var(--cut); display: flex; align-items: center; justify-content: center; font: 650 16px/1 var(--f-ui); }
+.round .kl-stub { flex: 1; display: flex; align-items: center; justify-content: center; font: 800 17px/1 var(--f-display); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
+.round.empty .key-lock { background: rgba(255, 181, 71, 0.35); box-shadow: none; }
+.round.t-low .key-lock { background: var(--ember); }
+
+@media (pointer: fine) {
+  .round .key:not(.key-lock) { display: none; }
+  .round .key-lock { grid-column: 1 / -1; height: 52px; --cut: 78%; }
+  .round .kl-main { font-size: 17px; }
+}
+
+/* ---------------------------------------------------------------- short phones */
+@media (max-height: 700px) {
+  .round { --perf-y: 66px; }
+  .round .round-head { height: 42px; margin-bottom: 20px; }
+  .round .round-timer { width: 42px; height: 42px; font-size: 19px; }
+  .round .question { font-size: 17px; }
+  .round .hint { font-size: 15px; margin-bottom: 10px; }
+  .round .key, .round .key-lock { height: 38px; min-height: 38px; }
+  .round .readout { min-height: 50px; }
+  .round .controls { padding-top: 8px; }
+  .round .keypad { gap: 5px; }
+}
+/* Never squash rows into each other: if a card is ever too short, it scrolls */
+.round > * { flex-shrink: 0; }
+
+/* ---------------------------------------------------------------- reduced motion
+   The dial still drains (stepped per second by round.js), still changes colour;
+   it just never pulses, and the clue stub does not tilt. */
+@media (prefers-reduced-motion: reduce) {
+  .round.t-low .round-timer.beat b { animation: none; }
+  .round .clue-tag[data-state="armed"] .ct-stub { transform: none; }
+  .round .round-timer, .round .round-timer::before, .round .wbtn, .round .clue-tag { transition: none; }
+}
+.round.is-locked .clue-tag { opacity: 0.45; pointer-events: none; }

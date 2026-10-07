@@ -221,7 +221,7 @@ K.game = (() => {
     K.round.render({
       fact, index: i, rounds: live.rounds, scorePts: live.pts,
       entry: live.entry, chip: live.chip,
-      clueUsed: live.clueLeg != null, clueHere: live.clueLeg === i,
+      clueUsed: live.clueLeg != null, clueHere: live.clueLeg === i, clueLeg: live.clueLeg,
       onClue: () => { live.clueLeg = i; save(); },
       onChange: (entry, chip) => { live.entry = entry; live.chip = chip; saveSoon(); },
     });
@@ -417,7 +417,7 @@ K.game = (() => {
         fact, index: i, rounds: live.rounds.slice(0, i), scorePts: live.pts - r.delta,
         entry: r.guess == null ? '' : String(fact.scale === 'year' ? r.guess : Number(K.units.view(fact).toDisp(r.guess).toPrecision(4))),
         chip: r.chip, onChange: () => {},
-        clueUsed: live.clueLeg != null, clueHere: live.clueLeg === i,
+        clueUsed: live.clueLeg != null, clueHere: live.clueLeg === i, clueLeg: live.clueLeg,
       });
       K.ui.show('round');
       busy = true;

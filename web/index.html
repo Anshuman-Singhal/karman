@@ -104,14 +104,16 @@
     </section>
 
     <!-- ROUND · one estimate. Deliberately lean: the sky is the show. -->
-    <section class="screen round" id="screen-round" hidden aria-live="polite">
-      <div class="fuse" aria-hidden="true"><div class="fuse-fill" id="fuse"></div></div>
+    <section class="screen round" id="screen-round" hidden>
       <div class="round-head">
-        <ol class="legs" id="legs" aria-label="Flight progress"></ol>
-        <span class="cat-tag" id="round-cat"></span>
-        <span class="round-timer" id="round-timer" aria-label="Seconds left"></span>
-        <button type="button" class="clue-chip" id="btn-clue"></button>
+        <div class="round-timer" id="round-timer" role="timer" aria-label="30 seconds left"><b>30</b></div>
+        <div class="leg-block">
+          <span class="cat-tag" id="round-cat"></span>
+          <ol class="legs" id="legs" aria-label="Flight progress"></ol>
+        </div>
+        <button type="button" class="clue-tag" id="btn-clue" data-state="ready"></button>
       </div>
+      <p class="sr-only" id="timer-live" aria-live="assertive"></p>
       <h2 class="question" id="round-q"></h2>
       <p class="hint" id="round-hint"></p>
 
@@ -140,9 +142,9 @@
 
       <div class="controls" id="round-controls">
         <div class="keypad" id="keypad" aria-label="Number pad"></div>
-        <p class="kbd-note">Type your guess · ← → width · Enter to lock</p>
+        <p class="kbd-note">Type your guess, arrow keys for width, Enter to lock</p>
       </div>
-      <div class="result" id="round-result" hidden>
+      <div class="result" id="round-result" hidden aria-live="polite">
         <div class="result-head"><span class="verdict"></span><span class="verdict-delta"></span></div>
         <p class="result-line"></p>
         <p class="result-fact"></p>

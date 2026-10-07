@@ -74,6 +74,7 @@
   --card-max: 470px;
   --gondola-h: clamp(400px, 52vh, 470px);  /* the card's one fixed height */
 
+
   /* ---- Motion: one system ----
      ease-out for nearly everything: 160ms press, 240ms state change, 320ms sheets.
      ease-spring ONLY for a hit verdict and a stamp slam. */
@@ -91,4 +92,12 @@
   --ink-4: #B8861E;  /* gold, 20+ */
   --ink-5: #55525F;  /* moon rock, 30+: speckled grey */
   --paper: #F3E9D6;
+}
+
+/* Phones: a taller card, so the keypad fits without scrolling */
+@media (max-width: 719px) {
+  :root { --gondola-h: clamp(420px, 58vh, 500px); }
+}
+@media (max-width: 719px) and (max-height: 700px) {
+  :root { --gondola-h: 436px; }   /* iPhone SE and friends */
 }
