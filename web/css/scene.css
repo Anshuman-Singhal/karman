@@ -50,7 +50,9 @@ body {
 /* Ground: top edge of the item is the ground line */
 /* Hills are lifted so the far ridges rise behind the balloon at launch. */
 .ground .hills { display: block; width: 100%; height: 60vh; min-height: 320px; margin-top: -19vh; margin-bottom: -2px; }
-.ground::after { /* solid meadow below the drawing, so tall screens never see sky under the hills */
+/* The meadow is three sheets with the same geometry (far ridge, green ridge,
+   river + meadow); landmarks stand between them. Only the front one is backed. */
+.ground.front::after { /* solid meadow below the drawing, so tall screens never see sky under the hills */
   content: ""; display: block; height: 200vh; background: var(--hill-near);
 }
 .windsock { transform-box: fill-box; transform-origin: 0 50%; animation: sock 3.4s ease-in-out infinite alternate; }
@@ -69,38 +71,62 @@ body {
   to   { translate: calc(6vw * var(--dir)) 0; }
 }
 
-/* Landmarks */
-.w-label {
-  position: absolute;
-  font: 600 11px/1 var(--f-ui);
-  letter-spacing: 0.08em; text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.72);
-  white-space: nowrap;
-  text-shadow: 0 1px 6px rgba(5, 8, 25, 0.5);
+/* ---------------------------------------------------------------- captions
+   One caption for every sight: a dot on the object, a hairline leader, and a
+   small flag of night glass hung on it. The leader runs on into the flag's
+   edge, so each caption reads as a marker planted on its object. */
+#world, #world-front { --cap-edge: clamp(14px, 4vw, 56px); --cap-line: rgba(255, 248, 236, 0.78); }
+.cap { position: absolute; width: 0; height: 0; z-index: 1; }
+.cap::before { /* leader */
+  content: ""; position: absolute; left: -0.5px; bottom: 0; width: 1px; height: var(--lead);
+  background: var(--cap-line);
 }
+.cap::after { /* the dot on the object */
+  content: ""; position: absolute; left: -2.5px; top: -2.5px; width: 5px; height: 5px; border-radius: 50%;
+  background: #FFF8EC; box-shadow: 0 0 0 1.5px rgba(10, 13, 28, 0.42);
+}
+.w-label {
+  position: absolute; bottom: var(--lead);
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 3px 7px 4px 6px;
+  background: rgba(10, 13, 28, 0.46);
+  white-space: nowrap;
+  color: #F6F1E7;
+}
+.cap-r .w-label { left: -0.5px; border-left: 1px solid var(--cap-line); border-radius: 0 3px 3px 0; }
+.cap-l .w-label { right: -0.5px; border-right: 1px solid var(--cap-line); border-radius: 3px 0 0 3px; text-align: right; align-items: flex-end; }
+.cap-name { font: 600 9.5px/1 var(--f-ui); letter-spacing: 0.13em; text-transform: uppercase; }
+.cap-sub { display: flex; align-items: baseline; gap: 6px; }
+.cap-l .cap-sub { flex-direction: row-reverse; }
+.cap-fig { font: 700 13px/0.9 var(--f-display); letter-spacing: 0.03em; color: var(--amber); font-variant-numeric: tabular-nums; }
+.cap-note { font: italic 400 12px/0.9 var(--f-serif); color: rgba(238, 232, 220, 0.72); }
+/* Captions on a line (bands, the Kármán line) sit on it: no leader, just the dot. */
+.cap.flat .w-label { bottom: 5px; }
+.cap.flat.cap-r .w-label { left: -2.5px; }
+.cap.flat.cap-l .w-label { right: -2.5px; }
+
+/* ---------------------------------------------------------------- landmarks */
 .landmark.right .peak { position: absolute; right: 2%; top: 0; width: min(46vw, 300px); }
 .peak svg { display: block; width: 100%; height: auto; }
-.peak .w-label { top: -6px; right: 54%; }
 
 .plane-lane { position: absolute; left: 0; right: 0; top: 0; height: 30px; transform: translateY(-50%); }
 .plane {
-  position: absolute; top: 4px; left: 0; width: 46px;
+  position: absolute; top: 0; left: 0; width: 52px;
   animation: fly 22s linear infinite;
 }
-.plane svg { display: block; width: 46px; }
-.contrail {
-  position: absolute; right: 88%; top: 9px; width: 42vw; height: 2px;
-  background: linear-gradient(to left, rgba(255, 255, 255, 0.75), transparent);
-  border-radius: 2px;
+.plane svg { display: block; width: 52px; position: relative; }
+.contrail { /* two engine trails */
+  position: absolute; right: 70%; top: 7px; width: 42vw; height: 17px;
+  background:
+    linear-gradient(to left, rgba(255, 255, 255, 0.7), transparent) top / 100% 1.5px no-repeat,
+    linear-gradient(to left, rgba(255, 255, 255, 0.7), transparent) bottom / 100% 1.5px no-repeat;
 }
-.plane-lane .w-label { left: 104px; top: -16px; }
 @keyframes fly { from { transform: translateX(-30vw); } to { transform: translateX(120vw); } }
 
 .band-item .ozone {
   position: absolute; left: 0; right: 0; top: -70px; height: 140px;
   background: linear-gradient(to bottom, transparent, rgba(170, 140, 255, 0.16) 45%, rgba(120, 190, 255, 0.12) 60%, transparent);
 }
-.band-item .w-label { left: 104px; top: -8px; }
 
 .landmark.left .diver { position: absolute; left: 22%; top: 0; }
 .diver svg { display: block; width: 18px; transform: translate(-50%, -50%) rotate(12deg); }
@@ -108,21 +134,20 @@ body {
   position: absolute; left: -1px; top: 10px; width: 2px; height: 90px;
   background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.45) 0 4px, transparent 4px 9px);
 }
-.diver .w-label { left: 18px; top: -5px; }
 
 .line-item .w-line {
   position: absolute; left: 0; right: 0; top: 0; height: 1px;
   background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.35) 15%, rgba(255, 255, 255, 0.35) 85%, transparent);
 }
-.line-item .w-label { left: 104px; top: -16px; }
 .line-item .w-line.karman {
   height: 2px;
   background: repeating-linear-gradient(to right, var(--amber) 0 10px, transparent 10px 18px);
   box-shadow: 0 0 18px rgba(255, 181, 71, 0.55);
 }
-.karman-label { color: var(--amber) !important; left: 50%; right: auto !important; transform: translateX(-50%); top: -20px !important; }
+.karman-item .cap { --cap-line: var(--amber); }
+.karman-item .cap::after { background: var(--amber); }
+.karman-item .w-label { left: 0; transform: translateX(-50%); border-left: 0; border-radius: 3px; align-items: center; bottom: 8px; }
 .line-item .w-line.pb { background: repeating-linear-gradient(to right, rgba(255, 255, 255, 0.55) 0 3px, transparent 3px 8px); }
-.pb-item .w-label { left: 104px; color: rgba(255, 255, 255, 0.85); }
 
 /* Earth's curve, rising into view above ~55 km */
 #earth {
@@ -235,27 +260,31 @@ body {
 @media (max-height: 640px) { .rail-tick span { display: none; } }
 
 /* ---------------------------------------------------------------- sights on the way up */
-.sight .w-label { font-size: 10px; color: rgba(255, 255, 255, 0.6); }
-.tower { position: absolute; top: 0; opacity: 0.92; }
-.tower-clip { overflow: hidden; }
-.tower-clip.fade { -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent); mask-image: linear-gradient(to bottom, #000 55%, transparent); }
-.tower-art { display: block; width: 100%; }
-.tower svg { display: block; width: 100%; height: 100%; }
-.tower .w-label { top: -18px; }
-.tower.left .w-label { left: 0; }
-.tower.right .w-label { right: 0; }
-.castle { position: absolute; left: 4%; top: -46px; width: 120px; }
-.castle svg { display: block; width: 100%; overflow: visible; }
-.castle .w-label { left: 8px; top: -14px; }
+/* Grounded landmarks: scene.js sizes the frame so the feet land on the plain. */
+.grounded-frame { position: absolute; top: 0; }
+.landmark-art, .landmark-art svg { display: block; width: 100%; height: 100%; }
+.grounded.far .landmark-art { opacity: 0.42; }   /* far off in the haze: never competes with the home card */
+/* Legends stand on clouds */
+.legend { position: absolute; top: 0; }
+.legend-art svg { display: block; width: 100%; overflow: visible; }
+.legend.babel { right: 5%; width: 104px; }
+.legend.castle { left: 3%; width: 128px; }
+.castle .legend-art { position: absolute; left: 0; top: -84px; width: 100%; }
+.castle .stalk { position: absolute; left: 34px; top: -6px; width: 30px; }
+.castle .stalk svg { display: block; width: 100%; }
+.castle .stalk-foot { position: absolute; left: 4px; top: 196px; width: 92px; }
+.castle .stalk-foot svg { display: block; width: 100%; }
 .flyer { position: absolute; top: 0; left: 0; animation: cross var(--dur) linear infinite; animation-delay: var(--delay); }
 .flyer.rtl { animation-direction: reverse; }
 .flyer-art { display: block; transform: translateY(-50%); }
 .flyer.rtl .flyer-art { transform: translateY(-50%) scaleX(-1); }
 .flyer-art svg { display: block; width: 100%; height: auto; }
-.flyer .w-label { left: calc(100% + 6px); top: -14px; }
 @keyframes cross { from { transform: translateX(-25vw); } to { transform: translateX(115vw); } }
 .sprites { position: absolute; left: 0; right: 0; top: -60px; height: 120px; }
 .nlc { position: absolute; left: 0; right: 0; top: -40px; height: 80px;
   background: repeating-linear-gradient(170deg, transparent 0 18px, rgba(120, 200, 255, 0.10) 18px 22px, transparent 22px 40px),
               linear-gradient(to bottom, transparent, rgba(110, 190, 255, 0.14) 50%, transparent); }
-@media (prefers-reduced-motion: reduce) { .flyer { animation: none; transform: translateX(30vw); } }
+@media (prefers-reduced-motion: reduce) {
+  .flyer { animation: none; transform: translateX(var(--rx, 30vw)); }   /* spread out, so captions don't stack */
+  .plane { animation: none; transform: translateX(62vw); }
+}

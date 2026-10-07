@@ -97,18 +97,21 @@ K.ambient = (() => {
     if (y0 < -40 || y0 > H + 40) return;
     const x0 = flockX * W;
     ctx.save();
-    ctx.strokeStyle = 'rgba(30,40,70,0.55)';
-    ctx.lineWidth = 1.6;
-    ctx.lineCap = 'round';
+    ctx.fillStyle = 'rgba(39,48,77,0.62)';   // the same ink as the geese and the other sights
     for (const b of birds) {
       const x = x0 + b.dx * b.s, y = y0 + b.dy + Math.sin(t * 1.3 + b.phase) * 2;
       const flap = still ? 0.4 : Math.sin(t * 9 + b.phase);
       const span = 6 * b.s, lift = 3 + flap * 3.5;
+      // Two tapered wings, thick at the body and fine at the tips, as one filled shape.
       ctx.beginPath();
       ctx.moveTo(x - span, y - lift);
-      ctx.quadraticCurveTo(x - span * 0.4, y - 1, x, y);
-      ctx.quadraticCurveTo(x + span * 0.4, y - 1, x + span, y - lift);
-      ctx.stroke();
+      ctx.quadraticCurveTo(x - span * 0.45, y - 1.6 - lift * 0.1, x - 0.9, y - 0.7);
+      ctx.lineTo(x + 0.9, y - 0.7);
+      ctx.quadraticCurveTo(x + span * 0.45, y - 1.6 - lift * 0.1, x + span, y - lift);
+      ctx.quadraticCurveTo(x + span * 0.45, y + 0.3, x + 0.7, y + 1.2);
+      ctx.lineTo(x - 0.7, y + 1.2);
+      ctx.quadraticCurveTo(x - span * 0.45, y + 0.3, x - span, y - lift);
+      ctx.fill();
     }
     ctx.restore();
   }
