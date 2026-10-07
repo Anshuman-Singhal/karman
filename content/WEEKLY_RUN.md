@@ -5,6 +5,9 @@ This file is the standing instruction for the scheduled task that keeps KÁRMÁN
 ## Goal
 Add **70 new questions**: the tool puts 49 into the next 7 daily flights and 21 into the Unlimited bank. Keep at least 14 days scheduled ahead (if `status` shows fewer, run twice).
 
+## Never touch
+`schedule.json` → `freeRun` (the fixed free Unlimited run) and any already-scheduled flight.
+
 ## Steps
 1. Clone or pull the repo. Run `node tools/content.mjs status` and note the count.
 2. Read `content/questions.json` so you know every question already asked. Never ask the same thing twice, even reworded (the tool also blocks near-duplicates).

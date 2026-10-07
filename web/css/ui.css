@@ -2339,3 +2339,168 @@ body[data-screen="results"] #dock::before, body[data-screen="results"] #dock::af
 
 /* The question card is a fixed instrument: it never scrolls (wheel or touch). */
 #screen-round { overflow: hidden; overscroll-behavior: none; }
+
+/* ================= v13 · passport results (keep last) ================= */
+/* ================= v13 · the results pass becomes a passport (keep last) ================= */
+/* ==========================================================================
+   KÁRMÁN · v13
+   Append to the END of web/css/ui.css (after the v12 block).
+
+   The paper results pass from v12 gets a passport's document character:
+   1  Security border: a printed rope-and-rail guilloche just inside the
+      edge, concentric with the card's corners. One frame on the phone sheet;
+      on desktop each page of the open spread has its own.
+   2  Silhouette: the pass lies on a short stack of pages (page edges peek
+      under the desktop card, above the phone sheet), and the desktop spread
+      is bound at a sewn gutter instead of a perforation.
+   3  Watermark: the balloon under the Kármán line, printed into the paper.
+   4  MRZ: two machine-readable lines at the foot of the pass (#res-mrz).
+   Everything is scoped to body[data-screen="results"] / #screen-results.
+   ========================================================================== */
+
+#screen-results {
+  --mrz-ink: rgba(20, 33, 61, 0.27);
+}
+
+/* ---------------------------------------------------------------- 1 · security border */
+body[data-screen="results"] #dock::after {
+  display: block; content: ""; position: absolute; z-index: 2; pointer-events: none;
+  /* corners are 18 px squares cut from the SVG, so the rope's corner arc is
+     concentric with the card's 24 px radius */
+  top: 6px; left: 6px; right: 6px; bottom: -40px;   /* phone: the frame runs off the bottom of the screen */
+  height: auto; width: auto;
+  background: none;
+  border: 18px solid transparent;
+  border-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='108' height='108' viewBox='0 0 108 108'%3E %3Cg id='s'%3E%3Cg fill='none' stroke-width='1.1'%3E %3Cpath stroke='rgba(20,33,61,0.26)' d='M4 36A32 32 0 0 1 36 4H72M16 36A20 20 0 0 1 36 16H72'/%3E %3Cpath stroke='rgba(180,96,12,0.55)' d='M10 36A26 26 0 0 1 36 10C42 4 48 4 54 10S66 16 72 10M36 10C42 16 48 16 54 10S66 4 72 10'/%3E %3C/g%3E%3C/g%3E %3Cuse href='%23s' transform='rotate(90 54 54)'/%3E%3Cuse href='%23s' transform='rotate(180 54 54)'/%3E%3Cuse href='%23s' transform='rotate(270 54 54)'/%3E%3C/svg%3E") 36 / 18px round;
+}
+
+/* The pass's top edge fades content out before it reaches the printed rails. */
+@media (max-width: 1023.98px) {
+  #screen-results {
+    -webkit-mask: linear-gradient(180deg, transparent 16px, #000 32px);
+            mask: linear-gradient(180deg, transparent 16px, #000 32px);
+  }
+}
+
+/* ---------------------------------------------------------------- 2 · silhouette */
+/* Phone: the sheet is the top page of a short stack; two page edges peek above it. */
+body[data-screen="results"] #dock {
+  box-shadow:
+    0 -1px 0 0 rgba(150, 118, 66, 0.45),
+    0 -4px 0 -2px #E9DDC5,
+    0 -5px 0 -2px rgba(150, 118, 66, 0.4),
+    0 -8px 0 -4px #DFD0B3,
+    0 -9px 0 -4px rgba(150, 118, 66, 0.35),
+    0 -24px 50px rgba(2, 4, 14, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* ---------------------------------------------------------------- 3 · watermark */
+#screen-results::after {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  top: 22px; right: 8px; width: 168px; height: 200px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 260' fill='none' stroke='%2314213D' stroke-width='1.4' stroke-linecap='round'%3E %3Cpath d='M110 44C160 44 190 80 190 122C190 160 152 190 126 214H94C68 190 30 160 30 122C30 80 60 44 110 44Z'/%3E %3Cpath d='M110 44C86 80 84 160 101 214M110 44C134 80 136 160 119 214M110 44C62 72 54 150 94 214M110 44C158 72 166 150 126 214'/%3E %3Cpath d='M94 214L100 236M126 214L120 236'/%3E %3Crect x='99' y='236' width='22' height='15' rx='2.5'/%3E %3C/svg%3E") center / contain no-repeat;
+  opacity: 0.075;
+}
+
+/* ---------------------------------------------------------------- 4 · MRZ */
+.res-mrz {
+  container-type: inline-size;
+  margin: 26px 0 4px;
+  user-select: none;
+}
+.res-mrz:empty { display: none; }
+.res-mrz span {
+  display: block; overflow: hidden; white-space: nowrap;
+  /* 44 characters exactly fill the line: 3/4 glyph advance, 1/4 tracking */
+  font: 500 calc(100cqw / 44 / 0.6 * 0.76) / 1.55 var(--f-mono);
+  letter-spacing: calc(100cqw / 44 * 0.24);
+  color: var(--mrz-ink);
+}
+
+/* ---------------------------------------------------------------- desktop: an open passport */
+@media (min-width: 1024px) {
+  body[data-screen="results"] #dock {
+    /* bound, not torn: no notches, so the page stack and shadow can show */
+    -webkit-mask: none; mask: none;
+    box-shadow:
+      0 1px 0 0 rgba(150, 118, 66, 0.5),
+      0 4px 0 -2px #EADFC8,
+      0 5px 0 -2px rgba(150, 118, 66, 0.45),
+      0 8px 0 -4px #E1D3B7,
+      0 9px 0 -4px rgba(150, 118, 66, 0.4),
+      /* the cover: navy board just proud of the pages, a gilt hairline on its edge */
+      0 8px 0 5px #1B2850,
+      0 8px 0 6px rgba(226, 180, 112, 0.5),
+      0 34px 80px rgba(2, 4, 14, 0.55),
+      0 4px 12px rgba(2, 4, 14, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+  /* Two pages, two frames: left (your flight) ends just short of the gutter */
+  body[data-screen="results"] #dock::before {
+    display: block; content: ""; position: absolute; z-index: 2; pointer-events: none;
+    top: 6px; bottom: 6px; left: 6px; right: auto; width: calc(var(--split) - 14px); height: auto; box-sizing: border-box;
+    background: none;
+    border: 18px solid transparent;
+    border-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='108' height='108' viewBox='0 0 108 108'%3E %3Cg id='s'%3E%3Cg fill='none' stroke-width='1.1'%3E %3Cpath stroke='rgba(20,33,61,0.26)' d='M4 36A32 32 0 0 1 36 4H72M16 36A20 20 0 0 1 36 16H72'/%3E %3Cpath stroke='rgba(180,96,12,0.55)' d='M10 36A26 26 0 0 1 36 10C42 4 48 4 54 10S66 16 72 10M36 10C42 16 48 16 54 10S66 4 72 10'/%3E %3C/g%3E%3C/g%3E %3Cuse href='%23s' transform='rotate(90 54 54)'/%3E%3Cuse href='%23s' transform='rotate(180 54 54)'/%3E%3Cuse href='%23s' transform='rotate(270 54 54)'/%3E%3C/svg%3E") 36 / 18px round;
+  }
+  body[data-screen="results"] #dock::after { left: calc(var(--split) + 8px); bottom: 6px; }
+
+  /* The gutter: a soft fold in the paper with a stitched binding. */
+  .results::before {
+    left: calc(var(--split, 446px) - 22px); top: 0; bottom: 0; width: 44px;
+    border-left: 0;
+    background:
+      /* the thread: a saddle stitch down the fold */
+      repeating-linear-gradient(180deg, rgba(20, 33, 61, 0.5) 0 9px, transparent 9px 15px) 50% 30px / 1.5px calc(100% - 60px) no-repeat,
+      /* the fold: shade into the spine, a crease of light either side */
+      linear-gradient(90deg,
+        transparent 0, rgba(140, 108, 58, 0.05) 30%, rgba(110, 82, 40, 0.16) 47%,
+        rgba(20, 33, 61, 0.2) 50%,
+        rgba(110, 82, 40, 0.16) 53%, rgba(140, 108, 58, 0.05) 70%, transparent 100%);
+  }
+  /* The watermark sits on the data page, to the right of the score. */
+  #screen-results::after { top: 24px; right: auto; left: 248px; width: 190px; height: 224px; }
+
+  /* Columns fade out before they pass under the printed rails. */
+  .results .res-main, .results .res-side {
+    -webkit-mask: linear-gradient(180deg, transparent 12px, #000 26px, #000 calc(100% - 26px), transparent calc(100% - 12px));
+            mask: linear-gradient(180deg, transparent 12px, #000 26px, #000 calc(100% - 26px), transparent calc(100% - 12px));
+  }
+  .results .res-main { padding-bottom: 30px; }
+  .res-mrz { margin-top: 18px; }
+}
+
+@media (min-width: 1024px) and (max-width: 1100px) {
+  #screen-results::after { opacity: 0.06; }
+}
+
+/* Percentile as one sentence: "You did better than 78% of today's N pilots." */
+#screen-results #pctl-txt { font-size: 17px; line-height: 1.35; }
+#screen-results #pctl-txt .pctl-inline { font: 800 1.55em/1 var(--f-display); letter-spacing: 0.01em; color: var(--amber-deep); font-variant-numeric: tabular-nums; }
+
+/* ---------------------------------------------------------------- unlock page (Krillion-style: a page, not a sales sheet)
+   Full screen night, the balloon, one line, one ticket. Prices live only here. */
+#sheet-paywall { align-items: center; }
+#sheet-paywall.open { background: rgba(5, 7, 18, 0.96); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+#sheet-paywall .sheet.pay {
+  position: relative; width: min(440px, calc(100% - 32px)); max-height: none;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: 56px 8px 28px; background: none; border: 0; border-radius: 0; box-shadow: none;
+  backdrop-filter: none; -webkit-backdrop-filter: none; max-height: 100vh;
+  transform: translateY(16px); opacity: 0; transition: transform 320ms var(--ease-out), opacity 240ms ease;
+}
+#sheet-paywall.open .sheet.pay { transform: none; opacity: 1; }
+#sheet-paywall .pay-x { position: fixed; top: 18px; right: 18px; }
+.pay-hero { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 30px; }
+.pay-balloon { width: 58px; height: 72px; filter: drop-shadow(0 0 18px rgba(255, 106, 61, 0.35)); animation: payfloat 4s ease-in-out infinite; }
+@keyframes payfloat { 50% { transform: translateY(-6px); } }
+.pay-eyebrow { margin: 6px 0 0; font: 600 11px/1 var(--f-ui); letter-spacing: 0.22em; text-transform: uppercase; color: var(--text-faint); }
+.pay-title { margin: 0; font: 800 clamp(34px, 9vw, 46px)/0.95 var(--f-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--amber); text-shadow: 0 0 24px rgba(255, 181, 71, 0.25); }
+#sheet-paywall .pay-cta { width: 100%; max-width: 360px; }
+#sheet-paywall .pay-note { max-width: 34ch; margin: 18px auto 0; font-size: 13.5px; line-height: 1.5; color: var(--text-dim); }
+#sheet-paywall .pay-links { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 22px; }
+#sheet-paywall .link-btn { font-size: 13px; color: var(--text-dim); text-decoration: underline; text-underline-offset: 3px; }
+#sheet-paywall .code-form { margin-top: 14px; }
+#sheet-paywall .pay-fine { margin-top: 26px; font-size: 11.5px; color: var(--text-faint); max-width: 38ch; }
+@media (prefers-reduced-motion: reduce) { .pay-balloon { animation: none; } }

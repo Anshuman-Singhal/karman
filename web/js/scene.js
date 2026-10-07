@@ -807,7 +807,7 @@ K.scene = (() => {
     liftFrom = liftPx;
     liftTo = flyPx();
     liftT0 = performance.now();
-    liftDur = K.fx.reduced() ? 250 : 2100;
+    liftDur = K.fx.reduced() ? 250 : 1500;
     liftEase = (t) => (t < 0.18 ? 0.04 * (t / 0.18) : 0.04 + 0.96 * easeInOutCubic((t - 0.18) / 0.82));
     flame.target = 1.35;
     flame.boost = 1.6;

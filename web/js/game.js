@@ -125,7 +125,9 @@ K.game = (() => {
     if (mode === 'unlimited' && opts.fresh && store.parked) delete store.parked.unlimited;
     save();
     if (mode === 'unlimited') {
-      const ids = !opts.fresh && store.live && store.live.mode === 'unlimited' ? store.live.factIds : null;
+      let ids = !opts.fresh && store.live && store.live.mode === 'unlimited' ? store.live.factIds : null;
+      // The free run is one fixed set of questions, the same for every pilot, every time.
+      if (!ids && !K.access.unlimited() && K.SCHEDULE.freeRun) ids = K.SCHEDULE.freeRun;
       flight = unlimitedFlight(ids);
       if (!flight) { mode = 'daily'; flight = K.daily.get(n); K.fx.toast('Unlimited is restocking. Try again soon.'); }
     } else flight = K.daily.get(n);
@@ -202,7 +204,7 @@ K.game = (() => {
       const t0 = performance.now();
       await new Promise((done) => {
         const step = (now) => {
-          const p = Math.min(1, (now - t0) / 520);
+          const p = Math.min(1, (now - t0) / 380);
           inflate(p);
           if (p < 1) requestAnimationFrame(step); else done();
         };

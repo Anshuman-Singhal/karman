@@ -51,10 +51,10 @@
     const go = t.dataset.menu;
     const here = t.getAttribute('aria-current') === 'page';
     if (go === 'contact') return;                                   // plain mailto link
-    if (here) return K.ui.closeSheet('menu');                        // already flying this: just resume
+    if (here && K.game.phase) return K.ui.closeSheet('menu');        // mid-flight in this mode: just resume
     if (go === 'today') return fromMenu(() => K.game.playDay(K.game.today))();
     if (go === 'unlimited') return fromMenu(() => K.game.keepFlying())();
-    if (go === 'archive') return fromMenu(() => K.ui.openSheet('archive'))();
+    if (go === 'archive') return fromMenu(() => K.ui.openSheet(K.access.canArchive() ? 'archive' : 'paywall'))();
     fromMenu(() => K.ui.openSheet(go))();                             // logbook | help
   }));
   // Streak: a quick explanation rather than a second door into the logbook.

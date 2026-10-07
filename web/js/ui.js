@@ -108,8 +108,12 @@ K.ui = (() => {
 
   /** Keep the basket just above the gondola. */
   function anchorBalloon(instant) {
-    if ($('dock').classList.contains('away')) return;   // mid take-off: the lift plan owns the balloon
-    const top = $('dock').getBoundingClientRect().top;
+    const dock = $('dock');
+    if (dock.classList.contains('away')) return;   // mid take-off: the lift plan owns the balloon
+    // Where the card's top edge rests, ignoring any slide (translate) in progress,
+    // so the balloon never chases a card that is still moving.
+    const parent = dock.offsetParent;
+    const top = (parent ? parent.getBoundingClientRect().top : 0) + dock.offsetTop;
     K.scene.setAnchor(top - 10, instant === true);
   }
 
@@ -362,28 +366,30 @@ K.ui = (() => {
     const higher = stats.buckets.filter(([from]) => from > record.pts).reduce((a, b) => a + b[1], 0);
     const pct = K.stats.percentile(stats, record.pts);
     let kind = 'rank';
-    let txt = `of today’s <b>${many}</b> pilots flew lower than you.`;
-    let said = `${pct}% of today's ${many} pilots flew lower than you.`;
+    let txt = `You did better than <b class="pctl-inline">${pct}%</b> of today’s <b>${many}</b> pilots.`;
+    let said = `You did better than ${pct}% of today's ${many} pilots.`;
     if (players <= 1) { kind = 'first'; txt = said = 'You’re the first pilot up today. Check back later to see how you compare.'; }
     else if (record.pts === 0) { kind = 'grounded'; txt = said = 'Grounded today. The meadow resets at midnight.'; }
-    else if (higher === 0) { txt = `of today’s <b>${many}</b> pilots flew lower. Nobody flew higher.`; said = `Highest balloon of today's ${many} pilots.`; }
+    else if (higher === 0) { txt = `Nobody flew higher. You topped today’s <b>${many}</b> pilots.`; said = `Highest balloon of today's ${many} pilots.`; }
     box.dataset.kind = kind;
     box.setAttribute('aria-label', said);
     $('pctl-num').textContent = String(pct);
-    $('pctl-txt').innerHTML = (kind === 'rank' ? `<span class="sr-only">${pct}% </span>` : '') + txt + (stats.sample ? ' <span class="sample">Sample</span>' : '');
+    $('pctl-num').hidden = true;   // the figure lives in the sentence now
+    $('pctl-txt').innerHTML = txt + (stats.sample ? ' <span class="sample">Sample</span>' : '');
     chart.innerHTML = histogram(record, stats, kind === 'first');
     box.hidden = false;
     void chart.offsetWidth;
     chart.classList.add('draw');
     if (kind === 'rank' && !K.fx.reduced()) {
-      const el = $('pctl-num');
+      const el = $('pctl-txt').querySelector('.pctl-inline');
+      if (!el) return;
       const t0 = performance.now() + 150;
       const step = (now) => {
         const p = Math.min(1, Math.max(0, (now - t0) / 800));
-        el.textContent = String(Math.round(pct * (1 - Math.pow(1 - p, 3))));
+        el.textContent = `${Math.round(pct * (1 - Math.pow(1 - p, 3)))}%`;
         if (p < 1) requestAnimationFrame(step);
       };
-      el.textContent = '0';
+      el.textContent = '0%';
       requestAnimationFrame(step);
     }
   }
@@ -411,6 +417,7 @@ K.ui = (() => {
     $('res-alt').textContent = record.pts.toLocaleString('en-US');
     $('res-km').textContent = `${record.alt.toFixed(1)} km up`;
     $('res-tier').textContent = S.tierName(record.alt);
+    $('res-mrz').innerHTML = mrz(record, n, mode);
     $('pctl').hidden = true;
 
     // At most one short line of personal news.
@@ -434,6 +441,18 @@ K.ui = (() => {
     if (mode === 'unlimited') { statsTicket++; $('pctl').hidden = true; lastStats = null; } else applyStats(record, n);
 
     $('res-streak').textContent = `${streak}-day streak · ${thermals} thermal${thermals === 1 ? '' : 's'}`;
+  }
+
+  /** Two passport-style MRZ lines for the foot of the pass (44 chars each, '<' as filler). */
+  function mrz(record, n, mode) {
+    const fill = (t) => (t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9<]/g, '<') + '<'.repeat(44)).slice(0, 44);
+    const d = K.date.dateOfFlight(n);
+    const day = `${String(d.getUTCDate()).padStart(2, '0')}${'JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC'.substr(d.getUTCMonth() * 3, 3)}${String(d.getUTCFullYear()).slice(2)}`;
+    const head = mode === 'unlimited' ? `P<KARMAN<<UNLIMITED<RUN<${record.run || 1}` : `P<KARMAN<<FLIGHT<${n}<<${day}`;
+    const hits = record.rounds.filter((r) => r.hit).length;
+    const body = `${String(record.pts).padStart(4, '0')}PTS<<${record.alt.toFixed(1).replace('.', '<')}KM<<${S.tierName(record.alt).toUpperCase()}<<${hits}<${record.rounds.length}`;
+    const esc = (t) => t.replace(/</g, '&lt;');
+    return `<span>${esc(fill(head))}</span><span>${esc(fill(body))}</span>`;
   }
 
   /* ------------------------------------------------------------ keep flying */
@@ -537,11 +556,11 @@ K.ui = (() => {
     document.querySelector(`.menu-tile[data-menu="${cur}"]`).setAttribute('aria-current', 'page');
     const flying = current === 'round' && g.phase;
     $('mt-today').textContent = cur === 'today' ? (flying ? 'Flying' : current === 'results' ? 'Landed' : 'Now') : `#${g.today}`;
-    const price = `<span class="mt-price">${LOCK_SVG}${K.CONFIG.PRICE}</span>`;
+    const price = '';   // no prices on the menu: the unlock page says it
     const un = document.querySelector('.menu-tile[data-menu="unlimited"]');
     const ar = document.querySelector('.menu-tile[data-menu="archive"]');
-    un.classList.toggle('locked', !A.canKeepFlying());
-    ar.classList.toggle('locked', !A.canArchive());
+    un.classList.remove('locked');   // tiles look the same either way; the unlock page explains
+    ar.classList.remove('locked');
     $('mt-unlimited').outerHTML = `<span id="mt-unlimited">${cur === 'unlimited' ? '<span class="mt-meta">Flying</span>' : A.unlimited() ? '' : A.freeRunLeft() ? '<span class="mt-meta">1 free run</span>' : price}</span>`;
     $('mt-archive').outerHTML = `<span id="mt-archive">${cur === 'archive' ? '<span class="mt-meta">Flying</span>' : A.canArchive() ? '' : price}</span>`;
     $('menu-contact').href = $('contact-link').href;

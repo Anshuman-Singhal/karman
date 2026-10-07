@@ -127,6 +127,15 @@ function validateAll(questions, schedule, { newIds = new Set() } = {}) {
     if (years > MAX_YEARS) warnings.push(`flight ${n}: ${years} year questions`);
   });
   questions.forEach((q) => { if (q.pool === 'daily' && !seen.has(q.id)) errors.push(`${q.id}: pool "daily" but not scheduled`); });
+  // The one free Unlimited run: fixed, bank-only questions, never changes.
+  if (schedule.freeRun) {
+    if (schedule.freeRun.length !== schedule.legs) errors.push(`freeRun: needs ${schedule.legs} questions`);
+    schedule.freeRun.forEach((id) => {
+      const q = byId.get(id);
+      if (!q) errors.push(`freeRun: unknown id ${id}`);
+      else if (q.pool === 'daily') errors.push(`freeRun: ${id} is a daily question`);
+    });
+  }
   return { errors, warnings, byId };
 }
 
