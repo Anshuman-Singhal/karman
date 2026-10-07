@@ -3,7 +3,7 @@
    Who can fly Unlimited and the archive.
 
      free      the daily, every day; ONE free Unlimited run ever
-     unlimited a one-time purchase ($6.99) or a valid unlock code
+     unlimited a one-time purchase ($5.99) or a valid unlock code
 
    Two ways in:
      1. Buy: sign in with Google → Stripe Checkout → back to the game. The
@@ -45,7 +45,7 @@ K.access = (() => {
     const code = String(raw || '').trim().toUpperCase();
     if (!code) return false;
     if (!backend()) {
-      if (C.DEV && code === DEV_CODE) { grant('code', { code }); return true; }
+      if (C.DEV && !K.LIVE && code === DEV_CODE) { grant('code', { code }); return true; }
       return false;
     }
     try {

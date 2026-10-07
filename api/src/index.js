@@ -23,7 +23,7 @@
 
 import { SCHEMA } from './schema.js';
 
-const LAUNCH_UTC = Date.UTC(2026, 9, 4);   // keep in sync with web/js/config.js LAUNCH
+const LAUNCH_UTC = Date.UTC(2026, 9, 7);   // keep in sync with web/js/config.js LAUNCH
 const LEGS = 7;                            // keep in sync with web/js/config.js LEGS
 const MAX_PTS = LEGS * 100;                // five Pinpoints = the Kármán line
 const STEP = 25;                           // histogram bucket width in points
@@ -66,14 +66,17 @@ async function getStats(n, env, ctx, request) {
   const hit = await cache.match(key);
   if (hit) return hit;
 
+  // Only count rows recorded from the day before this flight's date onward, so
+  // test plays from before a launch-date change never leak into real stats.
+  const since = new Date(LAUNCH_UTC + (n - 2) * 864e5).toISOString().slice(0, 19).replace('T', ' ');
   const [hist, legRow] = await Promise.all([
-    env.DB.prepare(`SELECT (pts / ${STEP}) * ${STEP} AS bucket, COUNT(*) AS c FROM results WHERE n = ? GROUP BY bucket ORDER BY bucket`)
-      .bind(n).all(),
+    env.DB.prepare(`SELECT (pts / ${STEP}) * ${STEP} AS bucket, COUNT(*) AS c FROM results WHERE n = ? AND created >= ? GROUP BY bucket ORDER BY bucket`)
+      .bind(n, since).all(),
     env.DB.prepare(`SELECT COUNT(*) AS players,
         SUM(substr(legs,1,1) = '1') AS l1, SUM(substr(legs,2,1) = '1') AS l2, SUM(substr(legs,3,1) = '1') AS l3,
         SUM(substr(legs,4,1) = '1') AS l4, SUM(substr(legs,5,1) = '1') AS l5, SUM(substr(legs,6,1) = '1') AS l6,
         SUM(substr(legs,7,1) = '1') AS l7
-      FROM results WHERE n = ?`).bind(n).first(),
+      FROM results WHERE n = ? AND created >= ?`).bind(n, since).first(),
   ]);
   const players = legRow ? legRow.players : 0;
   const pct = (x) => (players ? Math.round((x / players) * 100) : 0);
@@ -145,7 +148,7 @@ async function postCheckout(request, env) {
   const form = new URLSearchParams({
     mode: 'payment',
     'line_items[0][price_data][currency]': 'usd',
-    'line_items[0][price_data][unit_amount]': String(env.PRICE_CENTS || 699),
+    'line_items[0][price_data][unit_amount]': String(env.PRICE_CENTS || 599),
     'line_items[0][price_data][product_data][name]': 'KÁRMÁN Unlimited',
     'line_items[0][quantity]': '1',
     client_reference_id: who.sub,

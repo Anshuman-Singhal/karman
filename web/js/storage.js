@@ -32,6 +32,7 @@ K.storage = (() => {
   function fresh() {
     return {
       v: 1,
+      launch: launchKey(),  // which Flight #1 date these flight numbers belong to
       days: {},
       live: null,
       streak: { cur: 0, best: 0, lastDay: null, thermals: 0 },
@@ -49,9 +50,18 @@ K.storage = (() => {
     };
   }
 
+  function launchKey() { const L = K.CONFIG.LAUNCH; return `${L.y}-${L.m}-${L.d}`; }
+
   /** Fill in any fields an older save is missing. Add real migrations here. */
   function migrate(saved) {
     const base = fresh();
+    // Flight numbers from a different launch date mean different questions, so
+    // flight history, streak and stamps from that era are cleared (prefs, unlock
+    // and Unlimited history stay). Saves from before this field were 2026-10-4.
+    if ((saved.launch || '2026-10-4') !== base.launch) {
+      saved = { ...saved, launch: base.launch, days: {}, live: null, streak: base.streak, stats: base.stats,
+        stamps: {}, stampCounts: {}, reported: {}, device: null };
+    }
     const out = { ...base, ...saved, streak: { ...base.streak, ...saved.streak }, stats: { ...base.stats, ...saved.stats }, access: { ...base.access, ...saved.access } };
     // Early saves only knew first-time stamps: count each as passed once.
     if (!saved.stampCounts) {

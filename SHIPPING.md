@@ -17,7 +17,7 @@ This guide takes the game from your laptop to a public site at **karman.day**, t
 
 ### 1.1 Preflight in the code
 
-`DEV` and `STATS` switch themselves (live site vs. laptop), so the only launch setting is the date of Flight #1 in `web/js/config.js`. It is currently **4 October 2026**, and `content/schedule.json` uses the same date. Leave it unless you want a later #1; changing it renumbers every flight.
+`DEV` and `STATS` switch themselves (live site vs. laptop), so the only launch setting is the date of Flight #1 in `web/js/config.js`. It is **7 October 2026** (launch day), and `content/schedule.json` uses the same date. Leave it unless you want a later #1; changing it renumbers every flight.
 
 If you do change it, also set the same launch date in `api/src/index.js` (`LAUNCH_UTC`; the month is 0-based there, so October is 9). If you ever change `LEGS` in `config.js`, change `LEGS` in `api/src/index.js` to match, or the stats endpoint will reject results.
 
@@ -135,7 +135,7 @@ Content lives in two files, and nothing else: `content/questions.json` (every qu
 
 ---
 
-## Phase 4 · Unlimited ($6.99), unlock links, Google sign-in
+## Phase 4 · Unlimited ($5.99), unlock links, Google sign-in
 
 The code is already in place: `web/js/access.js` (browser) and the `/api/checkout`, `/api/stripe`, `/api/me`, `/api/play`, `/api/unlock/:code` routes in `api/src/index.js`. You only add keys and flip one switch. The daily flight, streaks and sharing stay free.
 
@@ -145,9 +145,9 @@ Nothing to do: the Worker creates `users`, `unlock_codes`, `plays` and `reports`
 ### 4.2 Google sign-in (free)
 1. console.cloud.google.com → create a project "KÁRMÁN" → **APIs & Services → OAuth consent screen**: External, app name KÁRMÁN, your email, add `karman.day` as an authorised domain, and link `https://karman.day/privacy.html` and `/terms.html`.
 2. **Credentials → Create credentials → OAuth client ID → Web application.** Authorised JavaScript origins: `https://karman.day`. Copy the **Client ID**.
-3. Put it in two places: `GOOGLE_CLIENT_ID` in `web/js/config.js`, and as a plain var in `wrangler.jsonc` (`"vars": { "GOOGLE_CLIENT_ID": "…", "PRICE_CENTS": 699 }`).
+3. Put it in two places: `GOOGLE_CLIENT_ID` in `web/js/config.js`, and as a plain var in `wrangler.jsonc` (`"vars": { "GOOGLE_CLIENT_ID": "…", "PRICE_CENTS": 599 }`).
 
-### 4.3 Stripe (one-time $6.99)
+### 4.3 Stripe (one-time $5.99)
 1. stripe.com → finish account verification (bank, tax details). Turn on **Stripe Tax** if you want sales tax handled.
 2. **Developers → API keys**: copy the secret key. **Developers → Webhooks → Add endpoint**: `https://karman.day/api/stripe`, events `checkout.session.completed` and `charge.refunded`. Copy its signing secret.
 3. Save the secrets (they never go in the code):

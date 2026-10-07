@@ -49,5 +49,10 @@ const res = (legs) => call('/api/result', { method: 'POST', headers: { 'content-
 check((await res('1101011')).status === 204, '7-leg result accepted');
 check((await res('11010')).status === 422, '5-leg result rejected');
 
+// stats ignore rows recorded before the flight's date (old launch-date test plays)
+db.exec("INSERT INTO results (n, device, pts, legs, chips, created) VALUES (1, 'old-device-0001', 700, '1111111', '4444444', '2020-01-01 00:00:00')");
+const s1 = await (await call('/api/stats/1')).json();
+check(s1.players === 1 && s1.buckets.length === 1 && s1.buckets[0][0] === 300, 'stats count only current-era rows');
+
 console.log(fails ? `${fails} failed` : 'Worker checks passed.');
 process.exit(fails ? 1 : 0);

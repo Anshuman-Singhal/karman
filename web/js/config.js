@@ -14,7 +14,7 @@ K.LIVE = typeof location !== 'undefined' && location.protocol.startsWith('http')
 K.CONFIG = {
   /* Flight #1 is played on this LOCAL calendar date. Change before launch.
      Month is 1-based here (10 = October) to avoid the JS Date off-by-one. */
-  LAUNCH: { y: 2026, m: 10, d: 4 },
+  LAUNCH: { y: 2026, m: 10, d: 7 },
 
   /* Round timing, in seconds. */
   ROUND_SECONDS: 30,
@@ -42,7 +42,7 @@ K.CONFIG = {
      real Google sign-in + Stripe flow (needs the Worker secrets, SHIPPING.md 5).
      With PAYMENTS false and DEV true, the paywall simulates a purchase and the
      unlock code PILOT-TEST works, so the whole flow can be tested offline. */
-  PRICE: '$6.99',
+  PRICE: '$5.99',
   CONTACT_EMAIL: 'hello@karman.day',   // "Found a bug? Contact us" (set up this inbox)
   PAYMENTS: false,
   GOOGLE_CLIENT_ID: '',

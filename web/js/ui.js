@@ -455,7 +455,7 @@ K.ui = (() => {
   async function startGoogle(kind) {
     const C = K.CONFIG;
     if (!C.PAYMENTS) {
-      if (!C.DEV) { K.fx.toast('Payments are coming soon.'); return; }
+      if (!C.DEV || K.LIVE) { K.fx.toast('Payments are coming soon.'); return; }   // never simulate on the real site
       if (kind === 'restore') { K.fx.toast('Dev mode: no purchase to restore.'); return; }
       K.access.simulatePurchase();               // dev: pretend Stripe said yes
       K.fx.toast('Dev mode: purchase simulated.');
