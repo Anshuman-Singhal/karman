@@ -366,11 +366,14 @@ K.ui = (() => {
     const higher = stats.buckets.filter(([from]) => from > record.pts).reduce((a, b) => a + b[1], 0);
     const pct = K.stats.percentile(stats, record.pts);
     let kind = 'rank';
-    let txt = `You did better than <b class="pctl-inline">${pct}%</b> of today’s <b>${many}</b> pilots.`;
-    let said = `You did better than ${pct}% of today's ${many} pilots.`;
-    if (players <= 1) { kind = 'first'; txt = said = 'You’re the first pilot up today. Check back later to see how you compare.'; }
-    else if (record.pts === 0) { kind = 'grounded'; txt = said = 'Grounded today. The meadow resets at midnight.'; }
-    else if (higher === 0) { txt = `Nobody flew higher. You topped today’s <b>${many}</b> pilots.`; said = `Highest balloon of today's ${many} pilots.`; }
+    const runNo = record.mode === 'unlimited' ? record.run : null;
+    const crowd = runNo ? `pilots on Run ${runNo}` : 'today’s';
+    let txt = runNo ? `You did better than <b class="pctl-inline">${pct}%</b> of the <b>${many}</b> ${crowd}.`
+      : `You did better than <b class="pctl-inline">${pct}%</b> of today’s <b>${many}</b> pilots.`;
+    let said = txt.replace(/<[^>]+>/g, '');
+    if (players <= 1) { kind = 'first'; txt = said = runNo ? `You’re the first pilot to fly Run ${runNo}. Check back later to see how you compare.` : 'You’re the first pilot up today. Check back later to see how you compare.'; }
+    else if (record.pts === 0) { kind = 'grounded'; txt = said = runNo ? 'Grounded on this run. Keep flying.' : 'Grounded today. The meadow resets at midnight.'; }
+    else if (higher === 0) { txt = runNo ? `Nobody flew higher. You topped the <b>${many}</b> ${crowd}.` : `Nobody flew higher. You topped today’s <b>${many}</b> pilots.`; said = txt.replace(/<[^>]+>/g, ''); }
     box.dataset.kind = kind;
     box.setAttribute('aria-label', said);
     $('pctl-num').textContent = String(pct);
@@ -406,6 +409,24 @@ K.ui = (() => {
 
   /* ------------------------------------------------------------ results */
   let lastRecord = null;
+  /** After a fresh flight: the share ticket gives two small bumps and a paper tag
+      says what it's for, then everything settles. Once per landing, no modal. */
+  let nudgeTimer = 0;
+  function nudgeShare(on) {
+    const btn = $('btn-share'), tag = $('share-nudge');
+    clearTimeout(nudgeTimer);
+    btn.classList.remove('nudge'); tag.classList.remove('in');
+    if (!on) return;
+    nudgeTimer = setTimeout(() => {
+      // Phones: the tickets can sit below the fold of the pass, so bring them up first.
+      const box = $('screen-results'), r = btn.getBoundingClientRect(), b = box.getBoundingClientRect();
+      if (r.bottom > b.bottom || r.top < b.top) btn.scrollIntoView({ block: 'center', behavior: K.fx.reduced() ? 'auto' : 'smooth' });
+      btn.classList.add('nudge'); tag.classList.add('in');
+      nudgeTimer = setTimeout(() => tag.classList.remove('in'), 6000);
+    }, 1800);
+    btn.addEventListener('click', () => { tag.classList.remove('in'); btn.classList.remove('nudge'); }, { once: true });
+  }
+
   function results({ record, n, mode = 'daily', streak, thermals, streakInfo, isFresh, prevBest }) {
     lastRecord = { record, n, streak, mode };
     $('res-eyebrow').textContent = mode === 'unlimited' ? `Unlimited · run ${record.run || ''}`
@@ -438,7 +459,9 @@ K.ui = (() => {
     const recap = $('recap');
     recap.innerHTML = record.rounds.map((_, i) => answerRow(record, i)).join('');
     recap.classList.toggle('reveal-seq', Boolean(isFresh));
-    if (mode === 'unlimited') { statsTicket++; $('pctl').hidden = true; lastStats = null; } else applyStats(record, n);
+    nudgeShare(isFresh && mode !== 'archive');
+    if (mode === 'archive') { statsTicket++; $('pctl').hidden = true; lastStats = null; }
+    else applyStats(record, mode === 'unlimited' ? `r${record.run}` : n);
 
     $('res-streak').textContent = `${streak}-day streak · ${thermals} thermal${thermals === 1 ? '' : 's'}`;
   }
@@ -613,12 +636,17 @@ K.ui = (() => {
     setTimeout(() => { el.hidden = true; }, 320);
   }
 
-  /** Help copy comes from the scoring constants so it can never drift. */
+  /** Help copy comes from the scoring constants so it can never drift.
+      The ticket's stub says where closing it takes you. */
   function renderHelp() {
-    const m = Math.round(S.METRES_PER_POINT);
-    $('help-climb').textContent = `Each point lifts you about ${m} m. A miss scores 0; you never sink.`;
-    $('help-space').textContent = `${S.MAX_PTS} points is 100 km: the Kármán line.`;
-    $('help-ladder').innerHTML = S.CHIPS.map((c) => `<span class="lad" style="--c:var(--c-${c.key});--h:${c.pts}"><b>${c.pts}</b><i></i><em>${c.name}</em></span>`).join('');
+    $('help-space').textContent = `${S.MAX_PTS} points takes you 100 km up, to the Kármán line where space begins.`;
+    $('help-ladder').innerHTML = S.CHIPS.map((c) => `<span class="lad" style="--c:var(--c-${c.key})"><b>+${c.pts}</b><i></i><em>${c.name}</em></span>`).join('');
+    const g = K.game;
+    const flying = current === 'round' && g.phase;
+    const [small, big] = flying ? ['Back to', `Leg ${g.leg + 1}`]
+      : current === 'results' ? ['Back to', 'Log']
+      : ['Gate', g.mode === 'unlimited' ? '∞' : `#${g.flightNo || g.today || 1}`];
+    $('help-stub').innerHTML = `<small>${small}</small><b>${esc(big)}</b>`;
   }
 
   /* ------------------------------------------------------------ logbook

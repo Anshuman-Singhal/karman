@@ -6,7 +6,7 @@ This file is the standing instruction for the scheduled task that keeps KÁRMÁN
 Add **70 new questions**: the tool puts 49 into the next 7 daily flights and 21 into the Unlimited bank. Keep at least 14 days scheduled ahead (if `status` shows fewer, run twice).
 
 ## Never touch
-`schedule.json` → `freeRun` (the fixed free Unlimited run) and any already-scheduled flight.
+`schedule.json` → `freeRun`, existing `runs` (numbered Unlimited runs; `add` appends new ones automatically from the 21 bank questions) and any already-scheduled flight.
 
 ## Steps
 1. Clone or pull the repo. Run `node tools/content.mjs status` and note the count.
@@ -23,6 +23,8 @@ Add **70 new questions**: the tool puts 49 into the next 7 daily flights and 21 
    ```
    - **Mix**: about 12 each of Structures, Sky & Space, Living Things, History, Machines, Everyday Numbers. At most ~30% "what year" questions.
    - **Good questions** are things a curious adult can reason toward but rarely knows exactly: a famous height, distance, count, speed or year. Avoid trivia that needs specialist knowledge, anything political or tragic in a flippant way, and anything that changes over time (populations, records likely to be broken, prices).
+   - **Relatable first** (from playtesting: players found the set too niche). Prefer things people have seen, used, eaten, visited or watched: famous landmarks, the body, animals, food, sports, everyday objects, well-known films/inventions. A question should make a typical adult think "ooh, I have a rough idea". Skip obscure history, specialist science and anything that needs a degree.
+   - **One answer only.** The question must have exactly one defensible number. If the thing can be counted or measured two ways (e.g. "squares on a chessboard": 64 cells vs 204 squares of all sizes), reword the question so only one reading is possible. The `card` must never mention a different figure for the same quantity.
    - **Units**: metric. Use `metres`, `km`, `°C`, `m per second`, `km per second`, `km per hour`, `kg` where possible (players can switch to imperial). Counts use a plural noun (`bones`, `floors`). Years use `"unit": ""` and `"scale": "year"`, AD only.
    - **Answer**: the commonly cited figure from the source. Decimals are fine.
    - **min / max**: for `log`, about answer ÷ 25 rounded down to a power of ten, and answer × 25 rounded up. For `year`, about 150 years before to 100 years after (no later than 2050).

@@ -26,7 +26,8 @@ import { SCHEMA } from './schema.js';
 const LAUNCH_UTC = Date.UTC(2026, 9, 7);   // keep in sync with web/js/config.js LAUNCH
 const LEGS = 7;                            // keep in sync with web/js/config.js LEGS
 const MAX_PTS = LEGS * 100;                // five Pinpoints = the Kármán line
-const STEP = 25;                           // histogram bucket width in points
+const STEP = 25;
+const RUN_BASE = 1000000;                 // Unlimited Run k is stored as flight RUN_BASE + k                           // histogram bucket width in points
 
 /** Today's flight: flights change at midnight Eastern (America/New_York). */
 function latestFlight(now = Date.now()) {
@@ -43,8 +44,10 @@ const json = (data, init = {}) => new Response(JSON.stringify(data), {
 async function postResult(request, env) {
   let body;
   try { body = await request.json(); } catch { return json({ error: 'bad json' }, { status: 400 }); }
-  const { n, device, pts, legs, chips } = body || {};
-  const ok = Number.isInteger(n) && n >= 1 && n <= latestFlight()
+  const { device, pts, legs, chips, run } = body || {};
+  const isRun = Number.isInteger(run) && run >= 1 && run <= 99999;   // a numbered Unlimited run
+  const n = isRun ? RUN_BASE + run : body && body.n;
+  const ok = (isRun || (Number.isInteger(n) && n >= 1 && n <= latestFlight()))
     && typeof device === 'string' && /^[\w-]{8,64}$/.test(device)
     && Number.isInteger(pts) && pts >= 0 && pts <= MAX_PTS
     && typeof legs === 'string' && legs.length === LEGS && /^[01]+$/.test(legs)
@@ -57,19 +60,20 @@ async function postResult(request, env) {
   return new Response(null, { status: 204 });
 }
 
-async function getStats(n, env, ctx, request) {
-  if (!Number.isInteger(n) || n < 1 || n > latestFlight()) return json({ error: 'no such flight' }, { status: 404 });
+async function getStats(num, env, ctx, request, isRun = false) {
+  if (!Number.isInteger(num) || num < 1 || (isRun ? num > 99999 : num > latestFlight())) return json({ error: 'no such flight' }, { status: 404 });
+  const n = isRun ? RUN_BASE + num : num;
 
   // Cache each flight's stats at the edge for 60 s, so a viral day costs one query a minute.
   const cache = caches.default;
-  const key = new Request(new URL(`/api/stats/${n}`, request.url).toString());
+  const key = new Request(new URL(`/api/stats/${isRun ? 'r' : ''}${num}`, request.url).toString());
   // ?fresh=1 right after your own submit: skip the cached copy so you see yourself.
   const hit = new URL(request.url).searchParams.has('fresh') ? null : await cache.match(key);
   if (hit) return hit;
 
   // Only count rows recorded from the day before this flight's date onward, so
   // test plays from before a launch-date change never leak into real stats.
-  const since = new Date(LAUNCH_UTC + (n - 2) * 864e5).toISOString().slice(0, 19).replace('T', ' ');
+  const since = isRun ? '1970-01-01 00:00:00' : new Date(LAUNCH_UTC + (n - 2) * 864e5).toISOString().slice(0, 19).replace('T', ' ');
   const [hist, legRow] = await Promise.all([
     env.DB.prepare(`SELECT (pts / ${STEP}) * ${STEP} AS bucket, COUNT(*) AS c FROM results WHERE n = ? AND created >= ? GROUP BY bucket ORDER BY bucket`)
       .bind(n, since).all(),
@@ -82,7 +86,7 @@ async function getStats(n, env, ctx, request) {
   const players = legRow ? legRow.players : 0;
   const pct = (x) => (players ? Math.round((x / players) * 100) : 0);
   const body = {
-    n, players, step: STEP,
+    n: num, run: isRun || undefined, players, step: STEP,
     buckets: (hist.results || []).map((r) => [r.bucket, r.c]),
     legs: players ? [legRow.l1, legRow.l2, legRow.l3, legRow.l4, legRow.l5, legRow.l6, legRow.l7].slice(0, LEGS).map(pct) : [],
   };
@@ -220,8 +224,8 @@ export default {
     const url = new URL(request.url);
     if (url.pathname.startsWith('/api/')) await ensureSchema(env);
     if (url.pathname === '/api/result' && request.method === 'POST') return postResult(request, env);
-    const m = url.pathname.match(/^\/api\/stats\/(\d+)$/);
-    if (m && request.method === 'GET') return getStats(Number(m[1]), env, ctx, request);
+    const m = url.pathname.match(/^\/api\/stats\/(r?)(\d+)$/);
+    if (m && request.method === 'GET') return getStats(Number(m[2]), env, ctx, request, m[1] === 'r');
     if (url.pathname === '/api/report' && request.method === 'POST') return postReport(request, env);
     const u = url.pathname.match(/^\/api\/unlock\/([\w-]{3,40})$/);
     if (u && request.method === 'GET') return getUnlock(u[1], env);

@@ -16,11 +16,13 @@ K.scoring = (() => {
   /* ratio: hi/lo for log questions · years: ± years for date questions
      pts:   points for a hit */
   const CHIPS = [
-    { key: 'wide',     name: 'Wide',     ratio: 10,   years: 50, pts: 15,  glyph: '☁️' },
-    { key: 'fair',     name: 'Fair',     ratio: 4,    years: 20, pts: 30,  glyph: '🎈' },
-    { key: 'snug',     name: 'Snug',     ratio: 2,    years: 10, pts: 55,  glyph: '✈️' },
-    { key: 'tight',    name: 'Tight',    ratio: 1.4,  years: 5,  pts: 85,  glyph: '🛰️' },
-    { key: 'pinpoint', name: 'Pinpoint', ratio: 1.15, years: 2,  pts: 100, glyph: '🚀' },
+    // Widths retuned after the first playtest: Wide is now truly safe (÷8 to ×8),
+    // the middle three a touch roomier, Pinpoint unchanged.
+    { key: 'wide',     name: 'Wide',     ratio: 64,   years: 120, pts: 15,  glyph: '☁️' },
+    { key: 'fair',     name: 'Fair',     ratio: 6,    years: 30,  pts: 30,  glyph: '🎈' },
+    { key: 'snug',     name: 'Snug',     ratio: 2.5,  years: 12,  pts: 55,  glyph: '✈️' },
+    { key: 'tight',    name: 'Tight',    ratio: 1.6,  years: 6,   pts: 85,  glyph: '🛰️' },
+    { key: 'pinpoint', name: 'Pinpoint', ratio: 1.15, years: 2,   pts: 100, glyph: '🚀' },
   ];
   const MISS_GLYPH = '💨';
   const MAX_PTS = K.CONFIG.LEGS * 100;                              // a perfect flight

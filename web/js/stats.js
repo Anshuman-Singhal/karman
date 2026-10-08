@@ -33,7 +33,7 @@ K.stats = (() => {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          n: record.n,
+          ...(record.mode === 'unlimited' ? { run: record.run } : { n: record.n }),
           device: K.storage.data.device,
           pts: record.pts,
           legs: record.rounds.map((r) => (r.hit ? '1' : '0')).join(''),
@@ -41,8 +41,9 @@ K.stats = (() => {
         }),
         keepalive: true,
       });
-      cache.delete(record.n);
-      justSent.add(record.n);
+      const key = record.mode === 'unlimited' ? `r${record.run}` : record.n;
+      cache.delete(key);
+      justSent.add(key);
     } catch (e) { /* offline: stats just won't include this flight */ }
   }
 

@@ -1804,7 +1804,7 @@
   },
   {
     "cat": "Everyday Numbers",
-    "q": "How many squares are on a chessboard?",
+    "q": "How many squares make up the grid of a chessboard?",
     "unit": "squares",
     "answer": 64,
     "scale": "log",
@@ -1812,7 +1812,7 @@
     "max": 10000,
     "int": true,
     "hint": "For scale: a tic-tac-toe grid has nine.",
-    "card": "Counting squares of every size, there are actually 204.",
+    "card": "Every board is set with a light square in each player’s right-hand corner.",
     "source": "https://en.wikipedia.org/wiki/Chessboard",
     "id": "b1-059",
     "added": "2026-10-07",

@@ -47,7 +47,9 @@ K.storage = (() => {
       freeRunUsed: false,
       access: { unlimited: false, via: null, code: null, session: null, checkedAt: 0 },
       reported: {},
-      parked: {},           // flights left mid-way when switching modes, by slot
+      parked: {},
+      tutored: false,       // has seen the one-time guided first leg
+      runNext: 1,           // next numbered Unlimited run for a paid pilot (Run 1 = the free run)           // flights left mid-way when switching modes, by slot
     };
   }
 
@@ -77,6 +79,8 @@ K.storage = (() => {
     });
     const best = Object.values(out.days || {}).reduce((m, d) => Math.max(m, d.alt || 0), 0);
     out.stats.bestAlt = best;
+    if (saved.tutored == null) out.tutored = Object.keys(out.days || {}).length > 0 || (out.runs || []).length > 0;   // existing pilots never see the guide
+    if (saved.runNext == null) out.runNext = out.freeRunUsed ? 2 : 1;   // older saves: the free run counts as Run 1
     if (!out.device) out.device = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
     return out;
   }

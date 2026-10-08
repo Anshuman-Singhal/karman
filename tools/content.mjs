@@ -127,6 +127,21 @@ function validateAll(questions, schedule, { newIds = new Set() } = {}) {
     if (years > MAX_YEARS) warnings.push(`flight ${n}: ${years} year questions`);
   });
   questions.forEach((q) => { if (q.pool === 'daily' && !seen.has(q.id)) errors.push(`${q.id}: pool "daily" but not scheduled`); });
+  // Unlimited runs: fixed, numbered sets of bank questions (append-only). Run 1 is the free run.
+  if (schedule.runs) {
+    const used = new Map();
+    schedule.runs.forEach((ids, i) => {
+      if (ids.length !== schedule.legs) errors.push(`run ${i + 1}: has ${ids.length} questions, needs ${schedule.legs}`);
+      ids.forEach((id) => {
+        const q = byId.get(id);
+        if (!q) errors.push(`run ${i + 1}: unknown id ${id}`);
+        else if (q.pool === 'daily') errors.push(`run ${i + 1}: ${id} is a daily question`);
+        if (used.has(id)) errors.push(`run ${i + 1}: ${id} already in run ${used.get(id)}`);
+        used.set(id, i + 1);
+      });
+    });
+    if (schedule.freeRun && schedule.runs[0] && schedule.runs[0].join() !== schedule.freeRun.join()) errors.push('runs: run 1 must be the freeRun');
+  }
   // The one free Unlimited run: fixed, bank-only questions, never changes.
   if (schedule.freeRun) {
     if (schedule.freeRun.length !== schedule.legs) errors.push(`freeRun: needs ${schedule.legs} questions`);
@@ -182,6 +197,16 @@ function planFlights(batch, count, legs) {
   return { flights, rest: pool };
 }
 
+/** Group bank questions not yet in a run into new numbered runs (append-only). */
+function appendRuns(questions, schedule) {
+  const runs = schedule.runs ? schedule.runs.map((r) => r.slice()) : [schedule.freeRun.slice()];
+  const taken = new Set(runs.flat());
+  const free = questions.filter((q) => q.pool === 'bank' && !taken.has(q.id));
+  const { flights } = planFlights(free, Math.floor(free.length / schedule.legs), schedule.legs);
+  flights.forEach((f) => runs.push(f.map((q) => q.id)));
+  return { runs, added: flights.length };
+}
+
 function add(file, bankOnly) {
   const questions = read(QFILE), schedule = read(SFILE);
   const batch = read(path.resolve(file));
@@ -201,6 +226,8 @@ function add(file, bankOnly) {
   const next = { ...schedule, flights: { ...schedule.flights } };
   let n = Math.max(0, ...Object.keys(schedule.flights).map(Number));
   flights.forEach((f) => { next.flights[++n] = f.map((q) => q.id); });
+  const r = appendRuns(nextQs, next);
+  next.runs = r.runs;
   const { errors, warnings } = validateAll(nextQs, next, { newIds: new Set(batch.map((q) => q.id)) });
   warnings.forEach((w) => console.log('  ! ' + w));
   if (errors.length) {
@@ -211,13 +238,22 @@ function add(file, bankOnly) {
   write(QFILE, nextQs);
   write(SFILE, next);
   build(nextQs, next);
-  console.log(`Added ${batch.length}: ${flights.length} daily flight(s)${flights.length ? ` (#${n - flights.length + 1}–#${n})` : ''} and ${rest.length} to the Unlimited bank.`);
+  console.log(`Added ${batch.length}: ${flights.length} daily flight(s)${flights.length ? ` (#${n - flights.length + 1}–#${n})` : ''} and ${rest.length} to the Unlimited bank (${r.added} new Unlimited run(s), ${r.runs.length} total).`);
 }
 
 /* ---------------------------------------------------------- main */
 const [cmd, arg, flag] = process.argv.slice(2);
 try {
   if (cmd === 'add') add(arg, flag === '--bank');
+  else if (cmd === 'runs') {   // one-off: group any loose bank questions into new runs
+    const questions = read(QFILE), schedule = read(SFILE);
+    const r = appendRuns(questions, schedule);
+    const next = { ...schedule, runs: r.runs };
+    const { errors } = validateAll(questions, next);
+    if (errors.length) { errors.forEach((x) => console.log('  ✗ ' + x)); process.exit(1); }
+    write(SFILE, next); build(questions, next);
+    console.log(`${r.added} new run(s); ${r.runs.length} Unlimited runs in total.`);
+  }
   else {
     const questions = read(QFILE), schedule = read(SFILE);
     const { errors, warnings } = validateAll(questions, schedule);
@@ -227,7 +263,7 @@ try {
       const last = Math.max(...Object.keys(schedule.flights).map(Number));
       const today = flightNumberToday(schedule.launch);
       const bank = questions.filter((q) => q.pool === 'bank').length;
-      console.log(`${questions.length} questions · ${last} daily flights scheduled · today is #${today} · ${last - today} days ahead · ${bank} bank-only`);
+      console.log(`${questions.length} questions · ${last} daily flights scheduled · today is #${today} · ${last - today} days ahead · ${bank} bank-only · ${(schedule.runs || []).length} Unlimited runs`);
       if (errors.length) { console.log(`\n${errors.length} error(s).`); process.exit(1); }
       if (cmd === 'build') { build(questions, schedule); console.log(`Wrote ${path.relative(ROOT, OUT)}`); }
     } else {

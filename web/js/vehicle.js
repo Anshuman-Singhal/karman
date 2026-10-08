@@ -148,7 +148,6 @@ K.vehicle = (() => {
           <g class="v-teeth" fill="${C.navy}"></g>
           <path d="${env}" fill="url(#v-vert)"/>
           <path d="${env}" fill="url(#v-shade)"/>
-          <path d="M70,30 Q66,50 72,70 L78,70 Q72,50 76,30Z" fill="${C.paper}" opacity=".35"/>
         </g>
         <g class="v-medal">
           <circle r="8" fill="${C.paper}" stroke="${C.navy}" stroke-width="1.4"/>

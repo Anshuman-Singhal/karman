@@ -90,10 +90,10 @@ K.game = (() => {
     return picked.length === C.LEGS ? picked : null;
   }
 
-  function unlimitedFlight(ids) {
+  function unlimitedFlight(ids, runNo) {
     const facts = ids ? ids.map((id) => factIndex.get(id)).filter(Boolean) : dealUnlimited();
     if (!facts || facts.length !== C.LEGS) return null;
-    const run = (store.runs.length || 0) + 1;
+    const run = runNo || (store.runs.length || 0) + 1;
     return { n: today, facts, weather: K.daily.weatherFor(1000 + run), run };
   }
 
@@ -125,13 +125,17 @@ K.game = (() => {
     if (mode === 'unlimited' && opts.fresh && store.parked) delete store.parked.unlimited;
     save();
     if (mode === 'unlimited') {
-      let ids = !opts.fresh && store.live && store.live.mode === 'unlimited' ? store.live.factIds : null;
-      // The free run is one fixed set of questions, the same for every pilot, every time.
-      if (!ids && !K.access.unlimited() && K.SCHEDULE.freeRun) ids = K.SCHEDULE.freeRun;
-      flight = unlimitedFlight(ids);
-      if (!flight) { mode = 'daily'; flight = K.daily.get(n); K.fx.toast('Unlimited is restocking. Try again soon.'); }
+      // Unlimited runs are fixed and numbered (Run 1 = the free run), the same for
+      // every pilot, so each run has its own crowd chart. Paid pilots go 2, 3, 4…
+      const resuming = !opts.fresh && store.live && store.live.mode === 'unlimited' ? store.live : null;
+      const runs = K.SCHEDULE.runs || (K.SCHEDULE.freeRun ? [K.SCHEDULE.freeRun] : []);
+      let run = resuming ? resuming.run : (K.access.unlimited() ? store.runNext || 1 : 1);
+      let ids = resuming ? resuming.factIds : runs[run - 1] || null;
+      if (resuming && !run) run = Math.max(1, runs.findIndex((r) => r.join() === ids.join()) + 1);
+      flight = ids ? unlimitedFlight(ids, run) : null;
+      if (!flight) { mode = 'daily'; flight = K.daily.get(n); K.fx.toast('You’ve flown every Unlimited run. New runs land every Monday.'); }
     } else flight = K.daily.get(n);
-    live = store.live && store.live.n === n && (store.live.mode || 'daily') === mode ? store.live : null;
+    live = store.live && (store.live.mode || 'daily') === mode && (mode === 'unlimited' || store.live.n === n) ? store.live : null;
     const done = mode !== 'unlimited' && store.days[n] && store.days[n].done ? store.days[n] : null;
     const startPts = done ? done.pts : live ? live.pts : 0;
     const startKm = S.kmOf(startPts);
@@ -193,8 +197,9 @@ K.game = (() => {
     K.audio.takeoff();
     K.ui.prepareLaunch();
     live = {
-      n, mode, factIds: flight.facts.map((f) => f.id), phase: 'round', round: 0, rounds: [], pts: 0, alt: 0, maxAlt: 0, startedAt: 0,
+      n, mode, run: mode === 'unlimited' ? flight.run : undefined, factIds: flight.facts.map((f) => f.id), phase: 'round', round: 0, rounds: [], pts: 0, alt: 0, maxAlt: 0, startedAt: 0,
       entry: '', chip: S.DEFAULT_CHIP,
+      untimed: !store.tutored,              // a brand-new pilot's first leg is guided and untimed
     };
     store.live = live;
     if (mode === 'unlimited' && !K.access.unlimited()) store.freeRunUsed = true;   // the free run starts now
@@ -243,7 +248,7 @@ K.game = (() => {
       entry: live.entry, chip: live.chip,
       clueUsed: live.clueLeg != null, clueHere: live.clueLeg === i, clueLeg: live.clueLeg,
       onClue: () => { live.clueLeg = i; save(); },
-      onChange: (entry, chip) => { live.entry = entry; live.chip = chip; saveSoon(); },
+      onChange: (entry, chip) => { live.entry = entry; live.chip = chip; saveSoon(); if (live.untimed) K.coach.input(entry, chip); },
     };
     if (animate) {
       await K.round.advance(opts);
@@ -254,6 +259,11 @@ K.game = (() => {
     } else K.round.render(opts);
     K.scene.setChip(live.chip, true);
     if (K.ui.current !== 'round') K.ui.show('round');
+    if (live.untimed && i === 0) {          // the one guided leg: no clock, three slips
+      K.round.setTimer(C.ROUND_SECONDS, C.ROUND_SECONDS);
+      setTimeout(() => K.coach.start(live.chip), K.fx.reduced() ? 0 : 450);
+      return;
+    }
     startTimer(C.ROUND_SECONDS);
   }
 
@@ -278,6 +288,7 @@ K.game = (() => {
     if (!live || live.phase !== 'round' || busy) return;
     busy = true;
     stopTimer();
+    if (live.untimed) { K.coach.stop(); live.untimed = false; store.tutored = true; save(); }
 
     const i = live.round;
     const fact = flight.facts[i];
@@ -401,6 +412,7 @@ K.game = (() => {
     });
     if (mode === 'unlimited') {
       record.run = flight.run;
+      store.runNext = Math.max(store.runNext || 1, flight.run + 1);
       store.runs.push(record);
       if (store.runs.length > 50) store.runs.shift();
       store.seen.push(...flight.facts.map((f) => f.id));
@@ -409,7 +421,7 @@ K.game = (() => {
     live = null;
     save();
     refreshTopbar();
-    if (mode === 'daily') K.stats.submit(record);   // the crowd chart is today's dailies only
+    if (mode === 'daily' || mode === 'unlimited') K.stats.submit(record);   // archive replays don't count
     showResults(record, true);
   }
 
@@ -521,6 +533,6 @@ K.game = (() => {
     get phase() { return live ? live.phase : null; },
     get leg() { return live ? live.round : null; },
     /** Seconds left on the running leg (null outside a round). Keeps counting while the menu is open. */
-    remaining: () => (live && live.phase === 'round' ? Math.max(0, C.ROUND_SECONDS - (Date.now() - live.startedAt) / 1000) : null),
+    remaining: () => (live && live.phase === 'round' && !live.untimed ? Math.max(0, C.ROUND_SECONDS - (Date.now() - live.startedAt) / 1000) : null),
   };
 })();

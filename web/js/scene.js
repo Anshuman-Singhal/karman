@@ -638,12 +638,14 @@ K.scene = (() => {
     const dockTop = dock && !dock.hidden ? dock.getBoundingClientRect().top : Infinity;
     const env = rigEl.getBoundingClientRect();
     const balloon = { left: env.left + env.width * 0.1, right: env.right - env.width * 0.1, top: env.top, bottom: env.bottom };
+    const hud = ['topbar', 'altimeter', 'hud'].map((id) => document.getElementById(id))
+      .filter((e) => e && !e.hidden && e.offsetParent !== null).map((e) => e.getBoundingClientRect());
     for (const it of items) {
       if (!it.visible) continue;
       const lab = it.label || (it.label = it.el.querySelector('.w-label') || false);
       if (!lab) continue;
       const r = lab.getBoundingClientRect();
-      lab.classList.toggle('tucked', r.bottom > dockTop - 10 || hits(r, balloon));
+      lab.classList.toggle('tucked', r.bottom > dockTop - 10 || hits(r, balloon) || hud.some((h) => hits(r, h, 4)));
     }
   }
 

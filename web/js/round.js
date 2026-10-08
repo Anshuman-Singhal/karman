@@ -169,7 +169,6 @@ K.round = (() => {
       els.hint.classList.remove('is-clue');
       els.hint.classList.add('is-cost');
       els.hint.textContent = 'Tap again to use it. This leg pays half.';
-      clueArmTimer = setTimeout(() => { renderClue(); renderHint(); }, 2500);
       return;
     }
     clearTimeout(clueArmTimer);

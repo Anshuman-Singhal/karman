@@ -54,5 +54,14 @@ db.exec("INSERT INTO results (n, device, pts, legs, chips, created) VALUES (1, '
 const s1 = await (await call('/api/stats/1')).json();
 check(s1.players === 1 && s1.buckets.length === 1 && s1.buckets[0][0] === 300, 'stats count only current-era rows');
 
+// numbered Unlimited runs: their own crowd, kept apart from daily flights
+const runPost = (run, device, pts) => call('/api/result', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ run, device, pts, legs: '1111111', chips: '2222222' }) });
+check((await runPost(3, 'device-run-0001', 400)).status === 204, 'run result accepted');
+await runPost(3, 'device-run-0002', 200);
+const r3 = await (await call('/api/stats/r3')).json();
+check(r3.players === 2 && r3.run === true, 'run stats count only that run');
+check((await (await call('/api/stats/r4')).json()).players === 0, 'other runs are separate');
+check((await runPost(0, 'device-run-0003', 100)).status === 422, 'run 0 rejected');
+
 console.log(fails ? `${fails} failed` : 'Worker checks passed.');
 process.exit(fails ? 1 : 0);

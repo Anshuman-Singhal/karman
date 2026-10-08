@@ -68,6 +68,17 @@
     <span class="alt-pts"><b id="alt-pts">0</b> pts</span>
   </div>
 
+  <!-- Round HUD: the dial and the route, up top so the card stays calm (shown only on the round screen) -->
+  <div id="hud" class="hud">
+    <div class="hud-strip">
+      <div class="round-timer" id="round-timer" role="timer" aria-label="30 seconds left"><b>30</b></div>
+      <div class="leg-block">
+        <span class="cat-tag" id="round-cat"></span>
+        <ol class="legs" id="legs" aria-label="Flight progress"></ol>
+      </div>
+    </div>
+  </div>
+
   <!-- The gondola: ONE persistent card. Screens crossfade inside it, so the
        card never jumps in size or position between steps. -->
   <main id="dock">
@@ -98,17 +109,13 @@
 
     <!-- ROUND · one estimate. Deliberately lean: the sky is the show. -->
     <section class="screen round" id="screen-round" hidden>
-      <div class="round-head">
-        <div class="round-timer" id="round-timer" role="timer" aria-label="30 seconds left"><b>30</b></div>
-        <div class="leg-block">
-          <span class="cat-tag" id="round-cat"></span>
-          <ol class="legs" id="legs" aria-label="Flight progress"></ol>
-        </div>
-        <button type="button" class="clue-tag" id="btn-clue" data-state="ready"></button>
-      </div>
       <p class="sr-only" id="timer-live" aria-live="assertive"></p>
       <div class="leg-body" id="leg-body">
-      <h2 class="question" id="round-q"></h2>
+      <!-- The clue tag hangs at the top right; the question wraps around it -->
+      <div class="q-wrap">
+        <button type="button" class="clue-tag" id="btn-clue" data-state="ready"></button>
+        <h2 class="question" id="round-q"></h2>
+      </div>
       <p class="hint" id="round-hint"></p>
 
       <!-- Your range, big and plain: low ⟵ guess ⟶ high -->
@@ -136,7 +143,6 @@
 
       <div class="controls" id="round-controls">
         <div class="keypad" id="keypad" aria-label="Number pad"></div>
-        <p class="kbd-note">Type your guess, arrow keys for width, Enter to lock</p>
       </div>
       <div class="result" id="round-result" hidden aria-live="polite">
         <div class="result-head"><span class="verdict"></span><span class="verdict-delta"></span></div>
@@ -165,7 +171,7 @@
           <div class="crowd-chart" id="crowd-chart"></div>
         </div>
 
-        <!-- Six legs, tap one to see its answer -->
+        <!-- Seven legs, tap one to see its answer -->
         <div class="legstrip" id="legstrip" role="tablist" aria-label="Your seven legs"></div>
         <p class="legstrip-note" id="legstrip-note">Tap a leg for the answer</p>
         <div class="leg-detail" id="leg-detail"></div>
@@ -179,6 +185,7 @@
           <span class="kt-stub" id="keep-stub">∞</span>
         </button>
         <div class="ticket-row">
+          <span class="share-nudge" id="share-nudge" aria-hidden="true">Send it to the group chat</span>
           <button type="button" class="ticket-btn" id="btn-share">
             <span class="ticket-main"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share flight log</span>
             <span class="ticket-stub" id="ticket-stub"></span>
@@ -269,7 +276,7 @@
     </div>
   </div>
 
-  <!-- HELP sheet -->
+  <!-- ARCHIVE sheet -->
   <div class="sheet-wrap" id="sheet-archive" hidden>
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="archive-h">
       <div class="sheet-head"><div><h2 id="archive-h">Archive</h2><p class="sheet-sub">EVERY DAILY FLIGHT SINCE LAUNCH</p></div><button type="button" class="icon-btn sheet-x" data-close="archive" aria-label="Close archive"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
@@ -306,32 +313,24 @@
     </div>
   </div>
 
+  <!-- HOW TO FLY: three steps on one card -->
   <div class="sheet-wrap" id="sheet-help" hidden>
-    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="help-h">
-      <div class="sheet-head"><div><h2 id="help-h">How to fly</h2><p class="sheet-sub">BRIEFING · READ BEFORE BOARDING</p></div><button type="button" class="icon-btn sheet-x" data-close="help" aria-label="Close help"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-      <ol class="brief">
-        <li><span class="br-n">1</span><div class="br-t"><b>Guess the number.</b> Every question has a numeric answer. Type your best guess.</div>
-          <svg class="br-ill" viewBox="0 0 64 40" aria-hidden="true"><line x1="4" y1="24" x2="60" y2="24" class="il-track"/><line x1="34" y1="14" x2="34" y2="30" class="il-pin"/><circle cx="34" cy="12" r="3" class="il-dot"/></svg></li>
-        <li><span class="br-n">2</span><div class="br-t"><b>Pick how sure you are.</b> A narrower range pays more, if the answer lands inside it.</div>
-          <svg class="br-ill" viewBox="0 0 64 40" aria-hidden="true"><line x1="4" y1="24" x2="60" y2="24" class="il-track"/><rect x="20" y="20.5" width="28" height="7" rx="3.5" class="il-range"/><line x1="34" y1="14" x2="34" y2="30" class="il-pin"/></svg></li>
-        <li class="br-ladder-row"><div class="ladder" id="help-ladder"></div></li>
-        <li><span class="br-n">3</span><div class="br-t"><b>Climb.</b> <span id="help-climb"></span></div>
-          <svg class="br-ill" viewBox="0 0 64 40" aria-hidden="true"><line x1="14" y1="4" x2="14" y2="38" class="il-rail"/><path d="M11 30h6M11 22h6M11 14h6M11 6h6" class="il-tick"/><line x1="14" y1="38" x2="14" y2="22" class="il-climb"/><g transform="translate(36 16)"><path d="M0-10c-6 0-9 4-9 8.5 0 3.6 3 6.6 5.4 8.5h7.2C6 5.1 9 2.1 9-1.5 9-6 6-10 0-10z" class="il-env"/><rect x="-3" y="8" width="6" height="4" rx="1" class="il-basket"/></g></svg></li>
-        <li><span class="br-n">4</span><div class="br-t"><b>Reach space.</b> <span id="help-space"></span></div>
-          <svg class="br-ill" viewBox="0 0 64 40" aria-hidden="true"><path d="M2 38 Q32 26 62 38" class="il-earth"/><line x1="4" y1="10" x2="60" y2="10" class="il-karman"/><text x="60" y="7" text-anchor="end" class="il-lbl">100 KM</text><path d="M32 30 L32 16" class="il-climb"/><path d="M28.5 18 L32 13 L35.5 18Z" class="il-dot"/></svg></li>
+    <div class="sheet help" role="dialog" aria-modal="true" aria-labelledby="help-h">
+      <div class="sheet-head"><div><h2 id="help-h">How to fly</h2></div><button type="button" class="icon-btn sheet-x" data-close="help" aria-label="Close help"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <ol class="hf">
+        <li><span class="hf-n">1</span>
+          <p><b>Guess the number.</b> Every answer is a number.</p>
+          <svg class="hf-ill" viewBox="0 0 72 40" aria-hidden="true"><path d="M4 28h64" class="hi-line"/><path d="M8 25v6M22 26v4M36 25v6M50 26v4M64 25v6" class="hi-tick"/><path d="M41 28V12" class="hi-pin"/><circle cx="41" cy="10" r="3.2" class="hi-dot"/></svg></li>
+        <li><span class="hf-n">2</span>
+          <p><b>Pick how sure you are.</b> Wider is safer. Narrower pays more.</p>
+          <div class="hf-ladder" id="help-ladder" aria-hidden="true"></div></li>
+        <li><span class="hf-n">3</span>
+          <p><b>Climb to space.</b> <span id="help-space"></span></p>
+          <svg class="hf-ill" viewBox="0 0 72 40" aria-hidden="true"><path d="M2 39Q36 29 70 39" class="hi-line"/><path d="M4 8h64" class="hi-karman"/><path d="M36 30V16" class="hi-climb"/><g transform="translate(36 19)"><path d="M0-9c-5 0-7.6 3.4-7.6 7.2 0 3 2.5 5.6 4.6 7.2h6c2.1-1.6 4.6-4.2 4.6-7.2C7.6-5.6 5-9 0-9z" class="hi-env"/><rect x="-2.6" y="6.6" width="5.2" height="3.6" rx=".8" class="hi-basket"/></g></svg></li>
       </ol>
-      <div class="br-cards">
-        <div class="br-card"><span class="br-tag"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></svg>CLUE ×1</span><p>Once a flight, see a window the answer sits in. That question scores half.</p></div>
-        <div class="br-card"><span class="br-tag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3c-4 0-6.5 3-6.5 6.5 0 2.8 2.4 5.2 4.2 6.5h4.6c1.8-1.3 4.2-3.7 4.2-6.5C18.5 6 16 3 12 3z"/><path d="M9 20l3-2 3 2"/></svg>THERMAL ×2</span><p>Every 7-day streak earns one. Miss a day and it keeps your streak alive.</p></div>
-      </div>
-      <div class="why">
-        <svg class="why-arc" viewBox="0 0 320 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0 60 Q160 18 320 60" class="why-earth"/><path d="M0 34 Q160 -8 320 34" class="why-line"/></svg>
-        <span class="why-km">100 KM</span>
-        <h3>Why KÁRMÁN?</h3>
-        <p>The Kármán line, 100 km up, is where space officially begins. It's named after Theodore von Kármán, who showed that around that height the air is too thin for wings. Above it, only rockets fly, and that's your finish line.</p>
-      </div>
+      <p class="hf-note">One clue per flight shows where the answer sits, for half the points. A new flight every day.</p>
       <div class="br-foot">
-        <button type="button" class="ready-ticket" id="btn-ready"><span class="rt-main"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 3.5 5 5.6 5 10.5A5 5 0 0 1 7 12.6c0-2 1-3.6 2.3-4.6.1 1.7.9 3 2.2 3.4C11 8.3 11 5 12 2z"/></svg>Ready for take-off</span><span class="rt-stub">GATE ▸ SKY</span></button>
+        <button type="button" class="ready-ticket" id="btn-ready"><span class="rt-main">Got it</span><span class="rt-stub" id="help-stub"><small>Gate</small><b>#1</b></span></button>
       </div>
     </div>
   </div>
@@ -355,11 +354,23 @@
 <script src="js/scene.js"></script>
 <script src="js/ambient.js"></script>
 <script src="js/round.js"></script>
+<script src="js/coach.js"></script>
 <script src="js/share.js"></script>
 <script src="js/shareimg.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/game.js"></script>
 <script src="js/main.js"></script>
+<script>
+/* The round dial now lives in the top HUD (#hud), outside the card. round.js
+   still writes the arc's --left onto #screen-round every frame; mirror it. */
+(() => {
+  const src = document.getElementById('screen-round'), hud = document.getElementById('hud');
+  if (!src || !hud || !window.MutationObserver) return;
+  const copy = () => hud.style.setProperty('--left', src.style.getPropertyValue('--left') || '1');
+  new MutationObserver(copy).observe(src, { attributes: true, attributeFilter: ['style'] });
+  copy();
+})();
+</script>
 </body>
 </html>
