@@ -163,26 +163,25 @@ K.audio = (() => {
       the balloon settles. One soft high note marks the moment of lift. */
   function takeoff() {
     if (!ready()) return;
+    // The launch-day sound, made mellower: a soft, dark burner breath, a warm low
+    // C with a quiet fifth under it, then a slow, gentle rise G4 C5 E5 G5 (the
+    // piercing top C dropped), all in the game's key. No bell, no roar.
     const t = ctx.currentTime + 0.02;
-    burnerRoar(t, 1.35, 0.12);
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.Q.value = 0.5;
-    lp.frequency.setValueAtTime(380, t);
-    lp.frequency.exponentialRampToValueAtTime(2300, t + 1.1);
-    lp.frequency.exponentialRampToValueAtTime(900, t + 3.2);
-    const bus = ctx.createGain();
-    bus.gain.value = 1;
-    lp.connect(bus);
-    bus.connect(master);
-    bus.connect(verb);
-    // C3 G3 C4 E4 G4 D5: open, warm, in the game's key
-    [130.81, 196, 261.63, 329.63, 392, 587.33].forEach((f, i) =>
-      padNote(f, t + 0.12 + i * 0.045, 0.6, 0.55, 1.9, [0.05, 0.04, 0.034, 0.03, 0.026, 0.016][i], lp));
-    // the lift: one round, quiet bell an octave up (lands as the basket leaves the grass)
-    pluck(783.99, t + 0.48, 0.05, 1.3);
-    pluck(1046.5, t + 0.62, 0.035, 1.5);
+    whoosh(0.45, t);
+    [[130.81, 0.075], [196.0, 0.03]].forEach(([f, peak]) => {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.linearRampToValueAtTime(f * 1.012, t + 1.6);
+      const g = ctx.createGain();
+      env(g, t, 0.5, 0.35, 1.3, peak);
+      o.connect(g).connect(master);
+      o.start(t);
+      o.stop(t + 2.4);
+    });
+    [392, 523.25, 659.25, 783.99].forEach((f, i) => pluck(f, t + 0.32 + i * 0.16, 0.075 - i * 0.01, 0.9 + i * 0.1));
   }
+
 
   /** Tiny wooden tick for key presses. */
   function tick() {
