@@ -59,9 +59,26 @@ K.scene = (() => {
   const flame = { level: 0.2, target: 0.2, boost: 0 };
   let lastNow = 0;
   let stamped = {};
+  /* Take-off: the envelope's swell is eased toward its target every frame
+     (never snapped), and a lift sets off one slow, damped sway. */
+  let inflateCur = 0, inflateTo = 0, swayT0 = 0;
+  /** CSS-style cubic-bezier(x1, y1, x2, y2) as a function of t. */
+  const bezier = (x1, y1, x2, y2) => {
+    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+    const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+    const X = (u) => ((ax * u + bx) * u + cx) * u, Y = (u) => ((ay * u + by) * u + cy) * u;
+    const dX = (u) => (3 * ax * u + 2 * bx) * u + cx;
+    return (t) => {
+      let u = t;
+      for (let i = 0; i < 6; i++) { const e = X(u) - t, d = dX(u); if (Math.abs(e) < 1e-5 || !d) break; u -= e / d; }
+      return Y(clamp(u, 0, 1));
+    };
+  };
+  /* Heavy at first, then a long soft glide into position: a balloon, not a lift. */
+  const liftCurve = bezier(0.55, 0, 0.22, 1);
 
   /* ---- DOM refs ---- */
-  let skyEl, starsEl, worldEl, frontEl, earthEl, rigEl, svgEl, sunEl;
+  let skyEl, starsEl, worldEl, frontEl, earthEl, rigEl, svgEl, sunEl, sceneEl, paperV = '';
   let railEl, railBug, railFill, railGhost, railTicks = [];
 
   /* ========================================================== world items */
@@ -75,15 +92,81 @@ K.scene = (() => {
     return item;
   }
 
+  /* ========================================================== the hand
+     Everything in the sky is drawn like a travel-poster illustration: flat
+     gouache planes, a hand-inked contour that is never quite even, a little
+     hatching in the shade. The wobble is baked into the geometry here (no
+     per-frame filters), and a few static SVG filters (#k-ink) roughen the
+     edges of the larger landmarks once, when they are first painted. */
+  const INK = '#22305A';                // the sky's ink: the UI navy, a touch lifted
+  let uid = 0;
+  const f1 = (n) => n.toFixed(1);
+  /** A hand-drawn circle: a closed curve through slightly uneven radii. */
+  function blob(cx, cy, r, rand, wob = 0.045, n = 14) {
+    const p = [];
+    const ph = rand() * Math.PI * 2;
+    for (let i = 0; i < n; i++) {
+      const a = ph + (i / n) * Math.PI * 2;
+      const rr = r * (1 + (rand() - 0.5) * 2 * wob);
+      p.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr]);
+    }
+    // Smooth closed curve: quadratic segments between midpoints.
+    const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    let m = mid(p[n - 1], p[0]);
+    let d = `M${f1(m[0])},${f1(m[1])}`;
+    for (let i = 0; i < n; i++) {
+      const q = p[i], m2 = mid(p[i], p[(i + 1) % n]);
+      d += ` Q${f1(q[0])},${f1(q[1])} ${f1(m2[0])},${f1(m2[1])}`;
+    }
+    return `${d}Z`;
+  }
+  /** A brush line along a polyline: a thin filled ribbon whose width swells
+      and thins like a dip pen (w0 … w1), so contours read as inked by hand. */
+  function penLine(points, w0, w1, rand) {
+    const top = [], bot = [];
+    let k = rand() * 10;
+    for (let i = 0; i < points.length; i++) {
+      const [x, y] = points[i];
+      k += 0.35 + rand() * 0.3;
+      const w = w0 + (w1 - w0) * (0.5 + 0.5 * Math.sin(k));
+      top.push(`${f1(x)},${(y - w * 0.5).toFixed(2)}`);
+      bot.push(`${f1(x)},${(y + w * 0.5).toFixed(2)}`);
+    }
+    return `M${top.join(' L')} L${bot.reverse().join(' L')}Z`;
+  }
+  /** A cumulus in the poster style: a wash of cream, a cool gouache shade
+      along the belly, a few dry-brush contours inside and one inked outline.
+      The outline is the "stroke under fill" trick: every puff is stroked,
+      then all puffs are filled over it, so only the outer contour survives. */
+  function cumulus(puffs, base, rand) {
+    const id = `k-cl${uid++}`;
+    const shapes = puffs.map(([x, y, r]) => blob(x, y, r, rand)).join(' ') + ` ${base}`;
+    let dry = '';
+    puffs.forEach(([x, y, r], i) => {
+      if (i === 0 || i === puffs.length - 1 || rand() < 0.35) return;
+      // an arc on the puff's lower left: where it overlaps its neighbour
+      const a0 = Math.PI * (0.62 + rand() * 0.1), a1 = a0 + Math.PI * (0.22 + rand() * 0.12);
+      const p0 = [x + Math.cos(a0) * r * 0.96, y + Math.sin(a0) * r * 0.96], p1 = [x + Math.cos(a1) * r * 0.96, y + Math.sin(a1) * r * 0.96];
+      dry += `M${f1(p0[0])},${f1(p0[1])} A${f1(r)},${f1(r)} 0 0 1 ${f1(p1[0])},${f1(p1[1])} `;
+    });
+    const lit = puffs.map(([x, y, r]) => blob(x + r * 0.12, y - r * 0.17, r * 0.95, rand, 0.03)).join(' ');
+    return `<defs><clipPath id="${id}"><path d="${shapes}"/></clipPath></defs>
+      <path d="${shapes}" fill="none" stroke="${INK}" stroke-opacity=".42" stroke-width="2.1" stroke-linejoin="round"/>
+      <path d="${shapes}" fill="var(--cloud-wash)"/>
+      <g clip-path="url(#${id})"><path d="${lit}" fill="var(--cloud)"/>${dry ? `<path d="${dry}" fill="none" stroke="${INK}" stroke-opacity=".22" stroke-width=".9" stroke-linecap="round"/>` : ''}</g>`;
+  }
+
   function cloudSVG(rand) {
     const puffs = 5 + Math.floor(rand() * 4);
-    let circles = '';
+    const list = [];
     for (let i = 0; i < puffs; i++) {
       const x = 30 + (i / (puffs - 1)) * 140 + (rand() - 0.5) * 16;
       const r = 18 + rand() * 22 * (1 - Math.abs(i / (puffs - 1) - 0.5));
-      circles += `<circle cx="${x.toFixed(1)}" cy="${(62 - r * 0.55).toFixed(1)}" r="${r.toFixed(1)}"/>`;
+      list.push([x, 62 - r * 0.55, r]);
     }
-    return `<svg viewBox="0 0 200 80" class="cloud-svg"><g fill="var(--cloud)">${circles}<rect x="24" y="52" width="152" height="16" rx="8"/></g><rect x="24" y="60" width="152" height="8" rx="4" fill="var(--cloud-shade)"/></svg>`;
+    // a flat, slightly uneven belly
+    const base = `M24,60 Q24,52 32,52 L168,52 Q176,52 176,60 Q176,68.4 166,68 L100,68.8 L34,68 Q24,68.4 24,60Z`;
+    return `<svg viewBox="-3 -4 206 84" class="cloud-svg">${cumulus(list, base, rand)}</svg>`;
   }
 
   /* The launch meadow. Drawn for a 1000×300 box where the ground line (where
@@ -99,69 +182,109 @@ K.scene = (() => {
   const GROUND_VB_Y = 95;        // the meadow line in the hills viewBox
   function hillsSVG() {
     const rand = K.rng.fromLabel('karman-hills');
+    const hand = K.rng.fromLabel('karman-hills-ink');   // the pen's own randomness, so the land itself never moves
     const ridge = (base, amp, freq, phase, jag) => {
       let d = `M0,300 L0,${base}`;
+      const pts = [];
       for (let x = 0; x <= 1000; x += 20) {
         const y = base - Math.sin(x / freq + phase) * amp - Math.sin(x / (freq * 0.37) + phase * 2) * amp * 0.35 - rand() * jag;
         d += ` L${x},${y.toFixed(1)}`;
+        pts.push([x, y]);
       }
-      return `${d} L1000,300Z`;
+      return { d: `${d} L1000,300Z`, pts };
     };
     // Near meadow: flat around the launch circle (x≈500), rising gently to the sides.
     let near = 'M0,300 L0,84';
+    const nearPts = [];
     for (let x = 0; x <= 1000; x += 20) {
       const dx = (x - 500) / 500;
       const y = GROUND_VB_Y - Math.pow(Math.abs(dx), 1.6) * 16 + Math.sin(x / 47) * 1.2;
       near += ` L${x},${y.toFixed(1)}`;
+      nearPts.push([x, y]);
     }
     near += ' L1000,300Z';
 
-    const tree = (x, y, s, dark) => `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${s.toFixed(2)})">
-        <rect x="-0.6" y="-2" width="1.2" height="4" fill="#2A2418"/>
-        <circle cx="0" cy="-5" r="4.2" fill="${dark}"/><circle cx="-2.4" cy="-3.6" r="3" fill="${dark}"/><circle cx="2.6" cy="-3.4" r="3.1" fill="${dark}"/>
-        <circle cx="1.2" cy="-6.4" r="2" fill="#6F8F52" opacity=".55"/></g>`;
+    /* Trees in the poster manner: a crown of three hand-drawn blobs, inked
+       round the outside, a cool shade on the left, the sun catching the right. */
+    const tree = (x, y, s, dark) => {
+      const crown = [blob(0, -5, 4.2, hand, 0.06, 10), blob(-2.4, -3.6, 3, hand, 0.06, 9), blob(2.6, -3.4, 3.1, hand, 0.06, 9)].join(' ');
+      return `<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${s.toFixed(2)})">
+        <path d="M-0.5,-1.5 L-0.7,2.2 L0.7,2.2 L0.5,-1.5Z" fill="#2A2418"/>
+        <path d="${crown}" fill="none" stroke="${INK}" stroke-opacity=".7" stroke-width="1.1" stroke-linejoin="round"/>
+        <path d="${crown}" fill="${dark}"/>
+        <path d="${blob(1.5, -5.8, 2.5, hand, 0.08, 8)}" fill="#7E9A55" opacity=".6"/></g>`;
+    };
     let trees = '';
     const clump = (cx, n, spread) => {
       for (let i = 0; i < n; i++) {
         const x = cx + (rand() - 0.5) * spread;
         const dx = (x - 500) / 500;
         const y = GROUND_VB_Y - Math.pow(Math.abs(dx), 1.6) * 16 + 1.5;
-        trees += tree(x, y, 1.2 + rand() * 1.1, rand() < 0.5 ? '#24412F' : '#2E4F36');
+        trees += tree(x, y, 1.2 + rand() * 1.1, rand() < 0.5 ? '#2A4A34' : '#36583B');
       }
     };
     clump(395, 7, 60); clump(615, 6, 50); clump(250, 9, 120); clump(780, 8, 110); clump(120, 6, 80); clump(905, 6, 80);
 
-    // Distant festival balloons over the far ridges.
-    const tiny = (x, y, s, c) => `<g transform="translate(${x} ${y}) scale(${s})" opacity=".8">
-        <path d="M0,-9 C6,-9 7,-3 4,1 L1.5,4 L-1.5,4 L-4,1 C-7,-3 -6,-9 0,-9Z" fill="${c}"/>
+    // Distant festival balloons over the far ridges, inked like the big one.
+    const tiny = (x, y, s, c) => `<g transform="translate(${x} ${y}) scale(${s})" opacity=".85">
+        <path d="M0,-9 C6,-9 7,-3 4,1 L1.5,4 L-1.5,4 L-4,1 C-7,-3 -6,-9 0,-9Z" fill="${c}" stroke="${INK}" stroke-opacity=".55" stroke-width=".7" paint-order="stroke"/>
         <path d="M0,-9 C2,-9 2.4,-3 1.3,1 L0.5,4 L-0.5,4 L-1.3,1 C-2.4,-3 -2,-9 0,-9Z" fill="#F3E9D6" opacity=".7"/>
         <rect x="-1.2" y="5" width="2.4" height="2" fill="#5A3720"/></g>`;
+
+    /* Brush texture: short dry strokes in a tile, laid over a flat plane at
+       low strength, so each hill reads as painted rather than filled. */
+    const brush = (id, light, dark, w = 120, h = 36, n = 16) => {
+      let d1 = '', d2 = '';
+      for (let i = 0; i < n; i++) {
+        const x = hand() * w, y = hand() * h, l = 6 + hand() * 16, c = (hand() - 0.5) * 3;
+        const seg = `M${f1(x)},${f1(y)} q${f1(l / 2)},${f1(c)} ${f1(l)},${f1(c * 0.4)} `;
+        if (i % 2) d1 += seg; else d2 += seg;
+      }
+      return `<pattern id="${id}" width="${w}" height="${h}" patternUnits="userSpaceOnUse">
+        <path d="${d1}" stroke="${light}" stroke-width="1.1" stroke-linecap="round" fill="none"/>
+        <path d="${d2}" stroke="${dark}" stroke-width="1.3" stroke-linecap="round" fill="none"/></pattern>`;
+    };
+    const pen = (pts, a, b, op) => `<path d="${penLine(pts, a, b, hand)}" fill="${INK}" fill-opacity="${op}"/>`;
+    // the sun catching the crest, a dry-brush line just under the ink
+    const rim = (pts, col, op) => `<path d="${penLine(pts.map(([x, y]) => [x, y + 2.2]), 0.2, 1.6, hand)}" fill="${col}" fill-opacity="${op}"/>`;
 
     const sheet = (body) => `<svg viewBox="0 0 1000 300" preserveAspectRatio="xMidYMin slice" class="hills">${body}</svg>`;
     // Ridge geometry is drawn in this order so the seeded randomness matches the original meadow.
     const farRidge = ridge(52, 12, 120, 0.4, 3);
     const midRidge = ridge(74, 7, 90, 2.1, 1.5);
+    // Furrows across the meadow, ruled by hand
+    const furrow = (y0, sag) => { const p = []; for (let x = 0; x <= 1000; x += 25) p.push([x, y0 - sag * Math.sin((x / 1000) * Math.PI) + (hand() - 0.5) * 0.6]); return p; };
     return {
       far: sheet(`<defs>
-          <linearGradient id="g-far" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6E86B4"/><stop offset=".5" style="stop-color:var(--horizon)" stop-opacity=".55"/><stop offset="1" stop-color="#6E86B4"/></linearGradient>
-          <linearGradient id="g-mist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--haze);stop-opacity:0"/><stop offset=".5" style="stop-color:var(--haze);stop-opacity:.45"/><stop offset="1" style="stop-color:var(--haze);stop-opacity:0"/></linearGradient></defs>
+          <linearGradient id="g-far" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7A90BC"/><stop offset=".5" style="stop-color:var(--horizon)" stop-opacity=".5"/><stop offset="1" stop-color="#7189B6"/></linearGradient>
+          <linearGradient id="g-mist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--haze);stop-opacity:0"/><stop offset=".5" style="stop-color:var(--haze);stop-opacity:.45"/><stop offset="1" style="stop-color:var(--haze);stop-opacity:0"/></linearGradient>
+          ${brush('g-br-far', 'rgba(255,248,236,.26)', 'rgba(34,48,90,.14)')}</defs>
         ${tiny(560, 26, 1.1, '#E2574C')}${tiny(612, 38, 0.8, '#3E78C2')}${tiny(300, 22, 1, '#F2B33D')}${tiny(720, 30, 0.9, '#6CB38E')}
-        <path d="${farRidge}" fill="url(#g-far)"/>
+        <path d="${farRidge.d}" fill="url(#g-far)"/>
+        <path d="${farRidge.d}" fill="url(#g-br-far)"/>
+        ${rim(farRidge.pts, '#FFF1DC', 0.22)}${pen(farRidge.pts, 0.35, 1.1, 0.3)}
         <rect x="0" y="48" width="1000" height="30" fill="url(#g-mist)"/>`),
-      mid: sheet(`<defs><linearGradient id="g-mid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4C7A6A"/><stop offset=".35" stop-color="#355E55"/><stop offset="1" stop-color="var(--hill-mid)"/></linearGradient></defs>
-        <path d="${midRidge}" fill="url(#g-mid)"/>`),
+      mid: sheet(`<defs><linearGradient id="g-mid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#58836F"/><stop offset=".3" stop-color="#3C6458"/><stop offset="1" stop-color="var(--hill-mid)"/></linearGradient>
+          ${brush('g-br-mid', 'rgba(214,232,190,.26)', 'rgba(20,34,40,.2)', 110, 30, 18)}</defs>
+        <path d="${midRidge.d}" fill="url(#g-mid)"/>
+        <path d="${midRidge.d}" fill="url(#g-br-mid)"/>
+        ${rim(midRidge.pts, '#CFE3B4', 0.22)}${pen(midRidge.pts, 0.4, 1.3, 0.42)}`),
       front: sheet(`<defs>
-          <linearGradient id="g-near" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8FA65E"/><stop offset=".06" stop-color="#5E7F45"/><stop offset=".3" stop-color="#3A5E3F"/><stop offset=".75" stop-color="var(--hill-near)"/></linearGradient>
+          <linearGradient id="g-near" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#97AC62"/><stop offset=".06" stop-color="#668549"/><stop offset=".3" stop-color="#3E6141"/><stop offset=".75" stop-color="var(--hill-near)"/></linearGradient>
           <linearGradient id="g-mist2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--haze);stop-opacity:0"/><stop offset=".55" style="stop-color:var(--haze);stop-opacity:.5"/><stop offset="1" style="stop-color:var(--haze);stop-opacity:.1"/></linearGradient>
-          <linearGradient id="g-river" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--horizon)" stop-opacity=".9"/><stop offset="1" stop-color="#9DBBE0" stop-opacity=".7"/></linearGradient></defs>
+          <linearGradient id="g-river" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--horizon)" stop-opacity=".9"/><stop offset="1" stop-color="#9DBBE0" stop-opacity=".7"/></linearGradient>
+          ${brush('g-br-near', 'rgba(222,236,170,.24)', 'rgba(16,30,22,.24)', 96, 26, 20)}</defs>
         <rect x="0" y="66" width="1000" height="26" fill="url(#g-mist2)" opacity=".75"/>
         <path d="M0,86 C140,80 220,92 330,85 S520,80 600,86 S800,92 1000,84 L1000,88 C800,96 700,90 600,90 S420,86 330,90 S120,86 0,90Z" fill="url(#g-river)" opacity=".75"/>
+        <path d="M60,86.6 Q90,86 120,86.8 M410,84.6 Q450,84 480,84.8 M690,88.2 Q720,87.6 760,88.4" stroke="#FFF8EC" stroke-opacity=".45" stroke-width=".7" stroke-linecap="round" fill="none"/>
         <path d="${near}" fill="url(#g-near)"/>
-        <path d="M0,104 Q500,92 1000,104 M0,112 Q500,100 1000,112 M0,121 Q500,109 1000,121" stroke="#6F8F52" stroke-opacity=".18" stroke-width="1" fill="none"/>
+        <path d="${near}" fill="url(#g-br-near)"/>
+        ${rim(nearPts, '#E4EDB0', 0.3)}${pen(nearPts, 0.4, 1.2, 0.45)}
+        ${pen(furrow(104, 12), 0.2, 0.7, 0.14)}${pen(furrow(112, 12), 0.2, 0.8, 0.12)}${pen(furrow(121, 12), 0.25, 0.9, 0.1)}
         <ellipse cx="500" cy="96.5" rx="38" ry="4.2" fill="#A9BC72" opacity=".38"/>
-        <ellipse cx="500" cy="96.5" rx="24" ry="2.6" fill="none" stroke="#E8E0C4" stroke-opacity=".35" stroke-width=".7"/>
+        <path d="${blob(500, 96.5, 24, hand, 0.02, 16)}" transform="translate(500 96.5) scale(1 .11) translate(-500 -96.5)" fill="none" stroke="#F3E9D6" stroke-opacity=".45" stroke-width="5"/>
         ${trees}
-        <g transform="translate(548 96)"><line x1="0" y1="0" x2="0" y2="-20" stroke="#C9C2B4" stroke-width="1.2"/><path class="windsock" d="M0,-20 L13,-18 L13,-14.5 L0,-12.5Z" fill="var(--amber-deep)"/><path d="M4.3,-19.4 L4.3,-13.2 M8.6,-18.7 L8.6,-13.8" stroke="#F3E9D6" stroke-width="1.2"/></g>`),
+        <g transform="translate(548 96)"><path d="M-0.5,0 L-0.3,-20.4 L0.6,-20.4 L0.5,0Z" fill="#C9C2B4" stroke="${INK}" stroke-opacity=".5" stroke-width=".5"/><path class="windsock" d="M0,-20 L13,-18 L13,-14.5 L0,-12.5Z" fill="var(--amber-deep)" stroke="${INK}" stroke-opacity=".55" stroke-width=".6" paint-order="stroke"/><path d="M4.3,-19.4 L4.3,-13.2 M8.6,-18.7 L8.6,-13.8" stroke="#F3E9D6" stroke-width="1.2"/></g>`),
     };
   }
 
@@ -190,6 +313,10 @@ K.scene = (() => {
   const hazeStops = (from, to) => `<stop offset="${from}" style="stop-color:var(--haze);stop-opacity:0"/><stop offset="1" style="stop-color:var(--haze);stop-opacity:${to}"/>`;
   const splitFill = (id, x, a, b, c, d) => `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${2 * x}" y2="0"><stop offset="0" stop-color="${a}"/><stop offset=".5" stop-color="${b}"/><stop offset=".5" stop-color="${c}"/><stop offset="1" stop-color="${d}"/></linearGradient>`;
   const pts = (list) => list.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(' L');
+  /* The inked contour round a landmark: one even hairline on screen whatever
+     the zoom (non-scaling), roughened with the rest of the art by #k-ink. */
+  const inked = (d, op = 0.6, w = 1.1, extra = '') => `<path d="${d}" fill="none" stroke="${INK}" stroke-opacity="${op}" stroke-width="${w}" stroke-linejoin="round" vector-effect="non-scaling-stroke"${extra}/>`;
+  const hatch = (d, op = 0.5, extra = '') => `<path d="${d}" fill="url(#k-hatch)" opacity="${op}"${extra}/>`;
 
   /* Great Pyramid, seen off its corner: a wide sunlit face, a narrow shaded one. */
   function pyramidSVG() {
@@ -203,11 +330,14 @@ K.scene = (() => {
       <linearGradient id="sk-pyr-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F8DBA0"/><stop offset="1" stop-color="#E2AE66"/></linearGradient>
       <linearGradient id="sk-pyr-s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A3836D"/><stop offset="1" stop-color="#7F665C"/></linearGradient>
       <linearGradient id="sk-pyr-h" x1="0" y1="0" x2="0" y2="1">${hazeStops(0.5, 0.42)}</linearGradient></defs>
+      <g filter="url(#k-ink)">
       <path d="M0,100 L69,2 L70,2 L56,100Z" fill="url(#sk-pyr-s)"/>
       <path d="M70,2 L71,2 L144,100 L56,100Z" fill="url(#sk-pyr-l)"/>
-      <path d="${lit}" stroke="#A9834F" stroke-opacity=".32" stroke-width=".6"/>
+      ${hatch('M0,100 L69,2 L70,2 L56,100Z', 0.55)}
+      <path d="${lit}" stroke="#A9834F" stroke-opacity=".4" stroke-width=".7"/>
       <path d="${shade}" stroke="#5E4C46" stroke-opacity=".3" stroke-width=".6"/>
       <path d="M70,2 L56,100" stroke="#FFF2D6" stroke-opacity=".85" stroke-width=".9"/>
+      ${inked('M0,100 L69,2 L71,2 L144,100', 0.55)}</g>
       <path d="M0,100 L69,2 L71,2 L144,100Z" fill="url(#sk-pyr-h)"/></svg>`;
   }
 
@@ -230,10 +360,12 @@ K.scene = (() => {
       ${splitFill('sk-eif', 50, '#403A55', '#4C445C', '#86706A', '#987F74')}
       <pattern id="sk-eif-lat" width="4.4" height="4.4" patternUnits="userSpaceOnUse"><path d="M0,0 L4.4,4.4 M4.4,0 L0,4.4" stroke="#F4E2CF" stroke-width=".42"/></pattern>
       <linearGradient id="sk-eif-h" x1="0" y1="0" x2="0" y2="1">${hazeStops(0.45, 0.6)}</linearGradient></defs>
+      <g filter="url(#k-ink)">
       <path d="${shape}" fill="url(#sk-eif)" fill-rule="evenodd"/>
-      <path d="${shape}" fill="url(#sk-eif-lat)" fill-rule="evenodd" opacity=".26"/>
+      <path d="${shape}" fill="url(#sk-eif-lat)" fill-rule="evenodd" opacity=".3"/>
       <g fill="#A8948C"><rect x="13.2" y="211" width="73.6" height="3.2"/><rect x="28.8" y="165" width="42.4" height="2.6"/><rect x="44.6" y="33" width="10.8" height="1.8"/></g>
       <g fill="#2F2C45" opacity=".55"><rect x="13.2" y="218" width="73.6" height="1"/><rect x="28.8" y="170.2" width="42.4" height=".8"/></g>
+      ${inked(shape, 0.55, 1, ' fill-rule="evenodd"')}</g>
       <path d="${shape}" fill="url(#sk-eif-h)" fill-rule="evenodd"/></svg>`;
   }
 
@@ -256,9 +388,12 @@ K.scene = (() => {
       ${splitFill('sk-burj', 30, '#7F93B8', '#8DA1C3', '#B9C8DF', '#CAD6E8')}
       <clipPath id="sk-burj-c"><path d="${shape}"/></clipPath>
       <linearGradient id="sk-burj-h" x1="0" y1="0" x2="0" y2="1">${hazeStops(0.05, 0.9)}</linearGradient></defs>
+      <g filter="url(#k-ink)">
       <path d="${shape}" fill="url(#sk-burj)"/>
       <g clip-path="url(#sk-burj-c)"><path d="${ledges}" stroke="#6E83A6" stroke-opacity=".45" stroke-width="1.2"/>
+        <path d="M30,540 V140 H0 V540Z" fill="url(#k-hatch)" opacity=".35"/>
         <path d="M32.2,540 V136" stroke="#FFFFFF" stroke-opacity=".5" stroke-width=".9"/></g>
+      ${inked(shape, 0.45, 1)}</g>
       <path d="${shape}" fill="url(#sk-burj-h)"/></svg>`;
   }
 
@@ -267,15 +402,16 @@ K.scene = (() => {
   function bank(cx, by, w, seed) {
     const rand = K.rng.fromLabel(`bank-${seed}`);
     const n = 6;
-    let lit = '';
+    const list = [];
     for (let i = 0; i < n; i++) {
       const t = i / (n - 1);
       const r = w * (0.09 + 0.08 * (1 - Math.abs(t - 0.5) * 2)) * (0.85 + rand() * 0.3);
       const x = cx - w / 2 + r * 0.9 + t * (w - r * 1.8);
-      lit += `<circle cx="${x.toFixed(1)}" cy="${(by - r * 0.62).toFixed(1)}" r="${r.toFixed(1)}"/>`;
+      list.push([x, by - r * 0.62, r]);
     }
-    return `<g><g fill="#FBF8F3">${lit}<rect x="${cx - w / 2}" y="${by - w * 0.09}" width="${w}" height="${w * 0.09}" rx="${w * 0.045}"/></g>
-      <rect x="${cx - w / 2 + 2}" y="${by - w * 0.045}" width="${w - 4}" height="${w * 0.045}" rx="${w * 0.0225}" fill="#C7CFE2"/></g>`;
+    const x0 = cx - w / 2, x1 = cx + w / 2, y0 = by - w * 0.09, rr = w * 0.045;
+    const base = `M${f1(x0)},${f1(by - rr)} Q${f1(x0)},${f1(y0)} ${f1(x0 + rr)},${f1(y0)} L${f1(x1 - rr)},${f1(y0)} Q${f1(x1)},${f1(y0)} ${f1(x1)},${f1(by - rr)} Q${f1(x1)},${f1(by + 0.4)} ${f1(x1 - rr)},${f1(by)} L${f1(x0 + rr)},${f1(by + 0.3)} Q${f1(x0)},${f1(by + 0.4)} ${f1(x0)},${f1(by - rr)}Z`;
+    return `<g>${cumulus(list, base, rand)}</g>`;
   }
 
   /* Tower of Babel (legend): a round, tiered ziggurat with its ramp
@@ -299,9 +435,11 @@ K.scene = (() => {
     }
     return `<svg viewBox="0 0 110 126"><defs>
       <linearGradient id="sk-bab" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8E6E58"/><stop offset=".45" stop-color="#C29C72"/><stop offset=".78" stop-color="#E2BF8C"/><stop offset="1" stop-color="#C69C6E"/></linearGradient></defs>
-      ${body}
+      <g filter="url(#k-ink)">${body}
       <path d="M${cx - 8},23 L${cx - 6.5},12 L${cx + 6.5},12 L${cx + 8},23Z" fill="url(#sk-bab)"/>
       <path d="M${cx - 7},12.2 Q${cx},2 ${cx + 7},12.2Z" fill="#B88F66"/><path d="M${cx},4.2 Q${cx + 5},6 ${cx + 6.6},12" stroke="#F0D3A0" stroke-width="1" fill="none"/>
+      ${hatch(tiers.map(([yb, hwb]) => `M${cx - hwb},${yb} L${cx - hwb + 3},${yb - 17} L${cx - hwb + 15},${yb - 17} L${cx - hwb + 12},${yb}Z`).join(' '), 0.45)}
+      ${inked(tiers.map(([yb, hwb]) => `M${cx - hwb},${yb} L${cx - hwb + 3},${yb - 17} L${cx + hwb - 3},${yb - 17} L${cx + hwb},${yb}Z`).join(' ') + ` M${cx - 8},23 L${cx - 7},12.2 Q${cx},2 ${cx + 7},12.2 L${cx + 8},23`, 0.55, 1)}</g>
       ${bank(55, 124, 108, 'babel')}</svg>`;
   }
 
@@ -314,7 +452,7 @@ K.scene = (() => {
       <path d="M${x - 2},${y + 0.5} L${x + w / 2},${y - roofH} L${x + w / 2},${y + 0.5}Z" fill="#1E2A55"/>
       <path d="M${x + w / 2},${y - roofH} L${x + w + 2},${y + 0.5} L${x + w / 2},${y + 0.5}Z" fill="#3A4C85"/>
       <path d="M${x + w / 2 - 1},${y + 12} v-2.4 a1,1 0 0 1 2,0 v2.4Z M${x + w / 2 - 1},${y + 26} v-2.4 a1,1 0 0 1 2,0 v2.4Z" fill="#2A3358"/>`;
-    return `<svg viewBox="0 0 140 96"><defs>
+    return `<svg viewBox="0 0 140 96" overflow="visible"><defs>
       <linearGradient id="sk-cyl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#B4B7CE"/><stop offset=".45" stop-color="#E4DFD8"/><stop offset=".78" stop-color="#F8F3EA"/><stop offset="1" stop-color="#D8D3D2"/></linearGradient>
       ${splitFill('sk-wall', 70, '#C3C4D6', '#CDCDDC', '#F1EBE1', '#F6F1E8')}</defs>
       <rect x="38" y="44" width="64" height="34" fill="url(#sk-wall)"/>
@@ -325,6 +463,8 @@ K.scene = (() => {
       <path d="M66,78 V67 a4,4 0 0 1 8,0 V78Z" fill="#2A3358"/>
       <path d="M63,36 v-3 a1.2,1.2 0 0 1 2.4,0 v3Z M74.6,36 v-3 a1.2,1.2 0 0 1 2.4,0 v3Z" fill="#2A3358"/>
       ${tower(26, 15, 30, 21)}${tower(99, 15, 26, 23)}
+      ${hatch('M38,44 H70 V78 H38Z M58,22 H70 V44 H58Z M26,30 H33 V78 H26Z M99,26 H106 V78 H99Z', 0.32)}
+      ${inked(`M58,44 V22 H82 V44 M26,78 V30 H41 V78 M99,78 V26 H114 V78 M24,30.5 L33.5,9 L43,30.5 M97,26.5 L106.5,3 L116,26.5`, 0.5, 1)}
       ${bank(70, 95, 136, 'castle')}</svg>`;
   }
 
@@ -335,9 +475,9 @@ K.scene = (() => {
     let leaves = '';
     for (let y = 18, i = 0; y < H - 20; y += 30, i++) {
       const s = i % 2 ? -1 : 1, x = 20 + 6 * Math.sin(y / 22);
-      leaves += `<g transform="translate(${x.toFixed(1)} ${y}) scale(${s} 1) rotate(-24)"><path d="M0,0 C3,-6 11,-6 14,0 C11,4 3,4 0,0Z" fill="#5E9A43"/><path d="M0,0 C3,-6 11,-6 14,0Z" fill="#8CC062"/><path d="M1,0 H12" stroke="#3E7432" stroke-width=".6"/></g>`;
+      leaves += `<g transform="translate(${x.toFixed(1)} ${y}) scale(${s} 1) rotate(-24)"><path d="M0,0 C3,-6 11,-6 14,0 C11,4 3,4 0,0Z" fill="#5E9A43" stroke="${INK}" stroke-opacity=".55" stroke-width=".7" paint-order="stroke"/><path d="M0,0 C3,-6 11,-6 14,0Z" fill="#8CC062"/><path d="M1,0 H12" stroke="#3E7432" stroke-width=".6"/></g>`;
     }
-    return `<svg viewBox="0 0 40 ${H}" preserveAspectRatio="xMidYMin meet"><path d="${stem(Math.PI)}" fill="none" stroke="#3F7A36" stroke-width="3.2" stroke-linecap="round"/>
+    return `<svg viewBox="0 0 40 ${H}" preserveAspectRatio="xMidYMin meet"><path d="${stem(Math.PI)}" fill="none" stroke="${INK}" stroke-opacity=".45" stroke-width="4.6" stroke-linecap="round"/><path d="${stem(0)}" fill="none" stroke="${INK}" stroke-opacity=".45" stroke-width="4.2" stroke-linecap="round"/><path d="${stem(Math.PI)}" fill="none" stroke="#3F7A36" stroke-width="3.2" stroke-linecap="round"/>
       <path d="${stem(0)}" fill="none" stroke="#6FAA4C" stroke-width="2.8" stroke-linecap="round"/>${leaves}</svg>`;
   }
 
@@ -346,13 +486,16 @@ K.scene = (() => {
   const everestSVG = () => `<svg viewBox="0 0 300 420" preserveAspectRatio="xMidYMin meet">
       <defs><linearGradient id="peak-fade" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stop-color="#B9C9E2"/><stop offset=".3" stop-color="#93A9CC"/><stop offset="1" stop-color="#93A9CC" stop-opacity="0"/></linearGradient>
-        <linearGradient id="peak-snow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E6EDF8" stop-opacity="0"/></linearGradient></defs>
+        <linearGradient id="peak-snow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E6EDF8" stop-opacity="0"/></linearGradient>
+        <linearGradient id="peak-ink" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="260"><stop offset="0" stop-color="${INK}" stop-opacity=".55"/><stop offset="1" stop-color="${INK}" stop-opacity="0"/></linearGradient></defs><g filter="url(#k-ink)">
       <path d="M150,0 L172,32 L196,70 L214,62 L246,128 L300,300 L300,420 L0,420 L0,330 L58,196 L86,94 L112,60 L132,26Z" fill="url(#peak-fade)"/>
       <path d="M150,0 L172,32 L196,70 L214,62 L246,128 L222,150 L200,122 L178,150 L160,96 L150,40Z" fill="url(#peak-snow)"/>
       <path d="M150,0 L150,40 L160,96 L140,120 L120,96 L112,60 L132,26Z" fill="#C9D6EA" fill-opacity=".9"/>
       <path d="M112,60 L120,96 L100,128 L86,94Z" fill="#D7E1F0" fill-opacity=".55"/>
       <path d="M150,0 L150,40 L160,96" stroke="#FFFFFF" stroke-width="1.4" fill="none" stroke-opacity=".9"/>
-      <path d="M166,60 L176,92 M190,80 L198,110 M214,84 L220,118" stroke="#9FB2D0" stroke-width="1.2" stroke-opacity=".5"/></svg>`;
+      <path d="M166,60 L176,92 M190,80 L198,110 M214,84 L220,118" stroke="#9FB2D0" stroke-width="1.2" stroke-opacity=".5"/>
+      <path d="M150,0 L150,40 L160,96 L140,120 L120,96 L112,60 L132,26Z" fill="url(#k-hatch)" opacity=".28"/>
+      <path d="M0,330 L58,196 L86,94 L112,60 L132,26 L150,0 L172,32 L196,70 L214,62 L246,128 L300,300" fill="none" stroke="url(#peak-ink)" stroke-width="1.6" stroke-linejoin="round"/></g></svg>`;
 
   /* Aircraft are drawn in plan, nose to the right, like a spotter's card:
      the sunward half of the airframe light, the other half in shade. */
@@ -525,7 +668,7 @@ K.scene = (() => {
       const scale = 0.55 + rand() * 1.1;
       const front = inDeck && rand() < 0.4;
       const dur = 70 + rand() * 90;
-      const html = `<div class="cloud" style="left:${x.toFixed(1)}%;--s:${scale.toFixed(2)};--drift:${dur.toFixed(0)}s;--dir:${rand() < 0.5 ? 1 : -1};opacity:${(0.72 + rand() * 0.25).toFixed(2)}">${cloudSVG(rand)}</div>`;
+      const html = `<div class="cloud" style="left:${x.toFixed(1)}%;--s:${scale.toFixed(2)};--drift:${dur.toFixed(0)}s;--dir:${rand() < 0.5 ? 1 : -1};opacity:${(0.9 + rand() * 0.1).toFixed(2)}">${cloudSVG(rand)}</div>`;
       addItem(km, html, 'cloud-item', front ? frontEl : worldEl);
     }
     addItem(8.849, `<div class="peak">${everestSVG()}${cap({ name: 'Everest', fig: '8,849 m' }, 'l', 16, 'left:50%;top:-2px')}</div>`, 'landmark right');
@@ -553,11 +696,19 @@ K.scene = (() => {
     const rand = K.rng.fromLabel('karman-stars');
     for (let i = 0; i < 220; i++) {
       const x = rand() * W, y = rand() * H;
-      const r = rand() < 0.08 ? 1.4 : 0.4 + rand() * 0.7;
+      const big = rand() < 0.08;
+      const r = big ? 1.4 : 0.4 + rand() * 0.7;
       ctx.globalAlpha = 0.35 + rand() * 0.65;
       ctx.fillStyle = rand() < 0.15 ? '#FFE3B8' : '#EAF0FF';
       ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
+      if (big) {
+        // the bright ones are printed as small four-point stars, like a poster's
+        const a = 5.2, b = 0.9;
+        ctx.moveTo(x, y - a); ctx.quadraticCurveTo(x + b * 0.4, y - b * 0.4, x + a * 0.8, y);
+        ctx.quadraticCurveTo(x + b * 0.4, y + b * 0.4, x, y + a);
+        ctx.quadraticCurveTo(x - b * 0.4, y + b * 0.4, x - a * 0.8, y);
+        ctx.quadraticCurveTo(x - b * 0.4, y - b * 0.4, x, y - a);
+      } else ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -640,12 +791,19 @@ K.scene = (() => {
     const balloon = { left: env.left + env.width * 0.1, right: env.right - env.width * 0.1, top: env.top, bottom: env.bottom };
     const hud = ['topbar', 'altimeter', 'hud'].map((id) => document.getElementById(id))
       .filter((e) => e && !e.hidden && e.offsetParent !== null).map((e) => e.getBoundingClientRect());
+    // the rail's two printed labels (the next milestone, and Space) count as instruments too
+    railEl.querySelectorAll('.rail-tick.next span, .rail-tick:last-child span').forEach((s) => {
+      const r = s.getBoundingClientRect();
+      if (r.width) hud.push(r);
+    });
     for (const it of items) {
       if (!it.visible) continue;
       const lab = it.label || (it.label = it.el.querySelector('.w-label') || false);
       if (!lab) continue;
       const r = lab.getBoundingClientRect();
-      lab.classList.toggle('tucked', r.bottom > dockTop - 10 || hits(r, balloon) || hud.some((h) => hits(r, h, 4)));
+      // a flag that would run off either edge waits until it is fully on screen
+      const clipped = r.left < 2 || r.right > W - 2;
+      lab.classList.toggle('tucked', clipped || r.bottom > dockTop - 10 || hits(r, balloon) || hud.some((h) => hits(r, h, 4)));
     }
   }
 
@@ -686,6 +844,9 @@ K.scene = (() => {
     earthEl.style.opacity = et.toFixed(3);
     earthEl.style.transform = `translate3d(-50%, ${((1 - et) * 38).toFixed(2)}vh, 0)`;
     sunEl.style.opacity = (1 - clamp(cam.km / 40, 0, 0.75)).toFixed(3);
+    // The paper's light tooth thins out as the sky darkens (stepped, so it rarely restyles).
+    const paper = (Math.round(clamp(1 - (fOf(cam.km) - fOf(3)) / (fOf(40) - fOf(3)), 0.12, 1) * 25) / 25).toFixed(2);
+    if (paper !== paperV) { paperV = paper; sceneEl.style.setProperty('--paper', paper); }
 
     // World items
     const fc = fOf(cam.km);
@@ -702,9 +863,21 @@ K.scene = (() => {
     // Captions never sit on the card or across the balloon: tuck them away (5×/s is plenty)
     if (now - tuckT > 200) { tuckT = now; tuckCaptions(); }
 
-    // Balloon: bob, spin, flame
-    const bob = calm || perch > GROUND_DROP - 2 ? 0 : Math.sin(now / 900) * 3.2;
-    const sway = calm ? 0 : Math.sin(now / 1500) * 0.9;
+    // Balloon: swell, bob, sway, flame
+    inflateCur += (inflateTo - inflateCur) * Math.min(1, dt * (inflateTo > inflateCur ? 14 : 4.5));
+    if (Math.abs(inflateTo - inflateCur) < 0.002) inflateCur = inflateTo;
+    const inf = inflateCur.toFixed(3);
+    if (inf !== svgEl.style.getPropertyValue('--inflate')) svgEl.style.setProperty('--inflate', inf);
+    // The bob fades in as the basket leaves the grass (no jump at lift-off).
+    const airborne = clamp(1 - perch / GROUND_DROP, 0, 1);
+    const bob = calm ? 0 : Math.sin(now / 900) * 3.2 * airborne;
+    let sway = calm ? 0 : Math.sin(now / 1500) * 0.9;
+    if (swayT0 && !calm) {
+      // one long, damped lean as the envelope takes the weight, settling out
+      const tau = (now - swayT0) / 1000;
+      if (tau > 5) swayT0 = 0;
+      else sway += 1.5 * Math.exp(-tau * 1.15) * Math.sin(tau * 2.4);
+    }
     rigEl.style.transform = `translate3d(-50%, ${(anchorY - balloonPx + bob + perch).toFixed(1)}px, 0) rotate(${sway.toFixed(2)}deg)`;
 
     flame.boost *= Math.pow(0.08, dt);
@@ -740,8 +913,23 @@ K.scene = (() => {
     }
   }
 
+  /* The pen's shared tools, referenced by every sight's SVG: a static edge
+     roughening (painted once per layer, never per frame) and a hatch. */
+  function inkDefs() {
+    if (document.getElementById('k-ink')) return;
+    const d = document.createElement('div');
+    d.innerHTML = `<svg width="0" height="0" style="position:absolute;width:0;height:0" aria-hidden="true" focusable="false"><defs>
+      <filter id="k-ink" x="-4%" y="-4%" width="108%" height="108%" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency=".07" numOctaves="2" seed="11" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="1.7" xChannelSelector="R" yChannelSelector="G"/></filter>
+      <pattern id="k-hatch" width="3.4" height="3.4" patternUnits="userSpaceOnUse" patternTransform="rotate(36)">
+        <path d="M0.8,0 V3.4" stroke="${INK}" stroke-width=".6" stroke-opacity=".55"/></pattern></defs></svg>`;
+    document.getElementById('scene').prepend(d.firstElementChild);
+  }
+
   /* ========================================================== public API */
   function init() {
+    sceneEl = document.getElementById('scene');
     skyEl = document.getElementById('sky');
     starsEl = document.getElementById('stars');
     worldEl = document.getElementById('world');
@@ -750,6 +938,7 @@ K.scene = (() => {
     sunEl = document.getElementById('sun');
     rigEl = document.getElementById('balloon-rig');
     svgEl = document.getElementById('balloon');
+    inkDefs();
     railEl = document.getElementById('rail');
     K.vehicle.build(svgEl);
     buildRail();
@@ -810,13 +999,14 @@ K.scene = (() => {
     liftTo = flyPx();
     liftT0 = performance.now();
     liftDur = K.fx.reduced() ? 250 : 1500;
-    liftEase = (t) => (t < 0.18 ? 0.04 * (t / 0.18) : 0.04 + 0.96 * easeInOutCubic((t - 0.18) / 0.82));
-    flame.target = 1.35;
-    flame.boost = 1.6;
-    K.vehicle.spin(0.9);
-    svgEl.classList.remove('heave');
-    void svgEl.getBoundingClientRect();
-    svgEl.classList.add('heave');
+    liftEase = liftCurve;
+    // A long, steady burn rather than a blast; the swell relaxes as it rises.
+    flame.target = 1.1;
+    flame.boost = Math.max(flame.boost, 0.7);
+    inflateTo = 0;
+    K.vehicle.spin(0.5);
+    if (!K.fx.reduced()) { swayT0 = liftT0; K.vehicle.kick(1); }
+    if (K.fx.hush) K.fx.hush(1900, 0.1);   // a few sparks drifting off the burner, not a shower
     return new Promise((r) => {
       liftResolve = () => { flame.target = 0.45; r(); };
     });
@@ -834,8 +1024,9 @@ K.scene = (() => {
 
   /** Hold-to-launch: p ∈ [0,1]. */
   function inflate(p) {
-    flame.target = 0.18 + p * 1.3;
-    svgEl.style.setProperty('--inflate', p.toFixed(3));
+    flame.target = 0.18 + p * 1.1;
+    inflateTo = p;
+    if (p > 0 && K.fx.hush) K.fx.hush(500, 0.2);
   }
 
   function flare(amount = 1.4) { flame.boost = Math.max(flame.boost, amount); }

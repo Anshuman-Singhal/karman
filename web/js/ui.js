@@ -136,7 +136,7 @@ K.ui = (() => {
     const d = K.date.dateOfFlight(flight.n);
     const short = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
     const un = mode === 'unlimited';
-    $('home-meta').textContent = un ? `Unlimited · run ${flight.run}` : mode === 'archive' ? `Archive · ${short}` : `${short} · ${flight.weather.name}`;
+    $('home-meta').textContent = un ? `Unlimited · Flight #${flight.flightNo || flight.run}` : mode === 'archive' ? `Archive · ${short}` : `${short} · ${flight.weather.name}`;
     $('home-h').innerHTML = un ? 'Unlimited <span>∞</span>' : `Flight <span>#${flight.n}</span>`;
     $('home-lede').textContent = un ? 'Seven new questions. No streak on the line, but stamps still count.'
       : mode === 'archive' ? 'A past daily flight. It won’t touch your streak.'
@@ -367,11 +367,11 @@ K.ui = (() => {
     const pct = K.stats.percentile(stats, record.pts);
     let kind = 'rank';
     const runNo = record.mode === 'unlimited' ? record.run : null;
-    const crowd = runNo ? `pilots on Run ${runNo}` : 'today’s';
+    const crowd = runNo ? 'pilots who flew this one' : 'today’s';
     let txt = runNo ? `You did better than <b class="pctl-inline">${pct}%</b> of the <b>${many}</b> ${crowd}.`
       : `You did better than <b class="pctl-inline">${pct}%</b> of today’s <b>${many}</b> pilots.`;
     let said = txt.replace(/<[^>]+>/g, '');
-    if (players <= 1) { kind = 'first'; txt = said = runNo ? `You’re the first pilot to fly Run ${runNo}. Check back later to see how you compare.` : 'You’re the first pilot up today. Check back later to see how you compare.'; }
+    if (players <= 1) { kind = 'first'; txt = said = runNo ? 'You’re the first pilot to fly this one. Check back later to see how you compare.' : 'You’re the first pilot up today. Check back later to see how you compare.'; }
     else if (record.pts === 0) { kind = 'grounded'; txt = said = runNo ? 'Grounded on this run. Keep flying.' : 'Grounded today. The meadow resets at midnight.'; }
     else if (higher === 0) { txt = runNo ? `Nobody flew higher. You topped the <b>${many}</b> ${crowd}.` : `Nobody flew higher. You topped today’s <b>${many}</b> pilots.`; said = txt.replace(/<[^>]+>/g, ''); }
     box.dataset.kind = kind;
@@ -421,7 +421,7 @@ K.ui = (() => {
       // Phones: the tickets can sit below the fold of the pass, so bring them up first.
       const box = $('screen-results'), r = btn.getBoundingClientRect(), b = box.getBoundingClientRect();
       if (r.bottom > b.bottom || r.top < b.top) btn.scrollIntoView({ block: 'center', behavior: K.fx.reduced() ? 'auto' : 'smooth' });
-      btn.classList.add('nudge'); tag.classList.add('in');
+      btn.classList.add('nudge');
       nudgeTimer = setTimeout(() => tag.classList.remove('in'), 6000);
     }, 1800);
     btn.addEventListener('click', () => { tag.classList.remove('in'); btn.classList.remove('nudge'); }, { once: true });
@@ -429,7 +429,7 @@ K.ui = (() => {
 
   function results({ record, n, mode = 'daily', streak, thermals, streakInfo, isFresh, prevBest }) {
     lastRecord = { record, n, streak, mode };
-    $('res-eyebrow').textContent = mode === 'unlimited' ? `Unlimited · run ${record.run || ''}`
+    $('res-eyebrow').textContent = mode === 'unlimited' ? `Unlimited · Flight #${record.flightNo || record.run || ''}`
       : `${mode === 'archive' ? 'Archive · ' : ''}Flight #${n} · ${K.date.formatLong(K.date.dateOfFlight(n))}`;
     $('btn-today').hidden = mode === 'daily';
     const subj = encodeURIComponent(`KÁRMÁN ${mode === 'unlimited' ? 'Unlimited' : `#${n}`}`);
@@ -471,7 +471,7 @@ K.ui = (() => {
     const fill = (t) => (t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9<]/g, '<') + '<'.repeat(44)).slice(0, 44);
     const d = K.date.dateOfFlight(n);
     const day = `${String(d.getUTCDate()).padStart(2, '0')}${'JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC'.substr(d.getUTCMonth() * 3, 3)}${String(d.getUTCFullYear()).slice(2)}`;
-    const head = mode === 'unlimited' ? `P<KARMAN<<UNLIMITED<RUN<${record.run || 1}` : `P<KARMAN<<FLIGHT<${n}<<${day}`;
+    const head = mode === 'unlimited' ? `P<KARMAN<<UNLIMITED<FLIGHT<${record.flightNo || record.run || 1}` : `P<KARMAN<<FLIGHT<${n}<<${day}`;
     const hits = record.rounds.filter((r) => r.hit).length;
     const body = `${String(record.pts).padStart(4, '0')}PTS<<${record.alt.toFixed(1).replace('.', '<')}KM<<${S.tierName(record.alt).toUpperCase()}<<${hits}<${record.rounds.length}`;
     const esc = (t) => t.replace(/</g, '&lt;');

@@ -13,8 +13,8 @@ K.coach = (() => {
   const STEPS = {
     1: { at: () => (matchMedia('(pointer: coarse)').matches ? $('keypad') : $('readout')),
          text: '<b>Type your best guess.</b> No rush on this one.' },
-    2: { at: () => $('wbtns'), below: () => matchMedia('(pointer: coarse)').matches,   // phones: don't cover the guess
-         text: '<b>Now pick how sure you are.</b> Wide is safe. Pinpoint pays the most.' },
+    2: { at: () => document.querySelector('#wbtns .wbtn'), below: () => matchMedia('(pointer: coarse)').matches,   // points at Wide
+         text: '<b>Now pick how sure you are.</b> Wide gives a huge range. Narrower pays more.' },
     3: { at: () => $('btn-lock'),
          text: '<b>Lock it in.</b> From the next leg, the 30-second clock is on.' },
   };
@@ -47,6 +47,7 @@ K.coach = (() => {
     slip.innerHTML = `<span class="coach-step">${n}/3</span><span>${s.text}</span>`;
     slip.classList.remove('in'); void slip.offsetWidth; slip.classList.add('in');
     if (target) target.classList.add('coach-target');
+    if (n === 2) $('wbtns').addEventListener('click', () => { if (step === 2) show(3); }, { once: true });   // any width counts, Snug too
     requestAnimationFrame(place);
   }
 
@@ -60,7 +61,6 @@ K.coach = (() => {
   function input(entry, chip) {
     if (!step) return;
     if (step === 1 && entry) show(2);
-    else if (step === 2 && chip !== startChip) show(3);
     else if (step === 3) requestAnimationFrame(place);
   }
 

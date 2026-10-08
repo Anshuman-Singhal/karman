@@ -8,7 +8,7 @@
    soft attacks, nothing louder than the take-off, and every cue in the same
    key (C major pentatonic) so sounds never clash with each other.
 
-     takeoff  a warm swell of air + a rising five-note pluck arpeggio
+     takeoff  a soft burner roar under a warm C major (add 9) swell, one bell at lift
      whoosh   soft filtered air (hits, burn commit); intensity 0..1
      tick     tiny wooden tick for each key press
      hit      two-note chime, brighter for narrower widths; Pinpoint adds a third
@@ -116,23 +116,72 @@ K.audio = (() => {
     src.stop(t + dur * 1.2);
   }
 
-  /** Take-off: air swells, a warm low note blooms, and five notes climb. */
+  /** A burner: a soft roar of filtered air with a slow flutter, the sound of
+      propane catching under an envelope, not a jet. */
+  function burnerRoar(t, dur = 1.3, peak = 0.13) {
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'lowpass';
+    bp.Q.value = 0.9;
+    bp.frequency.setValueAtTime(220, t);
+    bp.frequency.exponentialRampToValueAtTime(1150, t + 0.16);
+    bp.frequency.exponentialRampToValueAtTime(520, t + dur);
+    const g = ctx.createGain();
+    env(g, t, 0.07, dur * 0.35, dur * 0.65, peak);
+    // a gentle 9 Hz flutter: the flame breathing
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 9;
+    const depth = ctx.createGain();
+    depth.gain.value = peak * 0.18;
+    lfo.connect(depth).connect(g.gain);
+    src.connect(bp).connect(g).connect(master);
+    src.start(t, Math.random());
+    src.stop(t + dur + 0.1);
+    lfo.start(t);
+    lfo.stop(t + dur + 0.1);
+  }
+
+  /** A warm pad note: two detuned triangles through the shared chord filter. */
+  function padNote(freq, t, attack, hold, release, peak, out) {
+    const g = ctx.createGain();
+    env(g, t, attack, hold, release, peak);
+    [-5, 5].forEach((cents) => {
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = freq;
+      o.detune.value = cents;
+      o.connect(g);
+      o.start(t);
+      o.stop(t + attack + hold + release + 0.1);
+    });
+    g.connect(out);
+  }
+
+  /** Take-off: the burner roars, and a warm C major (add 9) chord swells up
+      under it, voiced low to high like a slow strum, then opens and fades as
+      the balloon settles. One soft high note marks the moment of lift. */
   function takeoff() {
     if (!ready()) return;
     const t = ctx.currentTime + 0.02;
-    whoosh(1, t);
-    // Warm low bloom (C3), gently rising a few cents like a lift
-    const o = ctx.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(130.8, t);
-    o.frequency.linearRampToValueAtTime(134, t + 1.4);
-    const g = ctx.createGain();
-    env(g, t, 0.35, 0.3, 1.1, 0.12);
-    o.connect(g).connect(master);
-    o.start(t);
-    o.stop(t + 2);
-    // Rising pentatonic arpeggio: G4 C5 E5 G5 C6
-    [392, 523.25, 659.25, 783.99, 1046.5].forEach((f, i) => pluck(f, t + 0.18 + i * 0.1, 0.12 - i * 0.01, 0.6 + i * 0.08));
+    burnerRoar(t, 1.35, 0.12);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = 0.5;
+    lp.frequency.setValueAtTime(380, t);
+    lp.frequency.exponentialRampToValueAtTime(2300, t + 1.1);
+    lp.frequency.exponentialRampToValueAtTime(900, t + 3.2);
+    const bus = ctx.createGain();
+    bus.gain.value = 1;
+    lp.connect(bus);
+    bus.connect(master);
+    bus.connect(verb);
+    // C3 G3 C4 E4 G4 D5: open, warm, in the game's key
+    [130.81, 196, 261.63, 329.63, 392, 587.33].forEach((f, i) =>
+      padNote(f, t + 0.12 + i * 0.045, 0.6, 0.55, 1.9, [0.05, 0.04, 0.034, 0.03, 0.026, 0.016][i], lp));
+    // the lift: one round, quiet bell an octave up (lands as the basket leaves the grass)
+    pluck(783.99, t + 0.48, 0.05, 1.3);
+    pluck(1046.5, t + 0.62, 0.035, 1.5);
   }
 
   /** Tiny wooden tick for key presses. */

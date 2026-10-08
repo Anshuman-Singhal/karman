@@ -284,7 +284,8 @@
     "card": "He broke the speed of sound in free fall. You pass his height on the way up.",
     "source": "Launch set, hand-checked",
     "added": "2026-10-04",
-    "pool": "daily"
+    "pool": "retired",
+    "retired": "2026-10-08: too niche (playtest)"
   },
   {
     "id": "s1-sp-10",
@@ -470,7 +471,8 @@
     "card": "Its exact location in California is kept secret to protect it.",
     "source": "Launch set, hand-checked",
     "added": "2026-10-04",
-    "pool": "daily"
+    "pool": "retired",
+    "retired": "2026-10-08: too niche (playtest)"
   },
   {
     "id": "s1-lv-10",
@@ -681,7 +683,8 @@
     "card": "Passengers could see the curve of the Earth from their seats.",
     "source": "Launch set, hand-checked",
     "added": "2026-10-04",
-    "pool": "daily"
+    "pool": "retired",
+    "retired": "2026-10-08: too niche (playtest)"
   },
   {
     "id": "s1-ma-04",
@@ -804,7 +807,8 @@
     "card": "Sixteen pawn moves plus four knight moves.",
     "source": "Launch set, hand-checked",
     "added": "2026-10-04",
-    "pool": "daily"
+    "pool": "retired",
+    "retired": "2026-10-08: too niche (playtest)"
   },
   {
     "id": "s1-nu-04",
@@ -820,7 +824,8 @@
     "card": "South Sudan was the most recent to join, in 2011.",
     "source": "Launch set, hand-checked",
     "added": "2026-10-04",
-    "pool": "daily"
+    "pool": "retired",
+    "retired": "2026-10-08: too niche (playtest)"
   },
   {
     "id": "s1-nu-05",
@@ -836,7 +841,8 @@
     "card": "When it is 9 a.m. in Moscow, it is 6 p.m. in Kamchatka.",
     "source": "Launch set, hand-checked",
     "added": "2026-10-04",
-    "pool": "daily"
+    "pool": "retired",
+    "retired": "2026-10-08: too niche (playtest)"
   },
   {
     "id": "s1-nu-06",
@@ -3842,7 +3848,7 @@
     "source": "https://en.wikipedia.org/wiki/Shinkansen",
     "id": "w20261008-121",
     "added": "2026-10-08",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Machines",

@@ -3247,3 +3247,183 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 /* the tag sits under the share ticket (Keep flying is right above it) */
 .share-nudge { bottom: auto; top: calc(100% + 8px); }
 .share-nudge::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #14213D; }
+
+/* ================= v15 · apricot tickets, bigger HUD, overlap fixes (keep last) ================= */
+
+/* ================= v15 · apricot tickets, bigger HUD, clean reveal (keep last) ================= */
+/* ==========================================================================
+   KÁRMÁN · v15
+   Append to the END of web/css/ui.css (after the v14 block).
+
+   1  Primary tickets: apricot stock printed with a hand-drawn guilloche.
+      Take off, Lock it in, Next leg, Got it, Resume, Keep flying, Unlock.
+      Navy ink stays for text, rules and the edge; the stub is plain stock.
+   2  The round HUD: a dial you can read at a glance on desktop, a little
+      larger on phones.
+   3  Reveal: the ruler and the answer tag sit clear of the question; the
+      fun fact gets air under its rule.
+   4  Clue tag: the perforation follows the stub instead of a fixed 58%.
+   5  Share nudge: no floating tag; a light passes across the share ticket.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- 1 · apricot ticket stock */
+:root {
+  --apricot-print: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='12'%3E%3Cpath d='M0.0,6.00 L1.0,6.59 L2.0,7.19 L3.0,7.76 L4.0,8.29 L5.0,8.76 L6.0,9.15 L7.0,9.46 L8.0,9.67 L9.0,9.79 L10.0,9.82 L11.0,9.77 L12.0,9.66 L13.0,9.49 L14.0,9.29 L15.0,9.06 L16.0,8.81 L17.0,8.56 L18.0,8.29 L19.0,8.02 L20.0,7.74 L21.0,7.43 L22.0,7.11 L23.0,6.75 L24.0,6.35 L25.0,5.92 L26.0,5.45 L27.0,4.95 L28.0,4.44 L29.0,3.93 L30.0,3.44 L31.0,2.98 L32.0,2.58 L33.0,2.25 L34.0,2.02 L35.0,1.88 L36.0,1.85 L37.0,1.92 L38.0,2.09 L39.0,2.35 L40.0,2.68 L41.0,3.07 L42.0,3.50 L43.0,3.94 L44.0,4.39 L45.0,4.82 L46.0,5.24 L47.0,5.63 L48.0,6.00 L49.0,6.35 L50.0,6.68 L51.0,6.99 L52.0,7.31 L53.0,7.62 L54.0,7.94 L55.0,8.26 L56.0,8.57 L57.0,8.87 L58.0,9.14 L59.0,9.37 L60.0,9.54 L61.0,9.65 L62.0,9.66 L63.0,9.59 L64.0,9.42 L65.0,9.15 L66.0,8.80 L67.0,8.36 L68.0,7.86 L69.0,7.32 L70.0,6.76 L71.0,6.19 L72.0,5.65 L73.0,5.14 L74.0,4.69 L75.0,4.29 L76.0,3.96 L77.0,3.69 L78.0,3.47 L79.0,3.31 L80.0,3.19 L81.0,3.10 L82.0,3.03 L83.0,2.98 L84.0,2.95 L85.0,2.94 L86.0,2.95 L87.0,3.00 L88.0,3.08 L89.0,3.22 L90.0,3.41 L91.0,3.68 L92.0,4.01 L93.0,4.42 L94.0,4.90 L95.0,5.43 L96.0,6.00' fill='none' stroke='%23A8531A' stroke-opacity='0.2' stroke-width='0.7'/%3E%3Cpath d='M0.0,6.00 L1.0,5.41 L2.0,4.81 L3.0,4.24 L4.0,3.71 L5.0,3.24 L6.0,2.85 L7.0,2.54 L8.0,2.33 L9.0,2.21 L10.0,2.18 L11.0,2.23 L12.0,2.34 L13.0,2.51 L14.0,2.71 L15.0,2.94 L16.0,3.19 L17.0,3.44 L18.0,3.71 L19.0,3.98 L20.0,4.26 L21.0,4.57 L22.0,4.89 L23.0,5.25 L24.0,5.65 L25.0,6.08 L26.0,6.55 L27.0,7.05 L28.0,7.56 L29.0,8.07 L30.0,8.56 L31.0,9.02 L32.0,9.42 L33.0,9.75 L34.0,9.98 L35.0,10.12 L36.0,10.15 L37.0,10.08 L38.0,9.91 L39.0,9.65 L40.0,9.32 L41.0,8.93 L42.0,8.50 L43.0,8.06 L44.0,7.61 L45.0,7.18 L46.0,6.76 L47.0,6.37 L48.0,6.00 L49.0,5.65 L50.0,5.32 L51.0,5.01 L52.0,4.69 L53.0,4.38 L54.0,4.06 L55.0,3.74 L56.0,3.43 L57.0,3.13 L58.0,2.86 L59.0,2.63 L60.0,2.46 L61.0,2.35 L62.0,2.34 L63.0,2.41 L64.0,2.58 L65.0,2.85 L66.0,3.20 L67.0,3.64 L68.0,4.14 L69.0,4.68 L70.0,5.24 L71.0,5.81 L72.0,6.35 L73.0,6.86 L74.0,7.31 L75.0,7.71 L76.0,8.04 L77.0,8.31 L78.0,8.53 L79.0,8.69 L80.0,8.81 L81.0,8.90 L82.0,8.97 L83.0,9.02 L84.0,9.05 L85.0,9.06 L86.0,9.05 L87.0,9.00 L88.0,8.92 L89.0,8.78 L90.0,8.59 L91.0,8.32 L92.0,7.99 L93.0,7.58 L94.0,7.10 L95.0,6.57 L96.0,6.00' fill='none' stroke='%23A8531A' stroke-opacity='0.2' stroke-width='0.7'/%3E%3Cpath d='M0.0,7.85 L1.0,7.80 L2.0,7.75 L3.0,7.70 L4.0,7.65 L5.0,7.59 L6.0,7.52 L7.0,7.41 L8.0,7.27 L9.0,7.09 L10.0,6.85 L11.0,6.57 L12.0,6.25 L13.0,5.89 L14.0,5.50 L15.0,5.11 L16.0,4.73 L17.0,4.37 L18.0,4.05 L19.0,3.79 L20.0,3.60 L21.0,3.47 L22.0,3.43 L23.0,3.45 L24.0,3.54 L25.0,3.67 L26.0,3.85 L27.0,4.06 L28.0,4.27 L29.0,4.49 L30.0,4.70 L31.0,4.89 L32.0,5.07 L33.0,5.25 L34.0,5.41 L35.0,5.58 L36.0,5.75 L37.0,5.94 L38.0,6.16 L39.0,6.40 L40.0,6.66 L41.0,6.95 L42.0,7.25 L43.0,7.55 L44.0,7.83 L45.0,8.09 L46.0,8.31 L47.0,8.46 L48.0,8.55 L49.0,8.56 L50.0,8.50 L51.0,8.36 L52.0,8.16 L53.0,7.90 L54.0,7.59 L55.0,7.27 L56.0,6.93 L57.0,6.60 L58.0,6.29 L59.0,6.00 L60.0,5.75 L61.0,5.54 L62.0,5.36 L63.0,5.21 L64.0,5.08 L65.0,4.96 L66.0,4.84 L67.0,4.72 L68.0,4.59 L69.0,4.46 L70.0,4.32 L71.0,4.19 L72.0,4.06 L73.0,3.96 L74.0,3.90 L75.0,3.88 L76.0,3.92 L77.0,4.02 L78.0,4.19 L79.0,4.43 L80.0,4.73 L81.0,5.07 L82.0,5.45 L83.0,5.85 L84.0,6.25 L85.0,6.63 L86.0,6.98 L87.0,7.28 L88.0,7.54 L89.0,7.73 L90.0,7.86 L91.0,7.94 L92.0,7.98 L93.0,7.97 L94.0,7.94 L95.0,7.90 L96.0,7.85' fill='none' stroke='%23FFF3DE' stroke-opacity='0.4' stroke-width='0.6'/%3E%3C/svg%3E") 0 0 / 96px 12px;
+  --apricot-stock: linear-gradient(180deg, #F9CF9F 0%, #F5B878 48%, #F0A862 100%);
+  --apricot-edge: inset 0 0 0 1.5px rgba(20, 33, 61, 0.88), inset 0 3px 0 rgba(255, 244, 226, 0.45), inset 0 -3px 0 rgba(150, 72, 16, 0.2);
+  --apricot-stub: rgba(150, 72, 16, 0.1);
+}
+/* One recipe for every primary ticket: the guilloche is printed on the main
+   part only (a plain panel covers it past the perforation), and the
+   tear-off stub is plain stock, a shade deeper. */
+#screen-home .launch-ticket,
+#screen-round .key-lock, #screen-round .next-ticket,
+.sheet.help .ready-ticket,
+#sheet-menu .menu-resume,
+#screen-results .keep-ticket,
+#sheet-paywall .buy-ticket {
+  background:
+    linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)),
+    linear-gradient(90deg, transparent var(--cut), #F4B676 var(--cut)),
+    var(--apricot-print),
+    var(--apricot-stock);
+  color: var(--ink, #14213D);
+  box-shadow: var(--apricot-edge);
+  filter: none;
+}
+#screen-home .launch-ticket::after, #screen-round .key-lock::after, #screen-round .next-ticket::after,
+.sheet.help .ready-ticket::after, #sheet-menu .menu-resume::after, #screen-results .keep-ticket::after,
+#sheet-paywall .buy-ticket::after { border-left-color: rgba(20, 33, 61, 0.5); }
+#screen-home .launch-ticket:hover, #screen-round .key-lock:hover, #screen-round .next-ticket:hover,
+.sheet.help .ready-ticket:hover, #sheet-menu .menu-resume:hover, #screen-results .keep-ticket:hover,
+#sheet-paywall .buy-ticket:hover { filter: brightness(1.04) saturate(1.04); }
+#screen-home .launch-ticket:focus-visible, #screen-round .key-lock:focus-visible, #screen-round .next-ticket:focus-visible,
+.sheet.help .ready-ticket:focus-visible, #sheet-menu .menu-resume:focus-visible, #screen-results .keep-ticket:focus-visible,
+#sheet-paywall .buy-ticket:focus-visible { outline: none; box-shadow: inset 0 0 0 3px #14213D, inset 0 0 0 5px #FFF4E2; }
+
+/* Take off */
+#screen-home .launch-ticket { color: #14213D; }
+#screen-home .launch-ticket .hold-idle svg { fill: #C2410C; }
+#screen-home .launch-stub small { color: rgba(20, 33, 61, 0.62); }
+#screen-home .launch-ticket .hold-fill { background: linear-gradient(90deg, rgba(204, 66, 24, 0.0), rgba(204, 66, 24, 0.22) 80%, rgba(204, 66, 24, 0.32)); }
+#screen-home .launch-ticket.holding { box-shadow: var(--apricot-edge); }
+
+/* Lock it in / Next leg */
+#screen-round .key-lock .kl-stub, #screen-round .next-ticket .kl-stub { color: #14213D; }
+#screen-round .next-ticket .kl-stub { color: rgba(20, 33, 61, 0.78); }
+#screen-round .next-ticket .kl-stub svg { stroke: #14213D; }
+#screen-round .kl-stub .kl-pip { box-shadow: 0 0 0 1.5px #14213D; }
+/* Empty: blank stock, not yet printed. Same shape and perforation, no
+   guilloche, no edge ink: obviously the ticket, obviously not ready. */
+#screen-round.empty .key-lock {
+  background:
+    linear-gradient(90deg, transparent var(--cut), rgba(150, 72, 16, 0.05) var(--cut)),
+    linear-gradient(180deg, rgba(245, 184, 120, 0.3), rgba(240, 168, 98, 0.24));
+  color: rgba(20, 33, 61, 0.48);
+  box-shadow: inset 0 0 0 1.5px rgba(160, 82, 22, 0.28);
+}
+#screen-round.empty .key-lock::after { border-left-color: rgba(160, 82, 22, 0.35); }
+#screen-round.empty .key-lock .kl-stub { color: rgba(20, 33, 61, 0.42); }
+#screen-round.empty .kl-pip { background: transparent; box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.35); }
+/* last 5 s keeps its ember printing (v14), which now reads as the apricot stock heating up */
+
+/* Got it */
+.sheet.help .ready-ticket { color: #14213D; }
+.sheet.help .rt-stub small { color: rgba(20, 33, 61, 0.62); }
+
+/* Resume: the dial stays a paper face on the apricot */
+#sheet-menu .menu-resume { color: #14213D; }
+#sheet-menu .mr-dial { background: #FBF4E6; box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.85); }
+#sheet-menu .mr-text small { color: rgba(20, 33, 61, 0.7); }
+#sheet-menu .mr-go { color: #14213D; }
+
+/* Keep flying */
+#screen-results .keep-ticket .kt-main b, #screen-results .keep-ticket .kt-stub { color: #14213D; }
+#screen-results .keep-ticket .kt-main small { color: rgba(20, 33, 61, 0.7); }
+#screen-results .keep-ticket .kt-stub svg { stroke: #14213D; }
+
+/* Unlock (on the night page) */
+#sheet-paywall .buy-ticket { color: #14213D; }
+#sheet-paywall .bt-stub small { opacity: 0.7; }
+
+/* ---------------------------------------------------------------- 2 · round HUD */
+/* Phones: a touch larger, still the height of the top-bar ticket's row. */
+#hud .hud-strip { height: 44px; gap: 11px; padding-right: 14px; }
+#hud .round-timer { width: 38px; height: 38px; margin-left: 3px; font-size: 20px; }
+#hud .round-timer::before { -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3px)); }
+#hud .round-timer::after { inset: 5.5px; }
+#hud .cat-tag { font-size: 14.5px; }
+#hud .legs { width: 112px; }
+@media (max-width: 719.98px) {
+  #hud { top: calc(env(safe-area-inset-top, 0px) + 9px); }
+  #hud .hud-strip { max-width: min(214px, calc(100vw - 190px)); }
+}
+/* Desktop: the strip is the one instrument centred under the sky's top
+   edge; the dial reads from across the room. */
+@media (min-width: 720px) {
+  #hud { top: calc(env(safe-area-inset-top, 0px) + 10px); }
+  #hud .hud-strip { height: 70px; max-width: 360px; gap: 16px; padding: 0 22px 0 7px; border-radius: 7px;
+    -webkit-mask: radial-gradient(circle at 0 50%, transparent 6px, #000 6.5px) left / 51% 100% no-repeat,
+                  radial-gradient(circle at 100% 50%, transparent 6px, #000 6.5px) right / 51% 100% no-repeat;
+            mask: radial-gradient(circle at 0 50%, transparent 6px, #000 6.5px) left / 51% 100% no-repeat,
+                  radial-gradient(circle at 100% 50%, transparent 6px, #000 6.5px) right / 51% 100% no-repeat; }
+  #hud .round-timer { width: 58px; height: 58px; margin-left: 6px; font-size: 30px; }
+  #hud .round-timer::before { -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4.5px), #000 calc(100% - 4px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4.5px), #000 calc(100% - 4px)); }
+  #hud .round-timer::after { inset: 7px; }
+  #hud .leg-block { gap: 9px; }
+  #hud .cat-tag { font-size: 19px; letter-spacing: 0.08em; }
+  #hud .legs { width: 168px; height: 12px; }
+  #hud .leg { width: 9px; height: 9px; }
+  #hud .leg-now { width: 12px; height: 12px; }
+  #hud .leg-miss::after { inset: 4px -1px auto; }
+}
+@media (min-width: 1600px) and (min-height: 900px) {
+  #hud .hud-strip { height: 78px; }
+  #hud .round-timer { width: 64px; height: 64px; font-size: 33px; }
+  #hud .cat-tag { font-size: 20px; }
+}
+
+/* ---------------------------------------------------------------- 3 · reveal */
+/* The answer tag rides a shorter needle and hovers lower, and the ruler gets
+   the head-room it needs: the tag never reaches the question. */
+#screen-round.is-revealed .scale { padding-top: 64px; }
+#screen-round .needle { height: 24px; }
+#screen-round .needle-label { margin-bottom: 5px; }
+#screen-round .needle.hover { animation: needleHoverPaper 560ms ease-in-out both; }
+#screen-round .needle.drop { animation: needleDropPaper 380ms var(--ease-in) both; }
+@keyframes needleHoverPaper { 0% { opacity: 0; transform: translateY(-12px); } 45% { opacity: 1; transform: translateY(-7px); } 100% { transform: translateY(-8px); } }
+@keyframes needleDropPaper { 0% { transform: translateY(-8px); } 75% { transform: translateY(1px) scaleY(0.95); } 100% { transform: none; } }
+@media (max-height: 700px) { #screen-round.is-revealed .scale { padding-top: 58px; } }
+/* white space between the dashed rule and the fun fact */
+#screen-round .result-fact { margin-top: 12px; padding-top: 20px; }
+@media (max-height: 700px) { #screen-round .result-fact { padding-top: 16px; } }
+
+/* ---------------------------------------------------------------- 4 · clue tag */
+/* The stub draws its own perforation, so it always sits between the two
+   words whatever their width (the fixed 58% cut ran through "½ pts"). */
+#screen-round .clue-tag { -webkit-mask: none; mask: none; border-radius: 6px; }
+#screen-round .clue-tag::after { display: none; }
+#screen-round .ct-stub { position: relative; }
+#screen-round .ct-stub::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; border-left: 1.5px dashed rgba(20, 33, 61, 0.38); }
+#screen-round .clue-tag[data-state="armed"] .ct-stub::before { border-left-color: rgba(20, 33, 61, 0.5); }
+
+/* ---------------------------------------------------------------- 5 · share nudge */
+/* No floating words: the share ticket catches the light twice, like foil
+   tilted under a lamp, then rests. */
+.share-nudge { display: none !important; }
+#screen-results .ticket-btn#btn-share.nudge {
+  background:
+    linear-gradient(105deg, transparent 0 38%, rgba(255, 214, 160, 0.0) 40%, rgba(255, 206, 150, 0.75) 50%, rgba(255, 214, 160, 0.0) 60%, transparent 62% 100%) 100% 0 / 260% 100% no-repeat,
+    linear-gradient(180deg, #FFFDF8, #FBF5EA);
+  animation: shareShine 1600ms cubic-bezier(.45, 0, .25, 1) 2;
+}
+@keyframes shareShine {
+  0% { background-position: 100% 0, 0 0; }
+  72%, 100% { background-position: 0% 0, 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #screen-results .ticket-btn#btn-share.nudge { animation: none; box-shadow: inset 0 0 0 1.5px rgba(204, 66, 24, 0.55); }
+}
+
+/* Next leg gets focus programmatically (for Enter); only show a ring for keyboard users */
+#btn-next:focus:not(:focus-visible), #btn-lock:focus:not(:focus-visible) { outline: none; box-shadow: none; }

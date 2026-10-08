@@ -31,7 +31,7 @@ K.vehicle = (() => {
   const C = {
     ember: '#FF6A3D', paper: '#F3E9D6', amber: '#FFB547', navy: '#1E2A55',
     night: '#0A0D1C', steel: '#3A4566', shade: '#CDBFA6', wicker: '#8A5A34',
-    weave: '#6B4227', rim: '#5A3720', cream: '#FFF1C9',
+    weave: '#6B4227', rim: '#5A3720', cream: '#FFF1C9', ink: '#22305A',
   };
 
   /* ---------------------------------------------------------- envelope shape
@@ -91,6 +91,7 @@ K.vehicle = (() => {
   const gores = { n: 12, phase: 0.35, spin: 0.26 };
   let tapePhase = 0;
   let lastKm = 0;
+  let kickT0 = 0, kickAmp = 0;   // take-off: the basket trails the envelope, then settles
 
   /* ---------------------------------------------------------- build */
   function build(svgEl) {
@@ -149,6 +150,8 @@ K.vehicle = (() => {
           <path d="${env}" fill="url(#v-vert)"/>
           <path d="${env}" fill="url(#v-shade)"/>
         </g>
+        <!-- the same hand-inked contour as the sights in the sky -->
+        <path d="${env}" fill="none" stroke="${C.ink}" stroke-opacity=".5" stroke-width="1.2" stroke-linejoin="round"/>
         <g class="v-medal">
           <circle r="8" fill="${C.paper}" stroke="${C.navy}" stroke-width="1.4"/>
           <path d="M-3.6,1.8 L0,-2.2 L3.6,1.8" fill="none" stroke="${C.navy}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -412,7 +415,13 @@ K.vehicle = (() => {
       el.flame.style.transform = `scale(${(0.8 + flame * 0.3).toFixed(3)}, ${flame.toFixed(3)})`;
       el.glow.style.opacity = clamp(flame / 1.4, 0, 1).toFixed(3);
       if (!calm) {
-        el.swing.style.transform = `rotate(${(Math.sin(t * 2.03) * 2).toFixed(2)}deg)`;
+        let k = 0;
+        if (kickT0) {
+          const tau = now / 1000 - kickT0;
+          if (tau > 6) kickT0 = 0;
+          else k = kickAmp * Math.exp(-tau * 0.9) * Math.sin(tau * 3.1 + 0.3) - kickAmp * Math.sin(0.3) * Math.exp(-tau * 4);
+        }
+        el.swing.style.transform = `rotate(${(Math.sin(t * 2.03) * 2 + k).toFixed(2)}deg)`;
         el.swing2.style.transform = `rotate(${(Math.sin(t * 2.03) * 1).toFixed(2)}deg)`;
       }
     }
@@ -534,6 +543,8 @@ K.vehicle = (() => {
     if (twirl) gores.spin = 1.4;
   }
   const spin = (v) => { gores.spin = v; };
+  /** A gentle pendulum kick to the basket (take-off). */
+  const kick = (amp = 1) => { kickT0 = performance.now() / 1000; kickAmp = 3.2 * amp; };
 
   /** Points on the craft in viewBox units, for particles. Depends on stage. */
   function anchor(which) {
@@ -543,5 +554,5 @@ K.vehicle = (() => {
     return s <= 1 ? [100, 70] : s === 2 ? [100, 50] : s === 3 ? [100, 70] : [100, 120];
   }
 
-  return { build, frame, set, setGores, spin, anchor, stageOf, get stage() { return stage; }, STAGES };
+  return { build, frame, set, setGores, spin, kick, anchor, stageOf, get stage() { return stage; }, STAGES };
 })();

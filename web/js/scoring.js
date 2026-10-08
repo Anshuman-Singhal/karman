@@ -16,13 +16,14 @@ K.scoring = (() => {
   /* ratio: hi/lo for log questions · years: ± years for date questions
      pts:   points for a hit */
   const CHIPS = [
-    // Widths retuned after the first playtest: Wide is now truly safe (÷8 to ×8),
-    // the middle three a touch roomier, Pinpoint unchanged.
-    { key: 'wide',     name: 'Wide',     ratio: 64,   years: 120, pts: 15,  glyph: '☁️' },
-    { key: 'fair',     name: 'Fair',     ratio: 6,    years: 30,  pts: 30,  glyph: '🎈' },
-    { key: 'snug',     name: 'Snug',     ratio: 2.5,  years: 12,  pts: 55,  glyph: '✈️' },
-    { key: 'tight',    name: 'Tight',    ratio: 1.6,  years: 6,   pts: 85,  glyph: '🛰️' },
-    { key: 'pinpoint', name: 'Pinpoint', ratio: 1.15, years: 2,   pts: 100, glyph: '🚀' },
+    // Widths, second retune after playtesting: Wide is huge (÷100 to ×100, ±1,000
+    // years) so a nervous guess still scores; the rest step down geometrically to
+    // an unchanged Pinpoint. ratio = hi/lo for log questions, years = ± for dates.
+    { key: 'wide',     name: 'Wide',     ratio: 10000,  years: 1000, pts: 15,  glyph: '☁️' },
+    { key: 'fair',     name: 'Fair',     ratio: 25,     years: 200,  pts: 30,  glyph: '🎈' },
+    { key: 'snug',     name: 'Snug',     ratio: 3.24,   years: 45,   pts: 55,  glyph: '✈️' },
+    { key: 'tight',    name: 'Tight',    ratio: 1.5625, years: 10,   pts: 85,  glyph: '🛰️' },
+    { key: 'pinpoint', name: 'Pinpoint', ratio: 1.15,   years: 2,    pts: 100, glyph: '🚀' },
   ];
   const MISS_GLYPH = '💨';
   const MAX_PTS = K.CONFIG.LEGS * 100;                              // a perfect flight

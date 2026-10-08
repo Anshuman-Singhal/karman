@@ -49,7 +49,10 @@ K.storage = (() => {
       reported: {},
       parked: {},
       tutored: false,       // has seen the one-time guided first leg
-      runNext: 1,           // next numbered Unlimited run for a paid pilot (Run 1 = the free run)           // flights left mid-way when switching modes, by slot
+      guideV: 2,            // bump to show the guided leg once more to everyone
+      runNext: 1,           // (unused since random runs; kept for old saves)
+      runsDone: [],         // numbered Unlimited runs this pilot has flown (no repeats until all done)
+      unlimitedCount: 0,    // how many Unlimited flights: shown as Unlimited · Flight #N           // flights left mid-way when switching modes, by slot
     };
   }
 
@@ -79,8 +82,12 @@ K.storage = (() => {
     });
     const best = Object.values(out.days || {}).reduce((m, d) => Math.max(m, d.alt || 0), 0);
     out.stats.bestAlt = best;
-    if (saved.tutored == null) out.tutored = Object.keys(out.days || {}).length > 0 || (out.runs || []).length > 0;   // existing pilots never see the guide
+    // Everyone (launch-day pilots included) gets the guided leg once in guide v2.
+    // It only changes the next first leg: no streak, stat or history is touched.
+    if (saved.guideV !== 2) { out.tutored = false; out.guideV = 2; }
     if (saved.runNext == null) out.runNext = out.freeRunUsed ? 2 : 1;   // older saves: the free run counts as Run 1
+    if (!saved.runsDone) out.runsDone = (out.runs || []).map((r) => r.run).filter((k) => Number.isInteger(k) && k >= 1 && k < (out.runNext || 1)).concat(out.freeRunUsed ? [1] : []).filter((k, i, a) => a.indexOf(k) === i);
+    if (saved.unlimitedCount == null) out.unlimitedCount = (out.runs || []).length;
     if (!out.device) out.device = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
     return out;
   }

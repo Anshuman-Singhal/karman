@@ -94,7 +94,7 @@ K.game = (() => {
     const facts = ids ? ids.map((id) => factIndex.get(id)).filter(Boolean) : dealUnlimited();
     if (!facts || facts.length !== C.LEGS) return null;
     const run = runNo || (store.runs.length || 0) + 1;
-    return { n: today, facts, weather: K.daily.weatherFor(1000 + run), run };
+    return { n: today, facts, weather: K.daily.weatherFor(1000 + run), run, flightNo: (store.unlimitedCount || 0) + 1 };
   }
 
   /** Which in-progress slot a flight lives in: today's/an archive day by number, Unlimited as one. */
@@ -129,7 +129,15 @@ K.game = (() => {
       // every pilot, so each run has its own crowd chart. Paid pilots go 2, 3, 4…
       const resuming = !opts.fresh && store.live && store.live.mode === 'unlimited' ? store.live : null;
       const runs = K.SCHEDULE.runs || (K.SCHEDULE.freeRun ? [K.SCHEDULE.freeRun] : []);
-      let run = resuming ? resuming.run : (K.access.unlimited() ? store.runNext || 1 : 1);
+      // Free pilots fly Run 1; paid pilots get a random run they haven't flown,
+      // and only once they've flown them all does the deck reshuffle.
+      let run = resuming ? resuming.run : 1;
+      if (!resuming && K.access.unlimited()) {
+        const done = new Set(store.runsDone || []);
+        let left = runs.map((_, i) => i + 1).filter((k) => !done.has(k));
+        if (!left.length) { store.runsDone = []; left = runs.map((_, i) => i + 1); }
+        run = left[Math.floor(Math.random() * left.length)];
+      }
       let ids = resuming ? resuming.factIds : runs[run - 1] || null;
       if (resuming && !run) run = Math.max(1, runs.findIndex((r) => r.join() === ids.join()) + 1);
       flight = ids ? unlimitedFlight(ids, run) : null;
@@ -170,11 +178,7 @@ K.game = (() => {
     const st = streakNow();
     K.ui.home({ flight, mode, streak: st.cur, thermals: st.thermals, bestAlt: store.stats.bestAlt });
     K.ui.show('home');
-    if (!store.seenHelp) {
-      store.seenHelp = true;
-      save();
-      setTimeout(() => K.ui.openSheet('help'), 700);
-    }
+    // How to fly opens only when tapped; the guided first leg teaches new pilots.
   }
 
   /* ------------------------------------------------------------ launch */
@@ -412,7 +416,9 @@ K.game = (() => {
     });
     if (mode === 'unlimited') {
       record.run = flight.run;
-      store.runNext = Math.max(store.runNext || 1, flight.run + 1);
+      store.unlimitedCount = (store.unlimitedCount || 0) + 1;
+      record.flightNo = store.unlimitedCount;            // the pilot's own Unlimited Flight #N
+      store.runsDone = [...new Set([...(store.runsDone || []), flight.run])];
       store.runs.push(record);
       if (store.runs.length > 50) store.runs.shift();
       store.seen.push(...flight.facts.map((f) => f.id));

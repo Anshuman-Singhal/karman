@@ -65,10 +65,10 @@ K.fx = (() => {
       }
       const a = Math.max(0, p.life / p.max);
       const r = p.size * (0.35 + 0.65 * a);
-      ctx.globalAlpha = a * 0.22;              // soft glow
+      ctx.globalAlpha = a * (p.soft ? 0.12 : 0.22);   // soft glow
       ctx.fillStyle = p.color;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, r * 3.2, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, r * (p.soft ? 2.2 : 3.2), 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = Math.min(1, a * 1.4);  // hot core
       ctx.beginPath();
@@ -85,16 +85,33 @@ K.fx = (() => {
     }
   }
 
+  /* A hush thins every ember call for a while (take-off asks for one): far
+     fewer sparks, slower and longer-lived, so they drift off the burner like
+     real ones instead of spraying. Counts round stochastically, so a call
+     for 6 at k = 0.14 sometimes gives one spark and usually none. */
+  let hushUntil = 0, hushK = 1;
+  function hush(ms, k) {
+    const now = performance.now();
+    if (now + ms > hushUntil) hushUntil = now + ms;
+    hushK = k;
+  }
+
   /** Rising embers, e.g. from the burner or a hit range. */
   function embers(x, y, opts = {}) {
     if (reduced()) return;
-    const { count = 26, color = '#FFB547', spread = 1.1, speed = 230, size = 2.4, life = 1.2, g = -30 } = opts;
+    let { count = 26, color = '#FFB547', spread = 1.1, speed = 230, size = 2.4, life = 1.2, g = -30 } = opts;
+    const soft = performance.now() < hushUntil;
+    if (soft) {
+      const c = count * hushK;
+      count = Math.floor(c) + (Math.random() < c - Math.floor(c) ? 1 : 0);
+      speed *= 0.42; life *= 1.5; size *= 0.85; spread *= 0.7; g = -40;
+    }
     for (let i = 0; i < count; i++) {
       const ang = -Math.PI / 2 + (Math.random() - 0.5) * spread * Math.PI;
       const v = speed * (0.35 + Math.random() * 0.85);
       const l = life * (0.6 + Math.random() * 0.6);
       spawn({ x: x + (Math.random() - 0.5) * 14, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v,
-        g, drag: 1.6, size: size * (0.6 + Math.random() * 0.8), life: l, max: l, color });
+        g, drag: 1.6, size: size * (0.6 + Math.random() * 0.8), life: l, max: l, color, soft });
     }
   }
 
@@ -272,7 +289,7 @@ K.fx = (() => {
 
   return {
     init, reduced, sleep,
-    embers, sparks, Odometer, banner, clearBanners, floatText, ringBurst,
+    embers, hush, sparks, Odometer, banner, clearBanners, floatText, ringBurst,
     hitstop, nudge, haptic, toast,
     get frozen() { return hitstopActive; },
   };

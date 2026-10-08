@@ -47,7 +47,7 @@ K.units = (() => {
 
     /** Format a metric value for display. exact = the true answer. */
     function fmt(vMetric, exact) {
-      if (fact.scale === 'year') return String(Math.round(vMetric));
+      if (fact.scale === 'year') { const y = Math.round(vMetric); return y < 1 ? `${1 - y} BC` : String(y); }
       if (exact && !imperial) return K.scoring.formatExact(fact, vMetric);
       const v = toDisp(vMetric);
       const a = Math.abs(v);
