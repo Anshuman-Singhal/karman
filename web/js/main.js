@@ -40,21 +40,32 @@
   /* Sheets */
   /* Menu: opening it never pauses the round; the clock keeps running behind. */
   const fromMenu = (fn) => () => { K.ui.closeSheet('menu'); setTimeout(fn, K.fx.reduced() ? 0 : 200); };
+  /* Contact: a mailto link does nothing on a desktop with no mail app, so the
+     address is also copied and shown, every time. */
+  function contact(e, link) {
+    const email = K.CONFIG.CONTACT_EMAIL;
+    K.share.copy(email).then((r) => K.fx.toast(r === 'copied' ? `${email} copied. Opening your mail app…` : `Email us at ${email}`));
+    if (link && link.href) setTimeout(() => { try { window.location.href = link.href; } catch (x) { /* no handler */ } }, 350);
+    if (e) e.preventDefault();
+  }
+  $('contact-link').addEventListener('click', (e) => contact(e, e.currentTarget));
   $('btn-menu').addEventListener('click', () => K.ui.openSheet('menu'));
   $('menu-resume').addEventListener('click', () => K.ui.closeSheet('menu'));
   $('btn-units').addEventListener('click', () => {
     const sys = K.units.system() === 'imperial' ? 'metric' : 'imperial';
     if (K.ui.current === 'round') K.round.setUnits(sys); else K.units.setSystem(sys);
     $('btn-units').setAttribute('aria-checked', String(sys === 'metric'));
+    K.ui.refreshUnits();
+    K.ui.setAltitude(K.game.pts || 0, { instant: true });
   });
   document.querySelectorAll('.menu-tile[data-menu]').forEach((t) => t.addEventListener('click', (e) => {
     const go = t.dataset.menu;
     const here = t.getAttribute('aria-current') === 'page';
-    if (go === 'contact') return;                                   // plain mailto link
+    if (go === 'contact') { contact(e, t); return; }
     if (here && K.game.phase) return K.ui.closeSheet('menu');        // mid-flight in this mode: just resume
     if (go === 'today') return fromMenu(() => K.game.playDay(K.game.today))();
     if (go === 'unlimited') return fromMenu(() => K.game.keepFlying())();
-    if (go === 'archive') return fromMenu(() => K.ui.openSheet(K.access.canArchive() ? 'archive' : 'paywall'))();
+    if (go === 'archive') return fromMenu(() => K.ui.openSheet('archive'))();   // calendar first; locked days open the paywall
     fromMenu(() => K.ui.openSheet(go))();                             // logbook | help
   }));
   // Streak: a quick explanation rather than a second door into the logbook.
@@ -140,7 +151,6 @@
       return;
     }
     if (K.ui.current !== 'round' || K.game.phase !== 'round' || K.round.locked) return;
-    if (K.coach.paused) { if (e.key === 'Enter') document.querySelector('.coach-next')?.click(); return; }   // a guide slip is up: Enter = Next
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (K.round.key(e)) { e.preventDefault(); return; }
     if (e.key === 'Enter' && K.round.guessValue() != null) { e.preventDefault(); K.game.lock(); }

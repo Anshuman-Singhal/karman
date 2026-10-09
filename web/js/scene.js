@@ -296,8 +296,22 @@ K.scene = (() => {
        name  short, set in small capitals
        fig   the number, in the altimeter's display face
        note  optional aside, in the serif italic */
+  /** Caption figures are written in metric ("828 m", "0.6 km", "50–90 km") and
+      shown in the player's units; refreshCaptions() re-renders them on a toggle. */
+  function figText(fig) {
+    if (!fig || K.units.system() !== 'imperial') return fig;
+    return fig.replace(/([\d,.]+)\s*(km|m)\b/g, (_, num, u) => {
+      const v = Number(num.replace(/,/g, ''));
+      if (!isFinite(v)) return _;
+      if (u === 'km') { const mi = v * 0.621371; return `${mi < 10 ? mi.toFixed(1).replace(/\.0$/, '') : Math.round(mi).toLocaleString('en-US')} mi`; }
+      return `${Math.round(v * 3.28084).toLocaleString('en-US')} ft`;
+    });
+  }
+  function refreshCaptions() {
+    document.querySelectorAll('#scene .cap-fig[data-fig]').forEach((el) => { el.textContent = figText(el.dataset.fig); });
+  }
   function cap({ name, fig = '', note = '' }, dir = 'r', lead = 14, style = '') {
-    const sub = fig || note ? `<span class="cap-sub">${fig ? `<span class="cap-fig">${fig}</span>` : ''}${note ? `<span class="cap-note">${note}</span>` : ''}</span>` : '';
+    const sub = fig || note ? `<span class="cap-sub">${fig ? `<span class="cap-fig" data-fig="${fig.replace(/"/g, '&quot;')}">${figText(fig)}</span>` : ''}${note ? `<span class="cap-note">${note}</span>` : ''}</span>` : '';
     return `<span class="cap cap-${dir}${lead ? '' : ' flat'}" style="--lead:${lead}px;${style}"><span class="w-label"><span class="cap-name">${name}</span>${sub}</span></span>`;
   }
 
@@ -1166,7 +1180,7 @@ K.scene = (() => {
     setTimeout(() => bag.remove(), 1500);
   }
 
-  return { railFrac, fOf,
+  return { railFrac, fOf, refreshCaptions,
 
     init, reset, climbTo, setChip, setLift, liftOff, inflate, flare, setFlameTarget,
     setAnchor, planAnchor, point, svgPoint, dropSandbag, fOf, skyAt,

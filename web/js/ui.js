@@ -132,8 +132,20 @@ K.ui = (() => {
     $('alt-unit').textContent = K.units.altUnit();
   }
 
+  /** Units toggled: everything that shows an altitude re-renders in place. */
+  function refreshUnits() {
+    const g = K.game;
+    if (g.flightNo && current === 'home' && lastHome) home(lastHome);
+    if (current === 'results' && lastRecord) results({ ...lastRecord.args });
+    K.scene.refreshCaptions();
+    $('alt-unit').textContent = K.units.altUnit();
+    if (!$('sheet-help').hidden) renderHelp();
+  }
+  let lastHome = null;
+
   /* ------------------------------------------------------------ home */
   function home({ flight, mode = 'daily', streak, thermals, bestAlt }) {
+    lastHome = { flight, mode, streak, thermals, bestAlt };
     const d = K.date.dateOfFlight(flight.n);
     const short = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
     const un = mode === 'unlimited';
@@ -436,7 +448,7 @@ K.ui = (() => {
   }
 
   function results({ record, n, mode = 'daily', streak, thermals, streakInfo, isFresh, prevBest }) {
-    lastRecord = { record, n, streak, mode };
+    lastRecord = { record, n, streak, mode, args: { record, n, mode, streak, thermals, streakInfo, isFresh: false, prevBest } };
     $('res-eyebrow').textContent = mode === 'unlimited' ? `Unlimited · Flight #${record.flightNo || record.run || ''}`
       : `${mode === 'archive' ? 'Archive · ' : ''}Flight #${n} · ${dayMonth(K.date.dateOfFlight(n))}`;
     $('btn-today').hidden = mode === 'daily';
@@ -816,7 +828,7 @@ K.ui = (() => {
   return {
     init, show, topbar, setAltitude, home, results, closed, prepareLaunch, dockReady, dockIn, refreshAccess, startGoogle,
     calStep(d) { calM += d; if (calM < 0) { calM = 11; calY -= 1; } if (calM > 11) { calM = 0; calY += 1; } renderArchive(); },
-    openSheet, closeSheet, dev, anchorBalloon, renderMenu,
+    openSheet, closeSheet, dev, anchorBalloon, renderMenu, refreshUnits,
     get lastRecord() { return lastRecord; },
     ICONS, pilotNo: () => String(Math.abs(seeded(K.storage.data.device || 'x')) % 10000).padStart(4, '0'), get lastStats() { return lastStats; },
     get current() { return current; },

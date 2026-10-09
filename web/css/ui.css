@@ -3210,51 +3210,30 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 .pp-legend span:nth-child(3) i { background: #6E7A90 !important; }
 
 /* ---------------------------------------------------------------- guided first leg (coach.js)
-   A spotlight tutorial: a veil pauses the game, a cut-out lights the control,
-   a paper slip above the card says what to do and waits for Next. */
+   A spotlight: four dark panels around a hole, so the lit control is live;
+   a paper slip above the card says the one thing to do. No buttons but Skip. */
 .coach-veil { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
-.coach-veil.on { pointer-events: auto; }
-.coach-spot {
-  position: fixed; border-radius: 12px; pointer-events: none;
-  box-shadow: 0 0 0 9999px rgba(8, 11, 26, 0.58), 0 0 0 3px rgba(240, 124, 44, 0.9), 0 0 22px rgba(240, 124, 44, 0.55);
-  opacity: 0; transition: opacity 240ms ease, left 300ms var(--ease-out), top 300ms var(--ease-out), width 300ms var(--ease-out), height 300ms var(--ease-out);
-}
-.coach-veil.on .coach-spot { opacity: 1; }
+.coach-panel { position: fixed; background: rgba(8, 11, 26, 0.56); pointer-events: none; opacity: 0; transition: opacity 220ms ease; }
+.coach-veil.on .coach-panel { pointer-events: auto; opacity: 1; }
+.coach-ring { position: fixed; border-radius: 12px; pointer-events: none; box-shadow: 0 0 0 3px rgba(240, 124, 44, 0.9), 0 0 24px rgba(240, 124, 44, 0.5); opacity: 0; transition: opacity 220ms ease, left 280ms var(--ease-out), top 280ms var(--ease-out), width 280ms var(--ease-out), height 280ms var(--ease-out); }
+.coach-veil.on .coach-ring { opacity: 1; }
 .coach-slip {
-  position: fixed; z-index: 41; padding: 14px 16px 12px; border-radius: 8px;
-  background: #F6EDDB; color: #14213D; font: 500 14.5px/1.4 var(--f-ui);
+  position: fixed; z-index: 41; padding: 12px 14px 10px; border-radius: 8px;
+  background: #F6EDDB; color: #14213D; font: 500 14px/1.35 var(--f-ui);
   box-shadow: 0 16px 40px rgba(5, 8, 22, 0.45), inset 0 0 0 1px rgba(20, 33, 61, 0.16);
-  opacity: 0; transform: translateY(8px); transition: opacity 220ms ease, transform 280ms var(--ease-out);
-  pointer-events: none;
+  opacity: 0; transform: translateY(8px); transition: opacity 220ms ease, transform 280ms var(--ease-out); pointer-events: auto;
 }
-.coach-veil.on .coach-slip { pointer-events: auto; }
 .coach-slip.in { opacity: 1; transform: none; }
-.coach-slip::after {
-  content: ""; position: absolute; top: 100%; left: var(--arrow-x, 50%); translate: -50% 0;
-  border: 9px solid transparent; border-top-color: #F6EDDB; filter: drop-shadow(0 2px 1px rgba(5, 8, 22, 0.25));
-}
-.coach-step { display: block; font: 800 11px/1 var(--f-display); letter-spacing: 0.14em; color: #C25A12; margin-bottom: 6px; }
-.coach-title { margin: 0 0 4px; font: 700 17px/1.25 var(--f-ui); }
-.coach-body { margin: 0; color: rgba(20, 33, 61, 0.78); }
-.coach-demo { display: grid; gap: 6px; margin: 10px 0 2px; padding: 8px 10px; border-radius: 6px; background: rgba(20, 33, 61, 0.05); }
-.cd-row { display: grid; grid-template-columns: 62px 1fr 48px; align-items: center; gap: 8px; font: 600 12px/1 var(--f-ui); }
-.cd-tag { font-style: normal; color: #14213D; }
-.cd-bar { height: 8px; border-radius: 4px; background: rgba(20, 33, 61, 0.1); overflow: hidden; }
-.cd-bar b { display: block; height: 100%; border-radius: 4px; background: var(--c, #14213D); animation: cdgrow 900ms var(--ease-out) both; }
-.cd-row:nth-child(1) .cd-bar b { background: #B9C3D4; } .cd-row:nth-child(2) .cd-bar b { background: #2E9C6E; } .cd-row:nth-child(3) .cd-bar b { background: #D8403F; }
-.cd-row em { font-style: normal; text-align: right; color: #C25A12; font-variant-numeric: tabular-nums; }
-@keyframes cdgrow { from { width: 0 !important; } }
-.coach-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 10px; }
-.coach-next { padding: 9px 18px; border: 0; border-radius: 6px; background: #14213D; color: #F6EDDB; font: 700 14px/1 var(--f-ui); letter-spacing: 0.04em; cursor: pointer; }
-.coach-next:active { transform: translateY(1px); }
-.coach-skip { padding: 6px 0; border: 0; background: none; color: rgba(20, 33, 61, 0.55); font: 500 13px/1 var(--f-ui); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.coach-slip::after { content: ""; position: absolute; top: 100%; left: var(--arrow-x, 50%); translate: -50% 0; border: 9px solid transparent; border-top-color: #F6EDDB; filter: drop-shadow(0 2px 1px rgba(5, 8, 22, 0.25)); }
+.coach-step { display: block; font: 800 11px/1 var(--f-display); letter-spacing: 0.14em; color: #C25A12; margin-bottom: 5px; }
+.coach-title { margin: 0 0 2px; font: 700 17px/1.25 var(--f-ui); }
+.coach-body { margin: 0; color: rgba(20, 33, 61, 0.72); }
+.coach-skip { display: block; margin: 8px 0 0; padding: 4px 0; border: 0; background: none; color: rgba(20, 33, 61, 0.5); font: 500 12.5px/1 var(--f-ui); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.coach-arrow { position: fixed; z-index: 41; width: 26px; height: 34px; translate: -50% -100%; color: #F07C2C; pointer-events: none; filter: drop-shadow(0 2px 2px rgba(5, 8, 22, 0.4)); animation: coacharrow 1.1s ease-in-out infinite; }
+.coach-arrow svg { width: 100%; height: 100%; display: block; }
+@keyframes coacharrow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 .coach-lit { position: relative; }
-.coach-pulse { animation: coachpulse 1.4s ease-in-out infinite; border-radius: 10px; }
-@keyframes coachpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(240, 124, 44, 0); } 50% { box-shadow: 0 0 0 6px rgba(240, 124, 44, 0.45); } }
-@media (prefers-reduced-motion: reduce) {
-  .coach-pulse { animation: none; box-shadow: 0 0 0 4px rgba(240, 124, 44, 0.5); }
-  .coach-slip, .coach-spot, .cd-bar b { transition: none; animation: none; }
-}
+@media (prefers-reduced-motion: reduce) { .coach-arrow { animation: none; } .coach-slip, .coach-ring, .coach-panel { transition: none; } }
 /* the tag sits under the share ticket (Keep flying is right above it) */
 .share-nudge { bottom: auto; top: calc(100% + 8px); }
 .share-nudge::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #14213D; }
@@ -3685,3 +3664,7 @@ body.climb-open #rail .rail-tick:last-child span, body.climb-open #rail .rail-ti
   #screen-round.round { position: relative; inset: auto; box-sizing: border-box; min-height: calc(var(--round-h) + env(safe-area-inset-bottom, 0px)); }
   #screen-round.round[hidden] { display: none; }
 }
+
+/* The clue tag floats beside the question: it must sit above the question's box so taps reach it */
+#screen-round .clue-tag { position: relative; z-index: 3; }
+#screen-round .question { position: relative; z-index: 1; }

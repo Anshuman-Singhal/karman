@@ -266,7 +266,11 @@ K.game = (() => {
     if (K.ui.current !== 'round') K.ui.show('round');
     if (live.untimed && i === 0) {          // the one guided leg: no clock, three slips
       K.round.setTimer(C.ROUND_SECONDS, C.ROUND_SECONDS);
-      K.coach.onDone = () => { live.untimed = false; store.tutored = true; save(); };
+      K.coach.onDone = () => {                 // skipped: the clock starts now
+        if (!live || live.phase !== 'round') return;
+        live.untimed = false; store.tutored = true; live.startedAt = Date.now(); save();
+        startTimer(C.ROUND_SECONDS);
+      };
       setTimeout(() => K.coach.start(), K.fx.reduced() ? 0 : 500);
       return;
     }
@@ -542,6 +546,7 @@ K.game = (() => {
     get flightNo() { return n; },
     get phase() { return live ? live.phase : null; },
     get leg() { return live ? live.round : null; },
+    get pts() { return live ? live.pts : (store && store.days[n] && store.days[n].done ? store.days[n].pts : 0); },
     /** Seconds left on the running leg (null outside a round). Keeps counting while the menu is open. */
     remaining: () => (live && live.phase === 'round' && !live.untimed ? Math.max(0, C.ROUND_SECONDS - (Date.now() - live.startedAt) / 1000) : null),
   };

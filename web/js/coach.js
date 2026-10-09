@@ -1,151 +1,121 @@
 /* ==========================================================================
    KÁRMÁN · coach.js
    The one guided leg: the first leg of a pilot's first flight (once ever).
-   A spotlight tutorial in three short slips. While a slip is up the game is
-   paused under a veil: nothing behind it can be tapped, the control the slip
-   is about sits in a lit cut-out, and the slip waits for Next (or Skip).
-   Between slips the lit control pulses until it's used.
+   A spotlight tutorial with three short slips. The veil covers everything
+   EXCEPT the control the slip is about, so the player just does the thing:
 
-     1 · "Type your best guess"      → Next → keypad / readout lit → type a digit
-     2 · "Pick how sure you are"      → Next → width switch lit    → tap any width
-     3 · "Lock it in"                 → Next → Lock lit            → lock
+     1 · "Type your best guess."     → typing a digit advances
+     2 · "Pick how sure you are."    → tapping any width advances (an arrow points at Wide)
+     3 · "Lock it in."               → locking ends the guide
 
-   The leg has no clock. game.js owns the untimed flag and calls stop() on lock.
+   No Next button. "Skip guide" on each slip ends it and starts the clock.
+   The veil is four panels around a hole, so the lit control is live.
    ========================================================================== */
 
 K.coach = (() => {
   const $ = (id) => document.getElementById(id);
   const coarse = () => matchMedia('(pointer: coarse)').matches;
-  let step = 0;            // 1..3 while a slip is up, 0 otherwise
-  let waiting = 0;         // which step's action we're waiting for after Next
-  let veil = null, spot = null, slip = null, lit = null;
+  let step = 0;
+  let veil = null, panels = [], ring = null, slip = null, arrow = null, lit = null;
+  let onDone = null;
 
   const STEPS = {
-    1: {
-      at: () => (coarse() ? $('keypad') : $('readout')),
-      title: 'Type your best guess.',
-      body: 'Every answer is a number. There’s no clock on this first one.',
-    },
-    2: {
-      at: () => $('wbtns'),
-      title: 'Now pick how sure you are.',
-      body: 'Wide is a huge, safe range for a small climb. Pinpoint is a tiny range for the biggest climb. Narrower pays more.',
-      demo: true,
-    },
-    3: {
-      at: () => $('btn-lock'),
-      title: 'Lock it in.',
-      body: 'From the next leg, you get 30 seconds a question.',
-    },
+    1: { at: () => (coarse() ? $('keypad') : $('readout')), title: 'Type your best guess.', body: 'No clock on this first one.' },
+    2: { at: () => $('wbtns'), title: 'Pick how sure you are.', body: 'Wider is safer. Narrower climbs more.', arrowAt: () => document.querySelector('#wbtns .wbtn') },
+    3: { at: () => $('btn-lock'), title: 'Lock it in.', body: 'From the next leg: 30 seconds a question.' },
   };
 
   /* ---------------------------------------------------------- layout */
-  function rectOf(el) { return el.getBoundingClientRect(); }
+  const R = (el) => el.getBoundingClientRect();
 
   function place() {
     if (!slip || !lit) return;
-    const r = rectOf(lit);
-    // Spotlight hole around the control
-    spot.style.left = `${r.left - 6}px`;
-    spot.style.top = `${r.top - 6}px`;
-    spot.style.width = `${r.width + 12}px`;
-    spot.style.height = `${r.height + 12}px`;
-    // The slip sits above the card (over the sky), never on the keys
+    const r = R(lit), pad = 6, W = window.innerWidth, H = window.innerHeight;
+    const hole = { l: r.left - pad, t: r.top - pad, r: r.right + pad, b: r.bottom + pad };
+    // four blocking panels around the hole
+    const [top, left, right, bottom] = panels;
+    Object.assign(top.style, { left: 0, top: 0, width: `${W}px`, height: `${Math.max(0, hole.t)}px` });
+    Object.assign(bottom.style, { left: 0, top: `${hole.b}px`, width: `${W}px`, height: `${Math.max(0, H - hole.b)}px` });
+    Object.assign(left.style, { left: 0, top: `${hole.t}px`, width: `${Math.max(0, hole.l)}px`, height: `${hole.b - hole.t}px` });
+    Object.assign(right.style, { left: `${hole.r}px`, top: `${hole.t}px`, width: `${Math.max(0, W - hole.r)}px`, height: `${hole.b - hole.t}px` });
+    Object.assign(ring.style, { left: `${hole.l}px`, top: `${hole.t}px`, width: `${hole.r - hole.l}px`, height: `${hole.b - hole.t}px` });
+    // the slip sits above the card (over the sky), never on the keys
     const dock = $('dock');
-    const dockTop = dock ? rectOf(dock).top : window.innerHeight * 0.55;
-    const w = Math.min(340, window.innerWidth - 32);
+    const dockTop = dock ? R(dock).top : H * 0.55;
+    const w = Math.min(320, W - 32);
     slip.style.width = `${w}px`;
     const cx = r.left + r.width / 2;
-    const x = Math.max(16, Math.min(window.innerWidth - w - 16, cx - w / 2));
+    const x = Math.max(16, Math.min(W - w - 16, cx - w / 2));
     const h = slip.offsetHeight;
-    let y = dockTop - h - 18;
+    let y = dockTop - h - 16;
     if (y < 12) y = Math.max(12, r.top - h - 14);
     slip.style.left = `${x}px`;
     slip.style.top = `${y}px`;
     slip.style.setProperty('--arrow-x', `${Math.max(22, Math.min(w - 22, cx - x))}px`);
+    // the bouncing arrow over Wide
+    const s = STEPS[step];
+    const target = s && s.arrowAt ? s.arrowAt() : null;
+    if (arrow && target) {
+      const a = R(target);
+      arrow.hidden = false;
+      arrow.style.left = `${a.left + a.width / 2}px`;
+      arrow.style.top = `${a.top - 8}px`;
+    } else if (arrow) arrow.hidden = true;
   }
 
-  /* ---------------------------------------------------------- slips */
+  /* ---------------------------------------------------------- dom */
   function ensureDom() {
     if (veil) return;
     veil = document.createElement('div');
     veil.className = 'coach-veil';
-    spot = document.createElement('div');
-    spot.className = 'coach-spot';
+    panels = ['top', 'left', 'right', 'bottom'].map((k) => { const d = document.createElement('div'); d.className = `coach-panel coach-${k}`; veil.appendChild(d); return d; });
+    ring = document.createElement('div'); ring.className = 'coach-ring'; veil.appendChild(ring);
+    arrow = document.createElement('div'); arrow.className = 'coach-arrow'; arrow.hidden = true;
+    arrow.innerHTML = '<svg viewBox="0 0 24 32" aria-hidden="true"><path d="M12 2v22M4 16l8 10 8-10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    veil.appendChild(arrow);
     slip = document.createElement('div');
     slip.className = 'coach-slip';
-    slip.setAttribute('role', 'dialog');
-    slip.setAttribute('aria-live', 'polite');
-    veil.append(spot, slip);
+    slip.setAttribute('role', 'status');
+    veil.appendChild(slip);
     document.body.appendChild(veil);
-    // Taps on the veil never reach the game; the slip's own buttons handle themselves.
-    veil.addEventListener('pointerdown', (e) => { if (!slip.contains(e.target)) e.stopPropagation(); }, true);
-    veil.addEventListener('click', (e) => { if (!slip.contains(e.target)) { e.stopPropagation(); e.preventDefault(); } }, true);
+    // the panels swallow taps so nothing else moves while a slip is up
+    panels.forEach((p) => ['pointerdown', 'click', 'touchstart'].forEach((ev) => p.addEventListener(ev, (e) => { e.stopPropagation(); e.preventDefault(); }, { passive: false })));
     window.addEventListener('resize', place);
   }
 
   function show(n) {
     ensureDom();
     step = n;
-    waiting = 0;
     const s = STEPS[n];
-    setLit(s.at());
-    const demo = s.demo ? `<div class="coach-demo" aria-hidden="true">
-        <span class="cd-row"><i class="cd-tag" style="--c:var(--c-wide)">Wide</i><span class="cd-bar"><b style="width:100%"></b></span><em>${K.units.climbText(K.scoring.legKm(0))}</em></span>
-        <span class="cd-row"><i class="cd-tag" style="--c:var(--c-snug)">Snug</i><span class="cd-bar"><b style="width:34%"></b></span><em>${K.units.climbText(K.scoring.legKm(2))}</em></span>
-        <span class="cd-row"><i class="cd-tag" style="--c:var(--c-pinpoint)">Pinpoint</i><span class="cd-bar"><b style="width:6%"></b></span><em>${K.units.climbText(K.scoring.legKm(4))}</em></span>
-      </div>` : '';
-    slip.innerHTML = `<span class="coach-step">${n} / 3</span>
-      <p class="coach-title">${s.title}</p>
-      <p class="coach-body">${s.body}</p>${demo}
-      <div class="coach-actions"><button type="button" class="coach-skip">Skip guide</button><button type="button" class="coach-next">${n === 3 ? 'Got it' : 'Next'}</button></div>`;
-    slip.querySelector('.coach-next').addEventListener('click', next);
+    if (lit) lit.classList.remove('coach-lit');
+    lit = s.at();
+    if (lit) lit.classList.add('coach-lit');
+    slip.innerHTML = `<span class="coach-step">${n} / 3</span><p class="coach-title">${s.title}</p><p class="coach-body">${s.body}</p><button type="button" class="coach-skip">Skip guide</button>`;
     slip.querySelector('.coach-skip').addEventListener('click', skip);
     veil.classList.add('on');
     slip.classList.remove('in'); void slip.offsetWidth; slip.classList.add('in');
-    requestAnimationFrame(() => { place(); slip.querySelector('.coach-next').focus({ preventScroll: true }); });
+    requestAnimationFrame(place);
   }
 
-  function setLit(el) {
-    if (lit) lit.classList.remove('coach-lit');
-    lit = el;
-    if (lit) lit.classList.add('coach-lit');
-  }
+  /* ---------------------------------------------------------- hooks */
+  function start() { show(1); }
 
-  /** Next: drop the veil, keep the control lit and pulsing until it's used. */
-  function next() {
-    waiting = step;
-    step = 0;
-    veil.classList.remove('on');
-    if (lit) lit.classList.add('coach-pulse');
-    if (waiting === 3) { /* wait for lock */ }
-  }
-
-  function clearLit() {
-    if (lit) lit.classList.remove('coach-lit', 'coach-pulse');
-    lit = null;
-  }
-
-  /* ---------------------------------------------------------- hooks from the game */
-  function start() {
-    show(1);
-  }
-
-  /** round.js reports every keypad / width change through game.js. */
+  /** round.js reports keypad / width changes through game.js. */
   function input(entry, chip, kind) {
-    if (step) return;                                    // a slip is up: ignore (the veil blocks anyway)
-    if (waiting === 1 && entry) { clearLit(); show(2); }
-    else if (waiting === 2 && kind === 'chip') { clearLit(); show(3); }
+    if (!step) return;
+    if (step === 1 && entry) show(2);
+    else if (step === 2 && kind === 'chip') show(3);
+    else requestAnimationFrame(place);
   }
 
   function skip() { stop(); if (onDone) onDone('skipped'); }
 
   function stop() {
-    step = 0; waiting = 0;
-    clearLit();
-    if (veil) { veil.classList.remove('on'); window.removeEventListener('resize', place); const v = veil; veil = spot = slip = null; setTimeout(() => v.remove(), 240); }
+    step = 0;
+    if (lit) lit.classList.remove('coach-lit');
+    lit = null;
+    if (veil) { window.removeEventListener('resize', place); const v = veil; veil = null; panels = []; ring = slip = arrow = null; v.classList.remove('on'); setTimeout(() => v.remove(), 220); }
   }
 
-  let onDone = null;
-  return { start, input, stop, skip, set onDone(fn) { onDone = fn; }, get active() { return step > 0 || waiting > 0; }, get paused() { return step > 0; } };
+  return { start, input, stop, skip, set onDone(fn) { onDone = fn; }, get active() { return step > 0; }, get paused() { return step > 0; } };
 })();
