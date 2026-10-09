@@ -167,6 +167,7 @@
 
     <!-- RESULTS: one short screen; details on demand -->
     <section class="screen results" id="screen-results" hidden aria-labelledby="res-tier">
+      <button type="button" class="res-handle" id="res-handle" aria-label="Swipe down to see your climb on the sky"><i></i></button>
       <div class="res-main">
         <p class="eyebrow" id="res-eyebrow"></p>
         <div class="res-hero">
@@ -177,8 +178,9 @@
         <!-- Today's pilots: one percentile sentence over the live histogram (ui.js renderPercentile) -->
         <div class="pctl" id="pctl" hidden>
           <div class="pctl-read">
-            <span class="pctl-fig" aria-hidden="true"><b id="pctl-num">0</b><i>%</i></span>
+            <span class="pctl-fig" aria-hidden="true" hidden><b id="pctl-num">0</b><i>%</i></span>
             <p class="pctl-txt" id="pctl-txt"></p>
+            <button type="button" class="link-btn pctl-sky" id="btn-sky">See where everyone landed <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
           </div>
           <div class="crowd-chart" id="crowd-chart"></div>
         </div>
@@ -367,6 +369,7 @@
 <script src="js/ambient.js"></script>
 <script src="js/round.js"></script>
 <script src="js/coach.js"></script>
+<script src="js/replay.js"></script>
 <script src="js/share.js"></script>
 <script src="js/shareimg.js"></script>
 <script src="js/stats.js"></script>

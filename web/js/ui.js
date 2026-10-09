@@ -409,6 +409,7 @@ K.ui = (() => {
     if (mine !== statsTicket) return;           // results were reopened meanwhile; the newer fetch wins
     lastStats = stats;
     renderPercentile(record, stats);
+    K.replay.setStats(stats);
   }
 
   /* ------------------------------------------------------------ results */
@@ -416,6 +417,7 @@ K.ui = (() => {
   /** After a fresh flight: the share ticket gives two small bumps and a paper tag
       says what it's for, then everything settles. Once per landing, no modal. */
   let nudgeTimer = 0;
+  let lastRecordForSky = null;
   function nudgeShare(on) {
     const btn = $('btn-share'), tag = $('share-nudge');
     clearTimeout(nudgeTimer);
@@ -432,6 +434,8 @@ K.ui = (() => {
   }
 
   function results({ record, n, mode = 'daily', streak, thermals, streakInfo, isFresh, prevBest }) {
+    K.replay.hide();
+    lastRecordForSky = record;
     lastRecord = { record, n, streak, mode };
     $('res-eyebrow').textContent = mode === 'unlimited' ? `Unlimited · Flight #${record.flightNo || record.run || ''}`
       : `${mode === 'archive' ? 'Archive · ' : ''}Flight #${n} · ${K.date.dateOfFlight(n).toLocaleDateString('en-US', { day: 'numeric', month: 'long', timeZone: 'UTC' })}`;
@@ -791,7 +795,25 @@ K.ui = (() => {
     };
   }
 
+  /** Results pass → sky: the handle swipes down, the link taps down. */
+  function initReplay() {
+    const openSky = () => { if (lastRecordForSky) K.replay.show(lastRecordForSky, lastStats); };
+    $('btn-sky').addEventListener('click', openSky);
+    const h = $('res-handle');
+    let y0 = null;
+    h.addEventListener('click', openSky);
+    h.addEventListener('pointerdown', (e) => { y0 = e.clientY; });
+    window.addEventListener('pointermove', (e) => { if (y0 != null && e.clientY - y0 > 40) { y0 = null; openSky(); } });
+    window.addEventListener('pointerup', () => { y0 = null; });
+    // swipe down from the very top of the pass does it too
+    const sec = $('screen-results');
+    let t0 = null;
+    sec.addEventListener('touchstart', (e) => { t0 = sec.scrollTop <= 0 ? e.touches[0].clientY : null; }, { passive: true });
+    sec.addEventListener('touchmove', (e) => { if (t0 != null && e.touches[0].clientY - t0 > 70) { t0 = null; openSky(); } }, { passive: true });
+  }
+
   function init() {
+    initReplay();
     odo = new K.fx.Odometer($('odo'));
     odo.set('0.0', { instant: true });
     // The card resizes with a transition (results are taller on desktop): re-seat the balloon once it settles.

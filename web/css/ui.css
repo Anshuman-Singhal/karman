@@ -3449,3 +3449,50 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 @media (max-width: 719px) and (pointer: coarse) and (max-height: 700px) {
   :root { --kh: 36px; --gondola-h: 396px; --round-h: 396px; }
 }
+
+/* ---------------------------------------------------------------- results → sky (replay.js)
+   The pass drops to a slim strip; the rail shows where everyone landed and
+   where each of your legs took you. */
+.res-handle { display: block; width: 100%; margin: -6px 0 6px; padding: 8px 0 6px; background: none; border: 0; cursor: grab; touch-action: none; }
+.res-handle i { display: block; width: 44px; height: 5px; margin: 0 auto; border-radius: 3px; background: rgba(20, 33, 61, 0.22); }
+.pctl-sky { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font: 600 13px/1 var(--f-ui); color: var(--amber-deep, #C25A12); text-decoration: none; }
+.pctl-sky svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+#screen-results .crowd-chart { display: none; }   /* the chart lives on the sky now, vertically */
+body[data-screen="results"] #dock { transition: border-color var(--d-state), width var(--d-sheet) var(--ease-out), height var(--d-sheet) var(--ease-out), translate 420ms var(--ease-out); }
+body.res-collapsed #dock { translate: 0 calc(100% - 64px - env(safe-area-inset-bottom, 0px)); }
+body.res-collapsed #screen-results { pointer-events: none; }
+.res-strip {
+  position: absolute; left: 0; right: 0; top: 0; height: 64px; z-index: 5;
+  display: none; align-items: center; justify-content: space-between; padding: 0 20px;
+  background: none; border: 0; font: 500 15px/1 var(--f-ui); color: #14213D; cursor: pointer;
+}
+.res-strip b { font: 800 20px/1 var(--f-display); letter-spacing: 0.04em; color: #14213D; }
+.res-strip .rs-cue { display: inline-flex; align-items: center; gap: 4px; font: 600 12px/1 var(--f-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber-deep, #C25A12); }
+.res-strip .rs-cue svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+body.res-collapsed .res-strip { display: flex; }
+#replay { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 300ms ease; }
+#replay.on { opacity: 1; }
+#replay .rp-chart { position: absolute; overflow: visible; }
+#replay .rp-bar { fill: rgba(246, 237, 219, 0.28); }
+#replay .rp-bar.me { fill: #FFB547; }
+.rp-leg { position: absolute; translate: 0 -50%; display: flex; align-items: center; gap: 5px; font: 700 11px/1 var(--f-ui); color: #F6EDDB; white-space: nowrap; }
+.rp-leg i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px rgba(10, 13, 28, 0.6); }
+.rp-leg span { opacity: 0.7; }
+.rp-leg b { font: 800 12px/1 var(--f-display); letter-spacing: 0.04em; color: #FFB547; }
+.rp-leg.miss b { color: rgba(246, 237, 219, 0.5); }
+body.res-collapsed #scene { cursor: ns-resize; }
+@media (prefers-reduced-motion: reduce) { body[data-screen="results"] #dock { transition: none; } }
+
+.res-strip { background: #F3E9D6; border-radius: var(--r-card) var(--r-card) 0 0; }
+body.res-collapsed #screen-results { visibility: hidden; }
+#screen-results #btn-keep .kt-main, #screen-results #btn-keep .kt-sub, #screen-results #btn-keep .kt-title, #screen-results #btn-keep > span:first-child { color: #F6EDDB; }
+#screen-results #btn-keep .kt-sub { color: rgba(246, 237, 219, 0.72); }
+#screen-results #btn-keep .kt-main b, #screen-results #btn-keep .kt-main small { color: #F6EDDB; }
+#screen-results #btn-keep .kt-main small { opacity: 0.75; }
+
+/* replay: the rail stretches while the pass is down; milestone labels step aside for your legs */
+body.res-collapsed #rail { height: calc(100% - 64px - 150px - env(safe-area-inset-top, 0px)); }
+body.res-collapsed .rail-tick span, body.res-collapsed .rail-ghost { opacity: 0; }
+#replay .rp-area { fill: rgba(246, 237, 219, 0.16); stroke: rgba(246, 237, 219, 0.55); stroke-width: 1.2; }
+#replay .rp-you { stroke: #FFB547; stroke-width: 1.5; stroke-dasharray: 3 3; }
+#replay .rp-you-t { fill: #FFB547; font: 800 11px 'Big Shoulders Display', sans-serif; letter-spacing: 0.1em; }
