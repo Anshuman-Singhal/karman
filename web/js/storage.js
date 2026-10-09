@@ -50,6 +50,7 @@ K.storage = (() => {
       parked: {},
       tutored: false,       // has seen the one-time guided first leg
       guideV: 2,            // bump to show the guided leg once more to everyone
+      lastChip: null,       // the width you used last; new legs start on it
       runNext: 1,           // (unused since random runs; kept for old saves)
       runsDone: [],         // numbered Unlimited runs this pilot has flown (no repeats until all done)
       unlimitedCount: 0,    // how many Unlimited flights: shown as Unlimited · Flight #N           // flights left mid-way when switching modes, by slot

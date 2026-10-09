@@ -12,7 +12,8 @@
 K.units = (() => {
   /* metric unit → imperial equivalent */
   const MAP = {
-    'metres':        { imp: 'feet',             to: (v) => v * 3.28084,  from: (v) => v / 3.28084 },
+    'meters':        { imp: 'feet',             to: (v) => v * 3.28084,  from: (v) => v / 3.28084 },
+    'metres':        { imp: 'feet',             to: (v) => v * 3.28084,  from: (v) => v / 3.28084 },   // legacy spelling in old saves
     'km':            { imp: 'miles',            to: (v) => v * 0.621371, from: (v) => v / 0.621371 },
     'km per second': { imp: 'miles per second', to: (v) => v * 0.621371, from: (v) => v / 0.621371 },
     'm per second':  { imp: 'feet per second',  to: (v) => v * 3.28084,  from: (v) => v / 3.28084 },
@@ -20,7 +21,23 @@ K.units = (() => {
     'km per hour':   { imp: 'miles per hour',   to: (v) => v * 0.621371, from: (v) => v / 0.621371 },
     'kg':            { imp: 'pounds',           to: (v) => v * 2.20462,  from: (v) => v / 2.20462 },
   };
-  const SHORT = { metres: 'm', feet: 'ft', 'km per second': 'km/s', 'miles per second': 'mi/s', 'm per second': 'm/s', 'feet per second': 'ft/s', 'km per hour': 'km/h', 'miles per hour': 'mph', pounds: 'lb' };
+  const SHORT = { meters: 'm', metres: 'm', feet: 'ft', 'km per second': 'km/s', 'miles per second': 'mi/s', 'm per second': 'm/s', 'feet per second': 'ft/s', 'km per hour': 'km/h', 'miles per hour': 'mph', pounds: 'lb' };
+
+  /* ---- altitude (the score) in the player's units ----
+     Scored and stored in km; shown as km or miles. Ceiling 140 km ≈ 87 mi. */
+  const KM_TO_MI = 0.621371;
+  const altUnit = () => (system() === 'imperial' ? 'mi' : 'km');
+  const altVal = (km) => (system() === 'imperial' ? km * KM_TO_MI : km);
+  /** "54.0" style number for the odometer (1 decimal), in the player's units. */
+  const altNum = (km, decimals = 1) => altVal(km).toFixed(decimals);
+  /** "54 km" / "34 mi", whole numbers unless small. */
+  function altText(km, opts = {}) {
+    const v = altVal(km);
+    const d = opts.decimals != null ? opts.decimals : (v < 10 && v !== Math.round(v) ? 1 : 0);
+    return `${v.toFixed(d)} ${altUnit()}`;
+  }
+  /** A per-leg climb like "+10 km" / "+6 mi" (miles rounded to whole). */
+  const climbText = (km) => (system() === 'imperial' ? `+${Math.round(km * KM_TO_MI)} mi` : `+${km} km`);
 
   /** Default: imperial for US English, metric for everyone else. */
   function defaultSystem() {
@@ -60,7 +77,7 @@ K.units = (() => {
   }
 
   /** Render a hint like "For scale: … {93 m} …" in the player's units. */
-  const TOKEN_UNITS = { m: 'metres', km: 'km', '°C': '°C', 'm/s': 'm per second', 'km/s': 'km per second', 'km/h': 'km per hour', kg: 'kg' };
+  const TOKEN_UNITS = { m: 'meters', km: 'km', '°C': '°C', 'm/s': 'm per second', 'km/s': 'km per second', 'km/h': 'km per hour', kg: 'kg' };
   function hint(text) {
     return String(text || '').replace(/\{([\d.,]+)\s*(km\/h|km\/s|m\/s|km|kg|m|°C)\}/g, (_, num, u) => {
       const v = Number(num.replace(/,/g, ''));
@@ -69,5 +86,5 @@ K.units = (() => {
     });
   }
 
-  return { view, system, setSystem, convertible, defaultSystem, hint };
+  return { altUnit, altVal, altNum, altText, climbText, view, system, setSystem, convertible, defaultSystem, hint };
 })();

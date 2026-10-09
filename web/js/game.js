@@ -202,7 +202,7 @@ K.game = (() => {
     K.ui.prepareLaunch();
     live = {
       n, mode, run: mode === 'unlimited' ? flight.run : undefined, factIds: flight.facts.map((f) => f.id), phase: 'round', round: 0, rounds: [], pts: 0, alt: 0, maxAlt: 0, startedAt: 0,
-      entry: '', chip: S.DEFAULT_CHIP,
+      entry: '', chip: store.lastChip != null ? store.lastChip : S.DEFAULT_CHIP,   // your last width carries over
       untimed: !store.tutored,              // a brand-new pilot's first leg is guided and untimed
     };
     store.live = live;
@@ -238,13 +238,14 @@ K.game = (() => {
 
   /* ------------------------------------------------------------ rounds */
   async function startRound(resuming, animate) {
+    legShownAt = Date.now();   // from the first frame of the new leg, stray taps are ignored
     const i = live.round;
     const fact = flight.facts[i];
     if (!resuming) {
       live.phase = 'round';
       live.startedAt = Date.now();
       live.entry = '';
-      live.chip = S.DEFAULT_CHIP;
+      live.chip = store.lastChip != null ? store.lastChip : S.DEFAULT_CHIP;   // keep the width you used last
       save();
     }
     const opts = {
@@ -252,7 +253,7 @@ K.game = (() => {
       entry: live.entry, chip: live.chip,
       clueUsed: live.clueLeg != null, clueHere: live.clueLeg === i, clueLeg: live.clueLeg,
       onClue: () => { live.clueLeg = i; save(); },
-      onChange: (entry, chip) => { live.entry = entry; live.chip = chip; saveSoon(); if (live.untimed) K.coach.input(entry, chip); },
+      onChange: (entry, chip, kind) => { live.entry = entry; live.chip = chip; store.lastChip = chip; saveSoon(); if (live.untimed) K.coach.input(entry, chip, kind); },
     };
     if (animate) {
       await K.round.advance(opts);
@@ -265,9 +266,11 @@ K.game = (() => {
     if (K.ui.current !== 'round') K.ui.show('round');
     if (live.untimed && i === 0) {          // the one guided leg: no clock, three slips
       K.round.setTimer(C.ROUND_SECONDS, C.ROUND_SECONDS);
-      setTimeout(() => K.coach.start(live.chip), K.fx.reduced() ? 0 : 450);
+      K.coach.onDone = () => { live.untimed = false; store.tutored = true; save(); };
+      setTimeout(() => K.coach.start(), K.fx.reduced() ? 0 : 500);
       return;
     }
+    legShownAt = Date.now();
     startTimer(C.ROUND_SECONDS);
   }
 
@@ -288,8 +291,10 @@ K.game = (() => {
   }
 
   /** Commit the current guess + chip, score it, then play the reveal. */
+  let legShownAt = 0;   // a tap that lands in the first half-second of a new leg is a stray Next-leg tap
   async function lock(opts = {}) {
     if (!live || live.phase !== 'round' || busy) return;
+    if (!opts.timedOut && (Date.now() - legShownAt < 500 || document.getElementById('screen-round').classList.contains('leg-out') || document.getElementById('screen-round').classList.contains('leg-in'))) return;
     busy = true;
     stopTimer();
     if (live.untimed) { K.coach.stop(); live.untimed = false; store.tutored = true; save(); }
@@ -338,7 +343,7 @@ K.game = (() => {
         await K.fx.hitstop(pin ? 240 : 110);
         const col = CHIP_HEX[result.chip];
         K.fx.embers(bp.x, bp.y, { count: pin ? 48 : 26, color: col, speed: pin ? 300 : 220 });
-        K.fx.floatText(bp.x, bp.y - 26, `+${result.delta}`, col);
+        K.fx.floatText(bp.x, bp.y - 26, K.units.climbText(S.kmOf(result.delta)), col);
         if (pin) { K.fx.ringBurst(bp.x, bp.y); K.fx.sparks(bp.x, bp.y); K.fx.nudge(); }
         K.audio.hit(result.chip);
         const pt = K.scene.point('burner');

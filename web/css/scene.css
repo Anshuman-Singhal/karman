@@ -361,3 +361,8 @@ body {
 
 /* Everest's lower slopes fade out in a soft vignette, not a box. */
 .peak svg { -webkit-mask-image: radial-gradient(75% 85% at 50% 4%, #000 60%, transparent 100%); mask-image: radial-gradient(75% 85% at 50% 4%, #000 60%, transparent 100%); }
+
+/* No spoilers: while a question is open, sky captions show names only.
+   Heights and figures come back on the home and results screens. */
+body[data-screen="round"] .cap-fig { display: none; }
+body[data-screen="round"] .cap-sub:has(.cap-fig):not(:has(.cap-note)) { display: none; }

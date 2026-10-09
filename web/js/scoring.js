@@ -6,28 +6,31 @@
    The decision each round:
      guess  the number you type
      width  how wide a range you bet on (Wide … Pinpoint)
-   If the true answer lands inside your range you score that width's points:
-     Wide 15 · Fair 30 · Snug 55 · Tight 85 · Pinpoint 100 · miss or no answer 0
-   Seven legs × 100 = 700 points is the Kármán line, so every point lifts the
-   craft about 143 m. Points never go down.
+   If the true answer lands inside your range your balloon climbs that width's
+   kilometres: Wide 2 · Fair 5 · Snug 10 · Tight 15 · Pinpoint 20 · miss 0.
+   Seven legs × 20 km = 140 km, the ceiling; the Kármán line (space) is 100 km.
+   Under the hood the score is kept as integer "points" at 5 per km (0–700),
+   which is what saves and the stats server already store, so nothing migrates.
    ========================================================================== */
 
 K.scoring = (() => {
   /* ratio: hi/lo for log questions · years: ± years for date questions
      pts:   points for a hit */
+  const PTS_PER_KM = 5;
   const CHIPS = [
-    // Widths, second retune after playtesting: Wide is huge (÷100 to ×100, ±1,000
-    // years) so a nervous guess still scores; the rest step down geometrically to
-    // an unchanged Pinpoint. ratio = hi/lo for log questions, years = ± for dates.
-    { key: 'wide',     name: 'Wide',     ratio: 10000,  years: 1000, pts: 15,  glyph: '☁️' },
-    { key: 'fair',     name: 'Fair',     ratio: 25,     years: 200,  pts: 30,  glyph: '🎈' },
-    { key: 'snug',     name: 'Snug',     ratio: 3.24,   years: 45,   pts: 55,  glyph: '✈️' },
-    { key: 'tight',    name: 'Tight',    ratio: 1.5625, years: 10,   pts: 85,  glyph: '🛰️' },
-    { key: 'pinpoint', name: 'Pinpoint', ratio: 1.15,   years: 2,    pts: 100, glyph: '🚀' },
-  ];
+    // Widths: Wide is huge (÷100 to ×100, ±1,000 years) so a nervous guess still
+    // scores; the rest step down geometrically to Pinpoint (×1.15, ±2 years).
+    // ratio = hi/lo for log questions, years = ± for dates, km = the climb on a hit.
+    { key: 'wide',     name: 'Wide',     ratio: 10000,  years: 1000, km: 2,  glyph: '☁️' },
+    { key: 'fair',     name: 'Fair',     ratio: 25,     years: 200,  km: 5,  glyph: '🎈' },
+    { key: 'snug',     name: 'Snug',     ratio: 3.24,   years: 45,   km: 10, glyph: '✈️' },
+    { key: 'tight',    name: 'Tight',    ratio: 1.5625, years: 10,   km: 15, glyph: '🛰️' },
+    { key: 'pinpoint', name: 'Pinpoint', ratio: 1.15,   years: 2,    km: 20, glyph: '🚀' },
+  ].map((c) => ({ ...c, pts: c.km * PTS_PER_KM }));
   const MISS_GLYPH = '💨';
-  const MAX_PTS = K.CONFIG.LEGS * 100;                              // a perfect flight
-  const METRES_PER_POINT = (K.CONFIG.KARMAN_KM * 1000) / MAX_PTS;   // ≈142.9 m with 7 legs
+  const MAX_KM = K.CONFIG.LEGS * 20;                                // 140: a perfect flight
+  const MAX_PTS = MAX_KM * PTS_PER_KM;                              // 700, unchanged on disk
+  const METRES_PER_POINT = 1000 / PTS_PER_KM;
   const DEFAULT_CHIP = 2; // Snug: the best average choice for a calibrated player
 
   /* Altitude milestones. Crossing one for the first time earns a stamp. */
@@ -39,6 +42,7 @@ K.scoring = (() => {
     { id: 'skydive',     km: 39,    name: 'Record skydive height', short: 'Skydive' },
     { id: 'stratopause', km: 50,    name: 'The stratopause',       short: 'Stratopause' },
     { id: 'karman',      km: 100,   name: 'The Kármán line',       short: 'Space' },
+    { id: 'orbit',       km: 140,   name: 'The ceiling: 140 km',   short: 'Ceiling' },
   ];
 
   /* Stamp ink tiers. A milestone's ink upgrades as you pass it more often.
@@ -84,8 +88,9 @@ K.scoring = (() => {
 
   /* ---- points and altitude ---- */
   const legPoints = (chipIdx) => CHIPS[chipIdx].pts;
-  const kmOf = (pts) => (pts * METRES_PER_POINT) / 1000;
-  const ptsOf = (km) => Math.round((km * 1000) / METRES_PER_POINT);
+  const legKm = (chipIdx) => CHIPS[chipIdx].km;
+  const kmOf = (pts) => pts / PTS_PER_KM;
+  const ptsOf = (km) => Math.round(km * PTS_PER_KM);
 
   /* ---- labels ---- */
   function format(fact, v) {
@@ -146,7 +151,7 @@ K.scoring = (() => {
   }
 
   return {
-    CHIPS, MISS_GLYPH, DEFAULT_CHIP, MILESTONES, STAMP_TIERS, METRES_PER_POINT, MAX_PTS,
+    CHIPS, MISS_GLYPH, DEFAULT_CHIP, MILESTONES, STAMP_TIERS, METRES_PER_POINT, MAX_PTS, MAX_KM, PTS_PER_KM, legKm,
     valueAt, tAt, roundGuess, range, isHit,
     legPoints, kmOf, ptsOf, clueWindow, CLUE_FACTOR,
     format, formatExact, offBy, tierName, tierIndex, nextTier, round2,

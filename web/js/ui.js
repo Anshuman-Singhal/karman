@@ -127,8 +127,8 @@ K.ui = (() => {
 
   /** Altimeter: km on the rolling odometer, points underneath. */
   function setAltitude(pts, opts) {
-    odo.set(S.kmOf(pts).toFixed(1), opts);
-    $('alt-pts').textContent = pts.toLocaleString('en-US');
+    odo.set(K.units.altNum(S.kmOf(pts)), opts);
+    $('alt-unit').textContent = K.units.altUnit();
   }
 
   /* ------------------------------------------------------------ home */
@@ -140,14 +140,14 @@ K.ui = (() => {
     $('home-h').innerHTML = un ? 'Unlimited <span>∞</span>' : `Flight <span>#${flight.n}</span>`;
     $('home-lede').textContent = un ? 'Seven new questions. No streak on the line, but stamps still count.'
       : mode === 'archive' ? 'A past daily flight. It won’t touch your streak.'
-      : 'Seven guesses. Climb 100 km to the Kármán line, where space begins.';
+      : `Seven guesses. Climb ${K.units.altText(100)} to the Kármán line, where space begins.`;
     $('launch-no').textContent = un ? '∞' : `#${flight.n}`;
     const td = K.date.dateOfFlight(Math.max(1, K.game.today));
     $('leaf-m').textContent = td.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase();
     $('leaf-d').textContent = td.getUTCDate();
     $('home-status').hidden = mode !== 'daily';
     const parts = [`<span><b>${streak}</b> day streak</span>`, `<span title="Streak savers: earn one every 7 days in a row; each covers one missed day"><b>${thermals}</b> thermal${thermals === 1 ? '' : 's'}</span>`];
-    if (bestAlt > 0) parts.push(`<span>Best <b>${S.ptsOf(bestAlt)}</b> pts</span>`);
+    if (bestAlt > 0) parts.push(`<span>Best <b>${K.units.altText(bestAlt)}</b></span>`);
     $('home-status').innerHTML = parts.join('');
     const btn = $('btn-launch');
     btn.disabled = false;
@@ -189,10 +189,10 @@ K.ui = (() => {
 
     // Axis: a baseline, a tick and a number every 100 points.
     const ticks = [];
-    for (let p = 0; p <= S.MAX_PTS; p += 100) {
+    for (let p = 0; p <= S.MAX_PTS; p += 100) {   // every 20 km
       const x = xOfPts(p);
       const anchor = p === 0 ? 'start' : p === S.MAX_PTS ? 'end' : 'middle';
-      ticks.push(`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${HIST.base}" y2="${HIST.base + 4}" class="h-tickline"/><text x="${x.toFixed(1)}" y="${HIST.base + 16}" text-anchor="${anchor}" class="h-num">${p}</text>`);
+      ticks.push(`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${HIST.base}" y2="${HIST.base + 4}" class="h-tickline"/><text x="${x.toFixed(1)}" y="${HIST.base + 16}" text-anchor="${anchor}" class="h-num">${Math.round(S.kmOf(p))}</text>`);
     }
 
     // YOU: a small ink flag on the reserved top row, a dotted line down to your bar.
@@ -207,8 +207,8 @@ K.ui = (() => {
         <text x="${(fx + flagW / 2).toFixed(1)}" y="${(HIST.flag / 2 + 3.4).toFixed(1)}" text-anchor="middle" class="h-youlabel">YOU</text>
       </g>`;
 
-    const label = alone ? `Only your flight so far today: ${record.pts} points.`
-      : `Today's scores from 0 to ${S.MAX_PTS} points across ${stats.players.toLocaleString('en-US')} pilots. You scored ${record.pts}.`;
+    const label = alone ? `Only your flight so far today: ${K.units.altText(S.kmOf(record.pts))}.`
+      : `Today's climbs from 0 to ${K.units.altText(S.MAX_KM)} across ${stats.players.toLocaleString('en-US')} pilots. You reached ${K.units.altText(S.kmOf(record.pts))}.`;
     return `<svg viewBox="0 0 ${HIST.w} ${HIST.h}" class="hist-svg" role="img" aria-label="${label}">
       <g class="h-bars">${bars}</g>
       <line x1="${HIST.left}" x2="${HIST.right}" y1="${HIST.base + 0.5}" y2="${HIST.base + 0.5}" class="h-axis"/>
@@ -284,7 +284,7 @@ K.ui = (() => {
     const state = none ? 'none' : r.hit ? 'hit' : 'miss';
     const color = `var(--c-${S.CHIPS[r.chip].key})`;
     const L = lineLayout(fact, v, r);
-    const pts = none ? '—' : r.delta > 0 ? `+${r.delta}` : '0';
+    const pts = none ? '—' : r.delta > 0 ? K.units.climbText(S.kmOf(r.delta)) : '0';
     const ansTxt = isYear ? yearTxt(fact.answer) : v.fmt(fact.answer, true);
     const unit = !isYear && v.unit ? `<small>${esc(v.unit)}</small>` : '';
     const side = (p) => (p < 18 ? 'l' : p > 82 ? 'r' : 'c');
@@ -325,7 +325,7 @@ K.ui = (() => {
     strip.innerHTML = record.rounds.map((r, i) => {
       const c = r.hit ? `var(--c-${S.CHIPS[r.chip].key})` : 'var(--c-miss)';
       const state = r.guess == null ? 'none' : r.hit ? 'hit' : 'miss';
-      const pts = r.guess == null ? '—' : r.delta > 0 ? `+${r.delta}` : '0';
+      const pts = r.guess == null ? '—' : r.delta > 0 ? K.units.climbText(S.kmOf(r.delta)).replace(/ (km|mi)$/, '') : '0';
       return `<button type="button" class="leg-tile ${state}" role="tab" aria-selected="false" data-i="${i}" style="--c:${c};--i:${i}">
         <span class="lt-no">${i + 1}</span><span class="lt-glyph"></span><span class="lt-pts">${pts}</span></button>`;
     }).join('');
@@ -435,8 +435,9 @@ K.ui = (() => {
     const subj = encodeURIComponent(`KÁRMÁN ${mode === 'unlimited' ? 'Unlimited' : `#${n}`}`);
     $('contact-link').href = `mailto:${K.CONFIG.CONTACT_EMAIL}?subject=${subj}`;
     paintKeep();
-    $('res-alt').textContent = record.pts.toLocaleString('en-US');
-    $('res-km').textContent = `${record.alt.toFixed(1)} km up`;
+    $('res-alt').textContent = K.units.altNum(record.alt, 0);
+    $('res-unit').textContent = K.units.altUnit();
+    $('res-km').textContent = `${K.units.altText(record.alt, { decimals: 1 })} up`;
     $('res-tier').textContent = S.tierName(record.alt);
     $('res-mrz').innerHTML = mrz(record, n, mode);
     $('pctl').hidden = true;
@@ -449,7 +450,7 @@ K.ui = (() => {
     else if (isFresh && streakInfo && streakInfo.earnedThermal) note = 'Thermal earned.';
     $('res-note').textContent = note;
 
-    $('ticket-stub').innerHTML = `<small>#${n}</small>${record.pts.toLocaleString('en-US')} PTS`;
+    $('ticket-stub').innerHTML = `<small>#${n}</small>${K.units.altText(record.alt).toUpperCase()}`;
     $('passport-row').innerHTML = passportRow(record, isFresh);
     legStrip(record);
     $('legstrip-note').hidden = false;
@@ -473,7 +474,7 @@ K.ui = (() => {
     const day = `${String(d.getUTCDate()).padStart(2, '0')}${'JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC'.substr(d.getUTCMonth() * 3, 3)}${String(d.getUTCFullYear()).slice(2)}`;
     const head = mode === 'unlimited' ? `P<KARMAN<<UNLIMITED<FLIGHT<${record.flightNo || record.run || 1}` : `P<KARMAN<<FLIGHT<${n}<<${day}`;
     const hits = record.rounds.filter((r) => r.hit).length;
-    const body = `${String(record.pts).padStart(4, '0')}PTS<<${record.alt.toFixed(1).replace('.', '<')}KM<<${S.tierName(record.alt).toUpperCase()}<<${hits}<${record.rounds.length}`;
+    const body = `${String(Math.round(record.alt)).padStart(3, '0')}KM<<${record.alt.toFixed(1).replace('.', '<')}KM<<${S.tierName(record.alt).toUpperCase()}<<${hits}<${record.rounds.length}`;
     const esc = (t) => t.replace(/</g, '&lt;');
     return `<span>${esc(fill(head))}</span><span>${esc(fill(body))}</span>`;
   }
@@ -516,7 +517,7 @@ K.ui = (() => {
       const rec = data.days[fn] && data.days[fn].done ? data.days[fn] : null;
       if (!exists) { cells += `<span class="cal-day off">${d}</span>`; continue; }
       const cls = ['cal-day', fn === today ? 'today' : '', rec ? 'played' : '', !rec && fn !== today && !open ? 'locked' : ''].join(' ');
-      const sub = rec ? `<small>${rec.pts}</small>` : fn === today ? '<small>Today</small>' : !open ? '<small class="lock"></small>' : '<small>#' + fn + '</small>';
+      const sub = rec ? `<small>${K.units.altText(rec.alt || S.kmOf(rec.pts))}</small>` : fn === today ? '<small>Today</small>' : !open ? '<small class="lock"></small>' : '<small>#' + fn + '</small>';
       cells += `<button type="button" class="${cls}" data-n="${fn}"><b>${d}</b>${sub}</button>`;
     }
     $('cal-grid').innerHTML = cells;
@@ -639,8 +640,8 @@ K.ui = (() => {
   /** Help copy comes from the scoring constants so it can never drift.
       The ticket's stub says where closing it takes you. */
   function renderHelp() {
-    $('help-space').textContent = `${S.MAX_PTS} points takes you 100 km up, to the Kármán line where space begins.`;
-    $('help-ladder').innerHTML = S.CHIPS.map((c) => `<span class="lad" style="--c:var(--c-${c.key})"><b>+${c.pts}</b><i></i><em>${c.name}</em></span>`).join('');
+    $('help-space').textContent = `Every hit lifts you. ${K.units.altText(100)} up is the Kármán line, where space begins; ${K.units.altText(S.MAX_KM)} is the ceiling.`;
+    $('help-ladder').innerHTML = S.CHIPS.map((c) => `<span class="lad" style="--c:var(--c-${c.key})"><b>${K.units.climbText(c.km)}</b><i></i><em>${c.name}</em></span>`).join('');
     const g = K.game;
     const flying = current === 'round' && g.phase;
     const [small, big] = flying ? ['Back to', `Leg ${g.leg + 1}`]

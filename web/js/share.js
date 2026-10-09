@@ -3,7 +3,7 @@
    The spoiler-free flight log people paste into group chats:
 
      KÁRMÁN #12 🚀
-     245 points
+     54 km up
 
      🚀✈️💨🛰️🎈
 
@@ -22,7 +22,8 @@ K.share = (() => {
     const legs = record.rounds.map((r) => (r.hit ? S.CHIPS[r.chip].glyph : S.MISS_GLYPH)).join('');
     const pts = record.pts != null ? record.pts : S.ptsOf(record.alt);
     const title = record.mode === 'unlimited' ? 'KÁRMÁN Unlimited' : `KÁRMÁN #${record.n}`;
-    return [`${title} 🚀`, `${pts} points`, '', legs, '', K.CONFIG.SHARE_URL].join('\n');
+    const km = S.kmOf(pts);
+    return [`${title} 🚀`, `${Number.isInteger(km) ? km : km.toFixed(1)} km up`, '', legs, '', K.CONFIG.SHARE_URL].join('\n');
   }
 
   /** Try the system share sheet (with the image when given), then the clipboard. Returns what happened. */

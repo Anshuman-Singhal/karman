@@ -76,8 +76,7 @@
 
   <div id="altimeter">
     <span class="alt-label">Altitude</span>
-    <span class="alt-value"><span id="odo" class="odo"></span><span class="alt-unit">km</span></span>
-    <span class="alt-pts"><b id="alt-pts">0</b> pts</span>
+    <span class="alt-value"><span id="odo" class="odo"></span><span class="alt-unit" id="alt-unit">km</span></span>
   </div>
 
   <!-- Round HUD: the dial and the route, up top so the card stays calm (shown only on the round screen) -->
@@ -170,7 +169,7 @@
       <div class="res-main">
         <p class="eyebrow" id="res-eyebrow"></p>
         <div class="res-hero">
-          <span class="res-alt" id="res-alt"></span><span class="res-unit">points</span>
+          <span class="res-alt" id="res-alt"></span><span class="res-unit" id="res-unit">km</span>
         </div>
         <p class="res-tier"><span id="res-km"></span> · <em id="res-tier"></em></p>
 
@@ -340,7 +339,7 @@
           <p><b>Climb to space.</b> <span id="help-space"></span></p>
           <svg class="hf-ill" viewBox="0 0 72 40" aria-hidden="true"><path d="M2 39Q36 29 70 39" class="hi-line"/><path d="M4 8h64" class="hi-karman"/><path d="M36 30V16" class="hi-climb"/><g transform="translate(36 19)"><path d="M0-9c-5 0-7.6 3.4-7.6 7.2 0 3 2.5 5.6 4.6 7.2h6c2.1-1.6 4.6-4.2 4.6-7.2C7.6-5.6 5-9 0-9z" class="hi-env"/><rect x="-2.6" y="6.6" width="5.2" height="3.6" rx=".8" class="hi-basket"/></g></svg></li>
       </ol>
-      <p class="hf-note">One clue per flight shows where the answer sits, for half the points. A new flight every day.</p>
+      <p class="hf-note">One clue per flight shows where the answer sits, for half the climb. A new flight every day.</p>
       <div class="br-foot">
         <button type="button" class="ready-ticket" id="btn-ready"><span class="rt-main">Got it</span><span class="rt-stub" id="help-stub"><small>Gate</small><b>#1</b></span></button>
       </div>

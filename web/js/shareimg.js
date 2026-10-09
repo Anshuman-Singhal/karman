@@ -283,17 +283,19 @@ K.shareImage = (() => {
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.font = `500 24px ${MONO}`;
-    ctx.fillText('ALTITUDE POINTS', x0 + 6, 330);
+    ctx.fillText('ALTITUDE', x0 + 6, 330);
     ctx.fillStyle = AMBER;
     ctx.font = `800 260px ${DISPLAY}`;
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.3)';
     ctx.shadowBlur = 24;
-    ctx.fillText(record.pts.toLocaleString('en-US'), x0, 560);
+    ctx.fillText(K.units.altNum(record.alt, 0), x0, 560);
+    ctx.font = `800 96px ${DISPLAY}`;
+    ctx.fillText(K.units.altUnit(), x0 + ctx.measureText(K.units.altNum(record.alt, 0)).width * 2.7 + 18, 560);
     ctx.restore();
     ctx.fillStyle = '#FFFFFF';
     ctx.font = `600 44px ${UI}`;
-    ctx.fillText(`${record.alt.toFixed(1)} km · ${S.tierName(record.alt)}`, x0 + 6, 640);
+    ctx.fillText(`${K.units.altText(record.alt, { decimals: 1 })} · ${S.tierName(record.alt)}`, x0 + 6, 640);
 
     legs(ctx, record, x0, 760);
 

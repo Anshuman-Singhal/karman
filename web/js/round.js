@@ -129,8 +129,10 @@ K.round = (() => {
   function renderHint() {
     els.hint.classList.remove('is-clue', 'is-cost');
     if (ctx.clueHere) {
-      const w = S.clueWindow(fact);
-      els.hint.innerHTML = `<b>Clue</b>Between <b>${view.fmt(w.lo, true)}</b> and <b>${view.fmt(w.hi, true)}</b>${view.short ? ' ' + view.short : ''}`;
+      // The clue is a second, closer benchmark (a real fact), shown under the scale hint.
+      const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const clueText = K.units.hint(K.CLUES && K.CLUES[fact.id]) || '';
+      els.hint.innerHTML = `<span class="hint-scale">${esc(K.units.hint(K.HINTS && K.HINTS[fact.id]))}</span><span class="hint-clue"><b>Closer</b>${esc(clueText)}</span>`;
       els.hint.classList.add('is-clue');
       els.card.classList.add('clued');
     } else {
@@ -148,13 +150,13 @@ K.round = (() => {
     c.dataset.state = st;
     c.disabled = st === 'spent';
     c.innerHTML = {
-      ready: '<span class="ct-main">Clue</span><span class="ct-stub">½<small>pts</small></span>',
+      ready: '<span class="ct-main">Clue</span><span class="ct-stub">½<small>climb</small></span>',
       on: '<span class="ct-main">Clue on</span>',
       spent: `<span class="ct-main">Used on leg ${leg}</span>`,
     }[st];
     c.setAttribute('aria-label', {
-      ready: 'Use your one clue for this flight. This leg scores half points',
-      on: 'Clue on. This leg scores half points',
+      ready: 'Use your one clue for this flight. This leg climbs half as far',
+      on: 'Clue on. This leg climbs half as far',
       spent: `Clue already used on leg ${leg}`,
     }[st]);
   }
@@ -164,7 +166,7 @@ K.round = (() => {
     const c = els.clue;
     if (c.dataset.state !== 'armed') {
       c.dataset.state = 'armed';
-      c.innerHTML = '<span class="ct-main">Confirm</span><span class="ct-stub">½<small>pts</small></span>';
+      c.innerHTML = '<span class="ct-main">Confirm</span><span class="ct-stub">½<small>climb</small></span>';
       c.setAttribute('aria-label', 'Tap again to use your clue. This leg pays half');
       els.hint.classList.remove('is-clue');
       els.hint.classList.add('is-cost');
@@ -261,7 +263,7 @@ K.round = (() => {
     void b.offsetWidth;
     b.classList.add('pop');
     update();
-    onChange(state.entry, state.chip);
+    onChange(state.entry, state.chip, 'chip');
   }
 
   /** Switch metric ⇄ imperial, converting whatever has been typed. */
@@ -383,15 +385,15 @@ K.round = (() => {
     els.lock.disabled = guess == null;
     els.lockMain.textContent = guess == null ? 'Type a guess' : 'Lock it in';
     const bet = ctx.clueHere ? Math.round(S.legPoints(state.chip) * S.CLUE_FACTOR) : S.legPoints(state.chip);
-    els.lockStub.innerHTML = `<i class="kl-pip"></i>+${bet}`;
-    els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `Lock it in for ${bet} points`);
+    els.lockStub.innerHTML = `<i class="kl-pip"></i>${K.units.climbText(S.kmOf(bet))}`;
+    els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `Lock it in for ${K.units.climbText(S.kmOf(bet))}`);
 
     // Width buttons: the chosen one lights up; values halve when the clue is on.
     els.wbtnEls.forEach((b, i) => {
       const full = S.legPoints(i);
       b.classList.toggle('on', i === state.chip);
       b.setAttribute('aria-checked', String(i === state.chip));
-      b.querySelector('b').textContent = `+${ctx.clueHere ? Math.round(full * S.CLUE_FACTOR) : full}`;
+      b.querySelector('b').textContent = K.units.climbText(S.kmOf(ctx.clueHere ? Math.round(full * S.CLUE_FACTOR) : full));
     });
   }
 
@@ -465,13 +467,13 @@ K.round = (() => {
     const chip = S.CHIPS[chipIdx];
     const unit = view.unit ? ` ${view.unit}` : '';
     const verdict = els.result.querySelector('.verdict');
-    verdict.textContent = hit ? (chipIdx === 4 ? 'Pinpoint' : 'Hit') : guess == null ? 'No answer' : 'Miss';
+    verdict.textContent = hit ? (chipIdx === 4 ? 'Pinpoint' : 'Hit') : guess == null ? (timedOut ? 'Ran out of time' : 'No answer') : 'Miss';
     verdict.className = `verdict ${hit ? 'is-hit' : 'is-miss'}`;
     verdict.style.setProperty('--c', hit ? `var(--c-${chip.key})` : 'var(--c-miss)');
 
     let d;
-    if (hit) d = `+${delta} points${clue ? ' (clue: half)' : ''}`;
-    else d = guess == null ? `0 points${timedOut ? ' · time ran out' : ''}` : `0 points · ${offByText(guess)}`;
+    if (hit) d = `${K.units.climbText(S.kmOf(delta))}${clue ? ' (clue: half)' : ''}`;
+    else d = guess == null ? (timedOut ? 'No climb' : 'No climb') : `No climb · ${offByText(guess)}`;
     els.result.querySelector('.verdict-delta').textContent = d;
 
     els.result.querySelector('.result-line').innerHTML = guess == null

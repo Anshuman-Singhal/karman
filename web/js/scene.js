@@ -14,7 +14,7 @@
    ========================================================================== */
 
 K.scene = (() => {
-  const SKY_MAX_KM = 120;
+  const SKY_MAX_KM = 150;
   const fOf = (km) => Math.log(1 + Math.max(0, km) / 1.5) / Math.log(1 + SKY_MAX_KM / 1.5);
   const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -714,7 +714,7 @@ K.scene = (() => {
   }
 
   /* ========================================================== rail */
-  const railFrac = (km) => clamp(fOf(km) / fOf(110), 0, 1);
+  const railFrac = (km) => clamp(fOf(km) / fOf(142), 0, 1);
 
   function buildRail() {
     const ticks = railEl.querySelector('.rail-ticks');
@@ -1057,7 +1057,8 @@ K.scene = (() => {
     setTimeout(() => bag.remove(), 1500);
   }
 
-  return {
+  return { railFrac, fOf,
+
     init, reset, climbTo, setChip, setLift, liftOff, inflate, flare, setFlameTarget,
     setAnchor, planAnchor, point, svgPoint, dropSandbag, fOf, skyAt,
     /** Screen y of a given altitude right now (for ambient effects). */

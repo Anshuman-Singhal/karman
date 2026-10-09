@@ -140,6 +140,7 @@
       return;
     }
     if (K.ui.current !== 'round' || K.game.phase !== 'round' || K.round.locked) return;
+    if (K.coach.paused) { if (e.key === 'Enter') document.querySelector('.coach-next')?.click(); return; }   // a guide slip is up: Enter = Next
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (K.round.key(e)) { e.preventDefault(); return; }
     if (e.key === 'Enter' && K.round.guessValue() != null) { e.preventDefault(); K.game.lock(); }
