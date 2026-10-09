@@ -26,6 +26,8 @@ K.ui = (() => {
     skydive: '<circle cx="12" cy="5" r="2"/><path d="M12 7v6M12 9 6 6.5M12 9l6-2.5M12 13l-4 6M12 13l4 6"/>',
     stratopause: '<path d="M2 15h20"/><circle cx="12" cy="8" r="3"/><path d="M12 2.5v1.5M6.5 8H5M19 8h-1.5"/>',
     karman: '<path d="M2 21a14 14 0 0 1 20 0"/><path d="M15 4l.9 2.2L18 7l-2.1.8L15 10l-.9-2.2L12 7l2.1-.8z"/>',
+    aurora: '<path d="M3 17c2-6 3-9 5-9s2 5 4 5 2-8 4-8 2 7 5 12"/><path d="M3 21h18"/>',
+    perfect: '<path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.6L12 15.7 7.1 18.3l.9-5.6-4-3.9L9.6 8z"/>',
   };
   const icon = (id) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[id]}</svg>`;
   const milestone = (id) => S.MILESTONES.find((m) => m.id === id);
@@ -127,8 +129,10 @@ K.ui = (() => {
 
   /** Altimeter: km on the rolling odometer, points underneath. */
   function setAltitude(pts, opts) {
-    odo.set(S.kmOf(pts).toFixed(1), opts);
-    $('alt-pts').textContent = pts.toLocaleString('en-US');
+    const a = K.units.alt(S.kmOf(pts));
+    odo.set(a.v.toFixed(1), opts);
+    $('alt-pts').textContent = '';            // one number is enough: the altitude is the score
+    const u = document.querySelector('#altimeter .alt-unit'); if (u) u.textContent = a.unit;
   }
 
   /* ------------------------------------------------------------ home */
@@ -147,7 +151,7 @@ K.ui = (() => {
     $('leaf-d').textContent = td.getUTCDate();
     $('home-status').hidden = mode !== 'daily';
     const parts = [`<span><b>${streak}</b> day streak</span>`, `<span title="Streak savers: earn one every 7 days in a row; each covers one missed day"><b>${thermals}</b> thermal${thermals === 1 ? '' : 's'}</span>`];
-    if (bestAlt > 0) parts.push(`<span>Best <b>${S.ptsOf(bestAlt)}</b> pts</span>`);
+    if (bestAlt > 0) parts.push(`<span>Best <b>${K.units.alt(bestAlt).text}</b></span>`);
     $('home-status').innerHTML = parts.join('');
     const btn = $('btn-launch');
     btn.disabled = false;
@@ -161,7 +165,7 @@ K.ui = (() => {
      is ever drawn, so it can't collide) points down to it. No median.
      It is rebuilt every time results open, so a pilot who comes back later
      in the day sees the crowd as it is now. */
-  const HIST = { w: 358, h: 110, flag: 15, top: 26, base: 86, left: 4, right: 354, bin: 25 };
+  const HIST = { w: 358, h: 110, flag: 15, top: 26, base: 86, left: 4, right: 354, bin: 5 };   // 5 km bars
   const binsN = () => Math.ceil(S.MAX_PTS / HIST.bin);           // 28
 
   function binOf(pts) { return clamp(Math.floor(pts / HIST.bin), 0, binsN() - 1); }
@@ -189,7 +193,7 @@ K.ui = (() => {
 
     // Axis: a baseline, a tick and a number every 100 points.
     const ticks = [];
-    for (let p = 0; p <= S.MAX_PTS; p += 100) {
+    for (let p = 0; p <= S.MAX_PTS; p += 20) {
       const x = xOfPts(p);
       const anchor = p === 0 ? 'start' : p === S.MAX_PTS ? 'end' : 'middle';
       ticks.push(`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${HIST.base}" y2="${HIST.base + 4}" class="h-tickline"/><text x="${x.toFixed(1)}" y="${HIST.base + 16}" text-anchor="${anchor}" class="h-num">${p}</text>`);
@@ -207,8 +211,8 @@ K.ui = (() => {
         <text x="${(fx + flagW / 2).toFixed(1)}" y="${(HIST.flag / 2 + 3.4).toFixed(1)}" text-anchor="middle" class="h-youlabel">YOU</text>
       </g>`;
 
-    const label = alone ? `Only your flight so far today: ${record.pts} points.`
-      : `Today's scores from 0 to ${S.MAX_PTS} points across ${stats.players.toLocaleString('en-US')} pilots. You scored ${record.pts}.`;
+    const label = alone ? `Only your flight so far today: ${record.pts} km.`
+      : `Today's altitudes from 0 to ${S.MAX_PTS} km across ${stats.players.toLocaleString('en-US')} pilots. You scored ${record.pts}.`;
     return `<svg viewBox="0 0 ${HIST.w} ${HIST.h}" class="hist-svg" role="img" aria-label="${label}">
       <g class="h-bars">${bars}</g>
       <line x1="${HIST.left}" x2="${HIST.right}" y1="${HIST.base + 0.5}" y2="${HIST.base + 0.5}" class="h-axis"/>
@@ -430,13 +434,15 @@ K.ui = (() => {
   function results({ record, n, mode = 'daily', streak, thermals, streakInfo, isFresh, prevBest }) {
     lastRecord = { record, n, streak, mode };
     $('res-eyebrow').textContent = mode === 'unlimited' ? `Unlimited · Flight #${record.flightNo || record.run || ''}`
-      : `${mode === 'archive' ? 'Archive · ' : ''}Flight #${n} · ${K.date.formatLong(K.date.dateOfFlight(n))}`;
+      : `${mode === 'archive' ? 'Archive · ' : ''}Flight #${n} · ${K.date.dateOfFlight(n).toLocaleDateString('en-US', { day: 'numeric', month: 'long', timeZone: 'UTC' })}`;
     $('btn-today').hidden = mode === 'daily';
     const subj = encodeURIComponent(`KÁRMÁN ${mode === 'unlimited' ? 'Unlimited' : `#${n}`}`);
     $('contact-link').href = `mailto:${K.CONFIG.CONTACT_EMAIL}?subject=${subj}`;
     paintKeep();
-    $('res-alt').textContent = record.pts.toLocaleString('en-US');
-    $('res-km').textContent = `${record.alt.toFixed(1)} km up`;
+    const ra = K.units.alt(record.alt, 0);
+    $('res-alt').textContent = ra.v.toFixed(0);
+    $('res-unit').textContent = `${ra.unit} up`;
+    $('res-km').textContent = '';
     $('res-tier').textContent = S.tierName(record.alt);
     $('res-mrz').innerHTML = mrz(record, n, mode);
     $('pctl').hidden = true;
@@ -449,7 +455,7 @@ K.ui = (() => {
     else if (isFresh && streakInfo && streakInfo.earnedThermal) note = 'Thermal earned.';
     $('res-note').textContent = note;
 
-    $('ticket-stub').innerHTML = `<small>#${n}</small>${record.pts.toLocaleString('en-US')} PTS`;
+    $('ticket-stub').innerHTML = `<small>#${n}</small>${K.units.alt(record.alt, 0).text.toUpperCase()}`;
     $('passport-row').innerHTML = passportRow(record, isFresh);
     legStrip(record);
     $('legstrip-note').hidden = false;
@@ -473,7 +479,7 @@ K.ui = (() => {
     const day = `${String(d.getUTCDate()).padStart(2, '0')}${'JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC'.substr(d.getUTCMonth() * 3, 3)}${String(d.getUTCFullYear()).slice(2)}`;
     const head = mode === 'unlimited' ? `P<KARMAN<<UNLIMITED<FLIGHT<${record.flightNo || record.run || 1}` : `P<KARMAN<<FLIGHT<${n}<<${day}`;
     const hits = record.rounds.filter((r) => r.hit).length;
-    const body = `${String(record.pts).padStart(4, '0')}PTS<<${record.alt.toFixed(1).replace('.', '<')}KM<<${S.tierName(record.alt).toUpperCase()}<<${hits}<${record.rounds.length}`;
+    const body = `${String(record.pts).padStart(3, '0')}KM<<${S.tierName(record.alt).toUpperCase()}<<${hits}<${record.rounds.length}`;
     const esc = (t) => t.replace(/</g, '&lt;');
     return `<span>${esc(fill(head))}</span><span>${esc(fill(body))}</span>`;
   }
@@ -639,8 +645,8 @@ K.ui = (() => {
   /** Help copy comes from the scoring constants so it can never drift.
       The ticket's stub says where closing it takes you. */
   function renderHelp() {
-    $('help-space').textContent = `${S.MAX_PTS} points takes you 100 km up, to the Kármán line where space begins.`;
-    $('help-ladder').innerHTML = S.CHIPS.map((c) => `<span class="lad" style="--c:var(--c-${c.key})"><b>+${c.pts}</b><i></i><em>${c.name}</em></span>`).join('');
+    $('help-space').textContent = 'Every hit lifts you. Space begins at the Kármán line, 100 km up; a perfect flight reaches 140.';
+    $('help-ladder').innerHTML = S.CHIPS.map((c) => `<span class="lad" style="--c:var(--c-${c.key})"><b>+${c.pts} km</b><i></i><em>${c.name}</em></span>`).join('');
     const g = K.game;
     const flying = current === 'round' && g.phase;
     const [small, big] = flying ? ['Back to', `Leg ${g.leg + 1}`]

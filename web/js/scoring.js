@@ -16,18 +16,19 @@ K.scoring = (() => {
   /* ratio: hi/lo for log questions · years: ± years for date questions
      pts:   points for a hit */
   const CHIPS = [
-    // Widths, second retune after playtesting: Wide is huge (÷100 to ×100, ±1,000
-    // years) so a nervous guess still scores; the rest step down geometrically to
-    // an unchanged Pinpoint. ratio = hi/lo for log questions, years = ± for dates.
-    { key: 'wide',     name: 'Wide',     ratio: 10000,  years: 1000, pts: 15,  glyph: '☁️' },
-    { key: 'fair',     name: 'Fair',     ratio: 25,     years: 200,  pts: 30,  glyph: '🎈' },
-    { key: 'snug',     name: 'Snug',     ratio: 3.24,   years: 45,   pts: 55,  glyph: '✈️' },
-    { key: 'tight',    name: 'Tight',    ratio: 1.5625, years: 10,   pts: 85,  glyph: '🛰️' },
-    { key: 'pinpoint', name: 'Pinpoint', ratio: 1.15,   years: 2,    pts: 100, glyph: '🚀' },
+    // Scored in kilometres: every hit lifts you by the width's km. Seven Pinpoints
+    // is a perfect 140 km flight; the Kármán line (100 km) takes five.
+    // Ranges: ratio = hi/lo for log questions, years = ± for dates.
+    { key: 'wide',     name: 'Wide',     ratio: 10000,  years: 1000, pts: 2,  glyph: '☁️' },
+    { key: 'fair',     name: 'Fair',     ratio: 25,     years: 200,  pts: 5,  glyph: '🎈' },
+    { key: 'snug',     name: 'Snug',     ratio: 3.24,   years: 45,   pts: 10, glyph: '✈️' },
+    { key: 'tight',    name: 'Tight',    ratio: 1.5625, years: 10,   pts: 15, glyph: '🛰️' },
+    { key: 'pinpoint', name: 'Pinpoint', ratio: 1.15,   years: 2,    pts: 20, glyph: '🚀' },
   ];
   const MISS_GLYPH = '💨';
-  const MAX_PTS = K.CONFIG.LEGS * 100;                              // a perfect flight
-  const METRES_PER_POINT = (K.CONFIG.KARMAN_KM * 1000) / MAX_PTS;   // ≈142.9 m with 7 legs
+  /* 'pts' is kept as the internal name, but one point is now one kilometre. */
+  const MAX_PTS = K.CONFIG.LEGS * CHIPS[CHIPS.length - 1].pts;      // a perfect flight: 140 km
+  const METRES_PER_POINT = 1000;
   const DEFAULT_CHIP = 2; // Snug: the best average choice for a calibrated player
 
   /* Altitude milestones. Crossing one for the first time earns a stamp. */
@@ -39,6 +40,8 @@ K.scoring = (() => {
     { id: 'skydive',     km: 39,    name: 'Record skydive height', short: 'Skydive' },
     { id: 'stratopause', km: 50,    name: 'The stratopause',       short: 'Stratopause' },
     { id: 'karman',      km: 100,   name: 'The Kármán line',       short: 'Space' },
+    { id: 'aurora',      km: 120,   name: 'Into the aurora',       short: 'Aurora' },
+    { id: 'perfect',     km: 140,   name: 'A perfect flight',      short: 'Perfect' },
   ];
 
   /* Stamp ink tiers. A milestone's ink upgrades as you pass it more often.
@@ -137,6 +140,8 @@ K.scoring = (() => {
 
   /** Atmospheric layer for a final altitude (used on results + share). */
   function tierName(km) {
+    if (km >= 140) return 'Perfect flight';
+    if (km >= 120) return 'Among the aurora';
     if (km >= 100) return 'Space';
     if (km >= 85) return 'Thermosphere';
     if (km >= 50) return 'Mesosphere';

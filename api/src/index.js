@@ -25,8 +25,10 @@ import { SCHEMA } from './schema.js';
 
 const LAUNCH_UTC = Date.UTC(2026, 9, 7);   // keep in sync with web/js/config.js LAUNCH
 const LEGS = 7;                            // keep in sync with web/js/config.js LEGS
-const MAX_PTS = LEGS * 100;                // five Pinpoints = the Kármán line
-const STEP = 25;
+const MAX_PTS = LEGS * 20;                 // scores are kilometres: seven Pinpoints = 140 km
+const STEP = 5;                            // 5 km histogram bars
+// Scores switched from points (0–700) to km on 9 Oct 2026; older rows are ignored.
+const SCORE_V2_SINCE = '2026-10-09 04:30:00';
 const RUN_BASE = 1000000;                 // Unlimited Run k is stored as flight RUN_BASE + k                           // histogram bucket width in points
 
 /** Today's flight: flights change at midnight Eastern (America/New_York). */
@@ -73,7 +75,8 @@ async function getStats(num, env, ctx, request, isRun = false) {
 
   // Only count rows recorded from the day before this flight's date onward, so
   // test plays from before a launch-date change never leak into real stats.
-  const since = isRun ? '1970-01-01 00:00:00' : new Date(LAUNCH_UTC + (n - 2) * 864e5).toISOString().slice(0, 19).replace('T', ' ');
+  const daySince = isRun ? '1970-01-01 00:00:00' : new Date(LAUNCH_UTC + (n - 2) * 864e5).toISOString().slice(0, 19).replace('T', ' ');
+  const since = daySince > SCORE_V2_SINCE ? daySince : SCORE_V2_SINCE;
   const [hist, legRow] = await Promise.all([
     env.DB.prepare(`SELECT (pts / ${STEP}) * ${STEP} AS bucket, COUNT(*) AS c FROM results WHERE n = ? AND created >= ? GROUP BY bucket ORDER BY bucket`)
       .bind(n, since).all(),

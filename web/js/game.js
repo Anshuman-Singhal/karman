@@ -149,6 +149,7 @@ K.game = (() => {
     const startKm = S.kmOf(startPts);
 
     K.scene.reset({
+      captionsDetail: Boolean(mode !== 'unlimited' && store.days[n] && store.days[n].done),   // landed already today? show the figures
       weather: flight ? flight.weather : K.daily.weatherFor(Math.max(1, n)),
       km: startKm,
       flying: Boolean(done || live),
@@ -201,8 +202,8 @@ K.game = (() => {
     K.audio.takeoff();
     K.ui.prepareLaunch();
     live = {
-      n, mode, run: mode === 'unlimited' ? flight.run : undefined, factIds: flight.facts.map((f) => f.id), phase: 'round', round: 0, rounds: [], pts: 0, alt: 0, maxAlt: 0, startedAt: 0,
-      entry: '', chip: S.DEFAULT_CHIP,
+      n, mode, scoreV: 2, run: mode === 'unlimited' ? flight.run : undefined, factIds: flight.facts.map((f) => f.id), phase: 'round', round: 0, rounds: [], pts: 0, alt: 0, maxAlt: 0, startedAt: 0,
+      entry: '', chip: store.prefs.lastChip != null ? store.prefs.lastChip : S.DEFAULT_CHIP,
       untimed: !store.tutored,              // a brand-new pilot's first leg is guided and untimed
     };
     store.live = live;
@@ -244,7 +245,8 @@ K.game = (() => {
       live.phase = 'round';
       live.startedAt = Date.now();
       live.entry = '';
-      live.chip = S.DEFAULT_CHIP;
+      // Keep the pilot's last width (asked for in testing) instead of resetting to Snug.
+      if (i === 0) live.chip = store.prefs.lastChip != null ? store.prefs.lastChip : S.DEFAULT_CHIP;
       save();
     }
     const opts = {
@@ -252,7 +254,7 @@ K.game = (() => {
       entry: live.entry, chip: live.chip,
       clueUsed: live.clueLeg != null, clueHere: live.clueLeg === i, clueLeg: live.clueLeg,
       onClue: () => { live.clueLeg = i; save(); },
-      onChange: (entry, chip) => { live.entry = entry; live.chip = chip; saveSoon(); if (live.untimed) K.coach.input(entry, chip); },
+      onChange: (entry, chip) => { live.entry = entry; if (chip !== live.chip) store.prefs.lastChip = chip; live.chip = chip; saveSoon(); if (live.untimed) K.coach.input(entry, chip); },
     };
     if (animate) {
       await K.round.advance(opts);
@@ -290,14 +292,17 @@ K.game = (() => {
   /** Commit the current guess + chip, score it, then play the reveal. */
   async function lock(opts = {}) {
     if (!live || live.phase !== 'round' || busy) return;
+    if (!opts.timedOut && !K.round.settled) return;   // too soon after the card appeared: a stray tap
     busy = true;
     stopTimer();
     if (live.untimed) { K.coach.stop(); live.untimed = false; store.tutored = true; save(); }
 
     const i = live.round;
     const fact = flight.facts[i];
-    // Nothing typed when time ran out = an automatic miss (no hints, no free pass).
-    const guess = K.round.guessValue();
+    // Running out of time is a miss, even with digits typed: only a locked guess
+    // counts (a half-typed "189" used to score as a guess, which read as auto-answer).
+    const typed = K.round.guessValue();
+    const guess = opts.timedOut ? null : typed;
     const r = guess == null ? { lo: null, hi: null } : S.range(fact, guess, live.chip);
     const hit = guess != null && S.isHit(fact, r);
 
@@ -311,7 +316,7 @@ K.game = (() => {
 
     const result = {
       id: fact.id, guess, chip: live.chip, lo: r.lo, hi: r.hi, hit,
-      delta: live.pts - before, timedOut: Boolean(opts.timedOut), clue: clued,
+      delta: live.pts - before, timedOut: Boolean(opts.timedOut), typed: opts.timedOut ? typed : undefined, clue: clued,
       ptsAfter: live.pts, altAfter: live.alt,
     };
     live.rounds.push(result);
@@ -357,7 +362,7 @@ K.game = (() => {
     const i = live.round;
     K.round.showResult({
       hit: result.hit, chipIdx: result.chip, delta: result.delta, clue: result.clue,
-      timedOut: result.timedOut, guess: result.guess, lo: result.lo, hi: result.hi,
+      timedOut: result.timedOut, typed: result.typed, guess: result.guess, lo: result.lo, hi: result.hi,
       nextLabel: i < C.LEGS - 1 ? 'Next leg' : 'See your flight',
       nextStub: i < C.LEGS - 1 ? `Leg ${i + 2}` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
     });
@@ -404,7 +409,7 @@ K.game = (() => {
   function finish() {
     const prevBest = store.stats.bestAlt;
     const record = {
-      n, mode, rounds: live.rounds, pts: live.pts, alt: live.alt, maxAlt: live.maxAlt, prevBest, done: true, at: Date.now(),
+      n, mode, scoreV: 2, rounds: live.rounds, pts: live.pts, alt: live.alt, maxAlt: live.maxAlt, prevBest, done: true, at: Date.now(),
     };
     record.passport = stampPassport(record.maxAlt);                       // every flight earns stamps
     record.streakInfo = mode === 'daily' ? applyStreak(n) : { carried: 0, earnedThermal: false };  // only dailies build streaks
@@ -433,6 +438,7 @@ K.game = (() => {
 
   function showResults(record, isFresh) {
     K.fx.clearBanners();
+    K.scene.setCaptionsDetail(true);   // flight over: the sky's figures come back
     const st = streakNow();
     K.ui.results({
       record, n, mode, streak: st.cur, thermals: st.thermals,

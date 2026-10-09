@@ -23,8 +23,9 @@ K.CONFIG = {
      Kármán line exactly, so each point is worth KARMAN_KM / (LEGS × 100). */
   LEGS: 7,
 
-  /* The finish line. */
+  /* Space begins here (five Pinpoints). A perfect flight goes on to MAX_KM. */
   KARMAN_KM: 100,
+  MAX_KM: 140,
 
   /* Streak freezes ("Thermals"): earn one every N consecutive days, hold MAX. */
   THERMAL_EVERY: 7,

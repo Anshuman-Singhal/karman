@@ -2477,7 +2477,7 @@ body[data-screen="results"] #dock {
 
 /* Percentile as one sentence: "You did better than 78% of today's N pilots." */
 #screen-results #pctl-txt { font-size: 17px; line-height: 1.35; }
-#screen-results #pctl-txt .pctl-inline { font: 800 1.55em/1 var(--f-display); letter-spacing: 0.01em; color: var(--amber-deep); font-variant-numeric: tabular-nums; }
+#screen-results #pctl-txt .pctl-inline { font-weight: 700; color: var(--amber-deep); font-variant-numeric: tabular-nums; }   /* one size: no mid-sentence jumps */
 
 /* ---------------------------------------------------------------- unlock page (Krillion-style: a page, not a sales sheet)
    Full screen night, the balloon, one line, one ticket. Prices live only here. */
@@ -3210,40 +3210,39 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 .pp-legend span:nth-child(3) i { background: #6E7A90 !important; }
 
 /* ---------------------------------------------------------------- guided first leg (coach.js)
-   A small paper slip with an arrow, pinned above the thing to touch next. */
+   A dim shield freezes the whole screen; a spotlight cut-out shows the one
+   control the slip is about; the slip has Next / Skip. Nothing behind it is
+   tappable until the pilot taps through. */
+.coach-shield { position: fixed; inset: 0; z-index: 28; background: rgba(5, 8, 22, 0); transition: background 260ms ease; pointer-events: none; }
+.coach-shield.on { background: rgba(5, 8, 22, 0.55); pointer-events: auto; }
+.coach-spot {
+  position: fixed; z-index: 29; border-radius: 12px; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 0 9999px rgba(5, 8, 22, 0.55), 0 0 0 3px rgba(242, 166, 90, 0.95), 0 0 28px rgba(242, 166, 90, 0.55);
+  transition: left 320ms var(--ease-out), top 320ms var(--ease-out), width 320ms var(--ease-out), height 320ms var(--ease-out), opacity 260ms ease;
+}
+.coach-spot.on { opacity: 1; animation: coachpulse 1.4s ease-in-out infinite; }
+.coach-shield.on { background: transparent; }   /* the spotlight's own shadow does the dimming */
 .coach-slip {
-  position: fixed; z-index: 30; display: flex; gap: 10px; align-items: flex-start;
-  padding: 10px 12px; border-radius: 6px;
-  background: #F6EDDB; color: #14213D; font: 500 14px/1.35 var(--f-ui);
-  box-shadow: 0 10px 28px rgba(5, 8, 22, 0.35), inset 0 0 0 1px rgba(20, 33, 61, 0.14);
-  opacity: 0; transform: translateY(6px); transition: opacity 220ms ease, transform 260ms var(--ease-out);
-  pointer-events: none;
+  position: fixed; z-index: 30; display: grid; grid-template-columns: auto 1fr; gap: 6px 10px;
+  padding: 12px 14px 10px; border-radius: 6px;
+  background: #F6EDDB; color: #14213D; font: 500 15px/1.4 var(--f-ui);
+  box-shadow: 0 14px 36px rgba(5, 8, 22, 0.45), inset 0 0 0 1px rgba(20, 33, 61, 0.14);
+  opacity: 0; transform: translateY(6px); transition: opacity 220ms ease, transform 260ms var(--ease-out), top 320ms var(--ease-out), left 320ms var(--ease-out);
 }
 .coach-slip.in { opacity: 1; transform: none; }
 .coach-slip b { font-weight: 700; }
 .coach-slip::after {
   content: ""; position: absolute; top: 100%; left: var(--arrow-x, 50%); translate: -50% 0;
-  border: 8px solid transparent; border-top-color: #F6EDDB; filter: drop-shadow(0 2px 1px rgba(5, 8, 22, 0.2));
+  border: 9px solid transparent; border-top-color: #F6EDDB; filter: drop-shadow(0 2px 1px rgba(5, 8, 22, 0.2));
 }
-.coach-step { flex: none; font: 800 12px/1.4 var(--f-display); letter-spacing: 0.08em; color: var(--amber-deep, #C25A12); padding-top: 1px; }
-.coach-target { position: relative; animation: coachpulse 1.6s ease-in-out infinite; border-radius: 10px; }
-@keyframes coachpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(240, 124, 44, 0); } 50% { box-shadow: 0 0 0 5px rgba(240, 124, 44, 0.35); } }
-@media (prefers-reduced-motion: reduce) { .coach-target { animation: none; box-shadow: 0 0 0 3px rgba(240, 124, 44, 0.45); } .coach-slip { transition: none; } }
-
-/* Share nudge: two small bumps on the share ticket and a paper tag above it */
-.ticket-row { position: relative; }
-.share-nudge {
-  position: absolute; left: 10px; bottom: calc(100% + 8px); z-index: 2;
-  padding: 5px 9px; border-radius: 4px; background: #14213D; color: #F6EDDB;
-  font: 700 11px/1 var(--f-ui); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
-  opacity: 0; transform: translateY(4px); transition: opacity 240ms ease, transform 280ms var(--ease-out); pointer-events: none;
-}
-.share-nudge::after { content: ""; position: absolute; top: 100%; left: 22px; border: 5px solid transparent; border-top-color: #14213D; }
-.share-nudge.in { opacity: 1; transform: none; }
-#btn-share.nudge { animation: sharebump 900ms var(--ease-out) 2; }
-@keyframes sharebump { 0%, 100% { translate: 0 0; } 30% { translate: 0 -4px; } 55% { translate: 0 0; } 70% { translate: 0 -2px; } }
-@media (prefers-reduced-motion: reduce) { #btn-share.nudge { animation: none; } }
 .coach-slip.below::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #F6EDDB; }
+.coach-step { font: 800 12px/1.5 var(--f-display); letter-spacing: 0.08em; color: var(--amber-deep, #C25A12); padding-top: 2px; }
+.coach-btns { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+.coach-btns button { font: 600 13px/1 var(--f-ui); border-radius: 6px; padding: 9px 14px; cursor: pointer; }
+.coach-skip { background: none; border: 0; color: rgba(20, 33, 61, 0.6); text-decoration: underline; text-underline-offset: 3px; }
+.coach-next { background: #14213D; color: #F6EDDB; border: 0; letter-spacing: 0.04em; }
+@keyframes coachpulse { 0%, 100% { box-shadow: 0 0 0 9999px rgba(5, 8, 22, 0.55), 0 0 0 3px rgba(242, 166, 90, 0.95), 0 0 20px rgba(242, 166, 90, 0.4); } 50% { box-shadow: 0 0 0 9999px rgba(5, 8, 22, 0.55), 0 0 0 5px rgba(242, 166, 90, 1), 0 0 36px rgba(242, 166, 90, 0.7); } }
+@media (prefers-reduced-motion: reduce) { .coach-spot.on { animation: none; } .coach-slip, .coach-spot { transition: none; } }
 /* the tag sits under the share ticket (Keep flying is right above it) */
 .share-nudge { bottom: auto; top: calc(100% + 8px); }
 .share-nudge::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #14213D; }
@@ -3427,3 +3426,26 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 
 /* Next leg gets focus programmatically (for Enter); only show a ring for keyboard users */
 #btn-next:focus:not(:focus-visible), #btn-lock:focus:not(:focus-visible) { outline: none; box-shadow: none; }
+
+/* v17 · km scoring tidy-ups */
+.round .kl-stub, .round .kl-main { white-space: nowrap; }
+.round .kl-stub { font-size: 15px; }
+@media (max-width: 719px) { .round .kl-stub { font-size: 14px; letter-spacing: 0; } }
+/* Keep flying is a secondary action next to Share: navy, so the apricot stays for the main flow */
+#screen-results .keep-ticket, #screen-results #btn-keep { background: #1E2A55; color: #F6EDDB; }
+#screen-results #btn-keep .kt-stub { background: #14213D; color: #FFB547; }
+#screen-results #btn-keep::before, #screen-results #btn-keep::after { display: none; }
+/* Phones: a shorter card ("it takes two-thirds of the screen") — smaller keys,
+   tighter gaps, a smaller guess number; the sky gets the room back. */
+@media (max-width: 719px) and (pointer: coarse) {
+  :root { --kh: 40px; --kg: 5px; --gondola-h: clamp(392px, 50vh, 440px); --round-h: clamp(392px, 49svh, 436px); }
+  .round .question { font-size: 17px; }
+  .round .hint { margin-bottom: 8px; }
+  .round .readout { min-height: 52px; }
+  .round .guess { font-size: clamp(34px, 11vw, 44px); }
+  .round .controls { padding-top: 8px; }
+  .round .wbtn { padding-top: 6px; padding-bottom: 6px; }
+}
+@media (max-width: 719px) and (pointer: coarse) and (max-height: 700px) {
+  :root { --kh: 36px; --gondola-h: 396px; --round-h: 396px; }
+}
