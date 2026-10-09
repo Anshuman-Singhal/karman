@@ -60,17 +60,15 @@ Scripts load in order from `index.html` and share one namespace, `window.K`. Eac
 
 ## Scoring at a glance
 
-Type a guess, then slide how sure you are. If the answer lands inside your range you score:
-
-| Width | Log questions | Year questions | Points |
+| Width | Number questions (hi/lo) | Year questions | Climb on a hit |
 | --- | --- | --- | --- |
-| Wide | ×10 range | ±50 years | 15 |
-| Fair | ×4 | ±20 | 30 |
-| Snug | ×2 | ±10 | 55 |
-| Tight | ×1.4 | ±5 | 85 |
-| Pinpoint | ×1.15 | ±2 | 100 |
+| Wide | ×10,000 (÷100 … ×100) | ±1,000 years | 2 km |
+| Fair | ×25 | ±200 | 5 km |
+| Snug | ×3.24 | ±45 | 10 km |
+| Tight | ×1.56 | ±10 | 15 km |
+| Pinpoint | ×1.15 | ±2 | 20 km |
 
-A miss or no answer is 0. One clue per flight halves that leg. Seven legs × 100 = 700 points is the Kármán line, so every point is about 143 m. The craft changes at 15, 21, 45 and 100 km (`web/js/vehicle.js`).
+Seven legs, so 140 km is the ceiling and the Kármán line (space) is 100 km. One clue per flight (a closer benchmark) halves that leg's climb. Internally the score is stored as points at 5 per km, which is what saves and the stats API hold.
 
 ## Shipping
 

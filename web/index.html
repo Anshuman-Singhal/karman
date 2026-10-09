@@ -55,6 +55,7 @@
     <div class="rail-fill"></div>
     <div class="rail-ticks"></div>
     <div class="rail-ghost" hidden><span>Best</span></div>
+    <div class="climb-marks" id="climb-marks"></div>
     <div class="rail-bug"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5c.9 0 1.5 1.3 1.5 3v5.2l7.5 4.6v2.1l-7.5-2.3v4.6l2.3 1.7v1.6L12 21.1l-3.8 0.9v-1.6l2.3-1.7v-4.6L3 16.4v-2.1l7.5-4.6V4.5c0-1.7.6-3 1.5-3z"/></svg></div>
   </div>
 
@@ -168,18 +169,20 @@
     <section class="screen results" id="screen-results" hidden aria-labelledby="res-tier">
       <div class="res-main">
         <p class="eyebrow" id="res-eyebrow"></p>
-        <div class="res-hero">
-          <span class="res-alt" id="res-alt"></span><span class="res-unit" id="res-unit">km</span>
-        </div>
-        <p class="res-tier"><span id="res-km"></span> · <em id="res-tier"></em></p>
-
-        <!-- Today's pilots: one percentile sentence over the live histogram (ui.js renderPercentile) -->
-        <div class="pctl" id="pctl" hidden>
-          <div class="pctl-read">
-            <span class="pctl-fig" aria-hidden="true"><b id="pctl-num">0</b><i>%</i></span>
-            <p class="pctl-txt" id="pctl-txt"></p>
-          </div>
+        <!-- Today's pilots, as an altitude chart on the left (ui.js histogram); your score beside it -->
+        <div class="res-top">
           <div class="crowd-chart" id="crowd-chart"></div>
+          <div class="res-lockup">
+            <div class="res-hero">
+              <span class="res-alt" id="res-alt"></span><span class="res-unit" id="res-unit">km</span>
+            </div>
+            <p class="res-tier"><em id="res-tier"></em><span id="res-km" hidden></span></p>
+            <!-- One sentence, one size (ui.js renderPercentile) -->
+            <div class="pctl" id="pctl" hidden>
+              <p class="pctl-txt" id="pctl-txt"></p>
+              <span id="pctl-num" hidden></span>
+            </div>
+          </div>
         </div>
 
         <!-- Seven legs, tap one to see its answer -->
@@ -212,7 +215,7 @@
           <span>Next flight in <b id="countdown">--:--:--</b></span>
           <span id="res-streak"></span>
         </div>
-        <p class="site-foot">Found a bug? Wrong answer? <a id="contact-link" href="mailto:hello@karman.day">Contact us</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>
+        <p class="site-foot"><span>Found a bug? Wrong answer? <a id="contact-link" href="mailto:hello@karman.day">Contact us</a></span><span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></span></p>
         <!-- The pass's machine-readable zone: decoration, filled by ui.js mrz() -->
         <p class="res-mrz" id="res-mrz" aria-hidden="true"></p>
       </div>
@@ -221,6 +224,13 @@
         <div class="recap" id="recap"></div>
       </div>
     </section>
+
+    <!-- Results: drag the pass down (or press) to see the climb in the sky (js/climb.js) -->
+    <button type="button" class="res-handle" id="res-handle" aria-expanded="false" aria-controls="climb-marks">
+      <i class="rh-grip" aria-hidden="true"></i>
+      <span class="rh-see">See your climb</span>
+      <span class="rh-back">Back to your pass</span>
+    </button>
 
     <!-- CLOSED: before launch, or no flight stocked -->
     <section class="screen" id="screen-closed" hidden>
@@ -370,6 +380,7 @@
 <script src="js/shareimg.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/climb.js"></script>
 <script src="js/game.js"></script>
 <script src="js/main.js"></script>
 <script>

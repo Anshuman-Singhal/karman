@@ -105,3 +105,9 @@
 @media (max-width: 719px) and (max-height: 700px) {
   :root { --gondola-h: 436px; }   /* iPhone SE and friends */
 }
+
+/* ---- v17 · phones: the card sits a touch lower so the sky (and the rail) keep more room.
+   The round card has its own height (--round-h, ui.css v14/v17); this is the home strip and the results pass. ---- */
+@media (max-width: 719px) {
+  :root { --gondola-h: clamp(400px, 54vh, 470px); }
+}

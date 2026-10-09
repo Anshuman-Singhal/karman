@@ -57,6 +57,7 @@ K.ui = (() => {
     });
     current = name;
     document.body.dataset.screen = name;
+    if (name !== 'results' && K.climb) K.climb.close({ instant: true });
     setTimeout(anchorBalloon, 360); // after any dock resize (desktop results)
     requestAnimationFrame(anchorBalloon);
   }
@@ -155,64 +156,76 @@ K.ui = (() => {
   }
 
   /* ------------------------------------------------------------ results: today's pilots
-     The live histogram of today's scores, printed on the paper pass:
-     25-point bars from 0 to MAX_PTS (700), numbered every 100 along the
-     bottom. Your bar is amber; a YOU flag on the top row (where nothing else
-     is ever drawn, so it can't collide) points down to it. No median.
-     It is rebuilt every time results open, so a pilot who comes back later
-     in the day sees the crowd as it is now. */
-  const HIST = { w: 358, h: 110, flag: 15, top: 26, base: 86, left: 4, right: 354, bin: 25 };
-  const binsN = () => Math.ceil(S.MAX_PTS / HIST.bin);           // 28
-
+     The live histogram of today's flights, printed on the paper pass as a
+     vertical altitude chart: altitude runs UP the axis (0 at the bottom,
+     the 140 km ceiling at the top, a tick every 20), and each 5 km band's
+     bar runs LEFT → RIGHT for how many pilots landed in it. Your band is
+     amber with a small YOU flag at its end; the Kármán line is ruled across
+     at 100 km. Rebuilt every time results open, so a pilot who comes back
+     later in the day sees the crowd as it is now. */
+  const HIST = { w: 150, h: 216, top: 10, base: 206, axis: 28, right: 146, flag: 28, bin: 25 };
+  const binsN = () => Math.ceil(S.MAX_PTS / HIST.bin);           // 28 bands of 5 km
   function binOf(pts) { return clamp(Math.floor(pts / HIST.bin), 0, binsN() - 1); }
 
   function histogram(record, stats, alone) {
     const bins = binsN();
-    // Re-bin the server's buckets (any step) by bucket centre.
     const counts = new Array(bins).fill(0);
-    for (const [from, c] of stats.buckets) counts[binOf(from + stats.step / 2)] += c;
+    for (const [from, c] of stats.buckets) counts[binOf(from + stats.step / 2)] += c;   // re-bin any server step by bucket centre
     const mine = binOf(record.pts);
     if (!counts[mine]) counts[mine] = 1;        // you're in today's crowd even if the server hasn't counted you yet
     const peak = Math.max(1, ...counts);
-    const slot = (HIST.right - HIST.left) / bins;
-    const barW = slot - 2.6;
-    const X = (i) => HIST.left + i * slot + 1.3;
-    const full = HIST.base - HIST.top;
-    const H = (c) => (alone ? 22 : c ? Math.max(2.5, (c / peak) * full) : 0);
-    const xOfPts = (p) => HIST.left + (p / S.MAX_PTS) * (HIST.right - HIST.left);
+    const span = HIST.base - HIST.top;
+    const bandH = span / bins;
+    const yOf = (km) => HIST.base - (km / S.MAX_KM) * span;
+    const x0 = HIST.axis + 1.5;
+    const maxW = HIST.right - x0 - HIST.flag - 6;                 // room for the YOU flag past the longest bar
+    const W = (c) => (alone ? 36 : c ? Math.max(2.5, (c / peak) * maxW) : 0);
+    const f1 = (v) => v.toFixed(1);
 
     const bars = counts.map((c, i) => {
       if (!c && i !== mine) return '';
-      const h = i === mine ? Math.max(H(c), 6) : H(c);
-      return `<rect x="${X(i).toFixed(1)}" y="${(HIST.base - h).toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="1.5" class="h-bar${i === mine ? ' mine' : ''}" style="--i:${i}"/>`;
+      const w = i === mine ? Math.max(W(c), 7) : W(c);
+      const y = yOf((i + 1) * (S.MAX_KM / bins)) + 0.8;
+      return `<rect x="${f1(x0)}" y="${f1(y)}" width="${f1(w)}" height="${f1(bandH - 1.6)}" rx="1" class="h-bar${i === mine ? ' mine' : ''}" style="--i:${i}"/>`;
     }).join('');
 
-    // Axis: a baseline, a tick and a number every 100 points.
+    // Axis: a rule up the left, a tick and a number every 20 (km or miles).
+    const imperial = K.units.system() === 'imperial';
+    const toKm = (v) => (imperial ? v / 0.621371 : v);
+    const maxDisp = K.units.altVal(S.MAX_KM);
     const ticks = [];
-    for (let p = 0; p <= S.MAX_PTS; p += 100) {   // every 20 km
-      const x = xOfPts(p);
-      const anchor = p === 0 ? 'start' : p === S.MAX_PTS ? 'end' : 'middle';
-      ticks.push(`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${HIST.base}" y2="${HIST.base + 4}" class="h-tickline"/><text x="${x.toFixed(1)}" y="${HIST.base + 16}" text-anchor="${anchor}" class="h-num">${Math.round(S.kmOf(p))}</text>`);
+    const vals = [];
+    for (let v = 0; v <= maxDisp; v += 20) vals.push(v);
+    // the ceiling is always labelled; a regular tick crowding it (80 vs 87 mi) steps aside
+    if (maxDisp - vals[vals.length - 1] < 12) vals.pop();
+    if (vals[vals.length - 1] !== Math.round(maxDisp)) vals.push(Math.round(maxDisp));
+    for (const v of vals) {
+      const y = yOf(toKm(v));
+      ticks.push(`<line x1="${HIST.axis - 3}" x2="${HIST.axis}" y1="${f1(y)}" y2="${f1(y)}" class="h-tickline"/><text x="${HIST.axis - 6}" y="${f1(y + 3.2)}" text-anchor="end" class="h-num">${v}</text>`);
     }
+    // The Kármán line, ruled across at 100 km; the word steps aside if your band is there.
+    const yk = yOf(K.CONFIG.KARMAN_KM || 100);
+    const kBand = binOf(S.ptsOf(100));
+    const kWord = Math.abs(mine - kBand) <= 1 ? '' : `<text x="${HIST.right}" y="${f1(yk - 3.5)}" text-anchor="end" class="h-karman">Kármán line</text>`;
+    const karman = `<line x1="${HIST.axis}" x2="${HIST.right}" y1="${f1(yk)}" y2="${f1(yk)}" class="h-kline"/>${kWord}`;
 
-    // YOU: a small ink flag on the reserved top row, a dotted line down to your bar.
-    const bx = X(mine) + barW / 2;
-    const by = HIST.base - Math.max(H(counts[mine]), 6);
-    const flagW = 34;
-    const fx = clamp(bx - flagW / 2, HIST.left, HIST.right - flagW);
+    // YOU: a small ink flag just past your bar, pointing back at it.
+    const bw = Math.max(W(counts[mine]), 7);
+    const cy = yOf((mine + 0.5) * (S.MAX_KM / bins));
+    const fx = x0 + bw + 6;
     const you = `<g class="h-you">
-        <line x1="${bx.toFixed(1)}" x2="${bx.toFixed(1)}" y1="${HIST.flag + 1}" y2="${(by - 3).toFixed(1)}" class="h-lead"/>
-        <rect x="${fx.toFixed(1)}" y="0" width="${flagW}" height="${HIST.flag}" rx="3" class="h-flag"/>
-        <path d="M${(bx - 3.5).toFixed(1)} ${HIST.flag - 0.5}l3.5 4l3.5 -4z" class="h-flag"/>
-        <text x="${(fx + flagW / 2).toFixed(1)}" y="${(HIST.flag / 2 + 3.4).toFixed(1)}" text-anchor="middle" class="h-youlabel">YOU</text>
+        <path d="M${f1(fx - 3.5)} ${f1(cy)}l3.5 -3.5v7z" class="h-flag"/>
+        <rect x="${f1(fx)}" y="${f1(cy - 7)}" width="${HIST.flag}" height="14" rx="2.5" class="h-flag"/>
+        <text x="${f1(fx + HIST.flag / 2)}" y="${f1(cy + 3.2)}" text-anchor="middle" class="h-youlabel">YOU</text>
       </g>`;
 
     const label = alone ? `Only your flight so far today: ${K.units.altText(S.kmOf(record.pts))}.`
       : `Today's climbs from 0 to ${K.units.altText(S.MAX_KM)} across ${stats.players.toLocaleString('en-US')} pilots. You reached ${K.units.altText(S.kmOf(record.pts))}.`;
-    return `<svg viewBox="0 0 ${HIST.w} ${HIST.h}" class="hist-svg" role="img" aria-label="${label}">
+    return `<svg viewBox="0 0 ${HIST.w} ${HIST.h}" class="hist-svg hist-v" role="img" aria-label="${label}">
+      <line x1="${HIST.axis}" x2="${HIST.axis}" y1="${HIST.top}" y2="${HIST.base}" class="h-axis"/>
+      ${ticks.join('')}${karman}
       <g class="h-bars">${bars}</g>
-      <line x1="${HIST.left}" x2="${HIST.right}" y1="${HIST.base + 0.5}" y2="${HIST.base + 0.5}" class="h-axis"/>
-      ${ticks.join('')}${you}
+      ${you}
     </svg>`;
   }
 
@@ -367,17 +380,15 @@ K.ui = (() => {
     const pct = K.stats.percentile(stats, record.pts);
     let kind = 'rank';
     const runNo = record.mode === 'unlimited' ? record.run : null;
-    const crowd = runNo ? 'pilots who flew this one' : 'today’s';
-    let txt = runNo ? `You did better than <b class="pctl-inline">${pct}%</b> of the <b>${many}</b> ${crowd}.`
-      : `You did better than <b class="pctl-inline">${pct}%</b> of today’s <b>${many}</b> pilots.`;
+    const crowd = runNo ? `the <b>${many}</b> pilots who flew this one` : `today’s <b>${many}</b> pilots`;
+    // One sentence, one size: the figure is bold ink, never a different face.
+    let txt = `Higher than <b class="pctl-inline">${pct}%</b> of ${crowd}.`;
     let said = txt.replace(/<[^>]+>/g, '');
     if (players <= 1) { kind = 'first'; txt = said = runNo ? 'You’re the first pilot to fly this one. Check back later to see how you compare.' : 'You’re the first pilot up today. Check back later to see how you compare.'; }
     else if (record.pts === 0) { kind = 'grounded'; txt = said = runNo ? 'Grounded on this run. Keep flying.' : 'Grounded today. The meadow resets at midnight.'; }
-    else if (higher === 0) { txt = runNo ? `Nobody flew higher. You topped the <b>${many}</b> ${crowd}.` : `Nobody flew higher. You topped today’s <b>${many}</b> pilots.`; said = txt.replace(/<[^>]+>/g, ''); }
+    else if (higher === 0) { txt = `Nobody flew higher. You topped ${crowd}.`; said = txt.replace(/<[^>]+>/g, ''); }
     box.dataset.kind = kind;
     box.setAttribute('aria-label', said);
-    $('pctl-num').textContent = String(pct);
-    $('pctl-num').hidden = true;   // the figure lives in the sentence now
     $('pctl-txt').innerHTML = txt + (stats.sample ? ' <span class="sample">Sample</span>' : '');
     chart.innerHTML = histogram(record, stats, kind === 'first');
     box.hidden = false;
@@ -418,10 +429,7 @@ K.ui = (() => {
     btn.classList.remove('nudge'); tag.classList.remove('in');
     if (!on) return;
     nudgeTimer = setTimeout(() => {
-      // Phones: the tickets can sit below the fold of the pass, so bring them up first.
-      const box = $('screen-results'), r = btn.getBoundingClientRect(), b = box.getBoundingClientRect();
-      if (r.bottom > b.bottom || r.top < b.top) btn.scrollIntoView({ block: 'center', behavior: K.fx.reduced() ? 'auto' : 'smooth' });
-      btn.classList.add('nudge');
+      btn.classList.add('nudge');   // the pass never scrolls on its own: the score stays in view
       nudgeTimer = setTimeout(() => tag.classList.remove('in'), 6000);
     }, 1800);
     btn.addEventListener('click', () => { tag.classList.remove('in'); btn.classList.remove('nudge'); }, { once: true });
@@ -430,17 +438,17 @@ K.ui = (() => {
   function results({ record, n, mode = 'daily', streak, thermals, streakInfo, isFresh, prevBest }) {
     lastRecord = { record, n, streak, mode };
     $('res-eyebrow').textContent = mode === 'unlimited' ? `Unlimited · Flight #${record.flightNo || record.run || ''}`
-      : `${mode === 'archive' ? 'Archive · ' : ''}Flight #${n} · ${K.date.formatLong(K.date.dateOfFlight(n))}`;
+      : `${mode === 'archive' ? 'Archive · ' : ''}Flight #${n} · ${dayMonth(K.date.dateOfFlight(n))}`;
     $('btn-today').hidden = mode === 'daily';
     const subj = encodeURIComponent(`KÁRMÁN ${mode === 'unlimited' ? 'Unlimited' : `#${n}`}`);
     $('contact-link').href = `mailto:${K.CONFIG.CONTACT_EMAIL}?subject=${subj}`;
     paintKeep();
     $('res-alt').textContent = K.units.altNum(record.alt, 0);
     $('res-unit').textContent = K.units.altUnit();
-    $('res-km').textContent = `${K.units.altText(record.alt, { decimals: 1 })} up`;
     $('res-tier').textContent = S.tierName(record.alt);
     $('res-mrz').innerHTML = mrz(record, n, mode);
     $('pctl').hidden = true;
+    $('crowd-chart').innerHTML = '';      // the chart is rebuilt when today's stats arrive
 
     // At most one short line of personal news.
     const prevBestPts = S.ptsOf(prevBest || 0);
@@ -465,7 +473,11 @@ K.ui = (() => {
     else applyStats(record, mode === 'unlimited' ? `r${record.run}` : n);
 
     $('res-streak').textContent = `${streak}-day streak · ${thermals} thermal${thermals === 1 ? '' : 's'}`;
+    if (K.climb) K.climb.set(record);          // the sky behind the pass can replay the climb
   }
+
+  /** "8 October": the flight's date without the weekday. */
+  const dayMonth = (d) => `${d.getUTCDate()} ${d.toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' })}`;
 
   /** Two passport-style MRZ lines for the foot of the pass (44 chars each, '<' as filler). */
   function mrz(record, n, mode) {
@@ -791,6 +803,8 @@ K.ui = (() => {
     odo.set('0.0', { instant: true });
     // The card resizes with a transition (results are taller on desktop): re-seat the balloon once it settles.
     $('dock').addEventListener('transitionend', (e) => { if (e.target.id === 'dock' && e.propertyName === 'height') anchorBalloon(); });
+    // Phones size the round card by its content (a clue can add two lines mid-leg): re-seat the balloon when it grows.
+    if (window.ResizeObserver) new ResizeObserver(() => { if (current === 'round' && !$('dock').classList.contains('away')) anchorBalloon(); }).observe($('dock'));
     document.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => closeSheet(b.dataset.close); });
     document.querySelectorAll('.sheet-wrap').forEach((w) => {
       w.addEventListener('click', (e) => { if (e.target === w) closeSheet(w.id.replace('sheet-', '')); });

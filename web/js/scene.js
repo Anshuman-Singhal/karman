@@ -78,7 +78,7 @@ K.scene = (() => {
   const liftCurve = bezier(0.55, 0, 0.22, 1);
 
   /* ---- DOM refs ---- */
-  let skyEl, starsEl, worldEl, frontEl, earthEl, rigEl, svgEl, sunEl, sceneEl, paperV = '';
+  let skyEl, starsEl, deepEl = null, worldEl, frontEl, earthEl, rigEl, svgEl, sunEl, sceneEl, paperV = '';
   let railEl, railBug, railFill, railGhost, railTicks = [];
 
   /* ========================================================== world items */
@@ -587,16 +587,44 @@ K.scene = (() => {
     { km: 11.3, cap: { name: 'Rüppell’s vulture', fig: '11.3 km', note: 'highest bird' }, dur: 58, dir: 1, w: 44, vb: [48, 18], art: 'vulture' },
     { km: 13.5, cap: { name: 'Business jets', fig: '13.5 km' }, dur: 30, dir: -1, w: 38, vb: [46, 26], art: 'bizjet' },
     { km: 15.5, cap: { name: 'Weather balloon', fig: '15.5 km', note: 'rising' }, dur: 120, dir: 1, w: 16, vb: [20, 44], art: 'sonde' },
-    { km: 18, cap: { name: 'Concorde', fig: '18 km', note: 'Mach 2' }, dur: 14, dir: -1, w: 62, vb: [70, 22], art: 'concorde' },
+    { km: 18, cap: { name: 'Concorde', fig: '18 km · Mach 2' }, dur: 14, dir: -1, w: 62, vb: [70, 22], art: 'concorde' },
     { km: 21, cap: { name: 'U-2 spy plane', fig: '21 km' }, dur: 40, dir: 1, w: 34, vb: [44, 64], art: 'u2' },
     { km: 25.9, cap: { name: 'SR-71 Blackbird', fig: '25.9 km', note: 'fastest jet' }, dur: 9, dir: -1, w: 66, vb: [70, 30], art: 'sr71' },
     { km: 35, cap: { name: 'Weather balloons burst', fig: '~35 km' }, dur: 140, dir: 1, w: 22, vb: [26, 38], art: 'burst' },
     { km: 53, cap: { name: 'Highest balloon ever', fig: '53 km' }, dur: 160, dir: -1, w: 22, vb: [24, 50], art: 'highballoon' },
-    { km: 103, cap: { name: 'Space station', fig: '~400 km', note: 'in orbit, far above' }, dur: 26, dir: 1, w: 58, vb: [64, 34], art: 'iss' },
+    { km: 102, cap: { name: 'Space station', fig: '~400 km', note: 'in orbit, far above' }, dur: 26, dir: 1, w: 58, vb: [64, 34], art: 'iss' },
   ];
   const BANDS = [
     { km: 70, cap: { name: 'Sprites', fig: '50–90 km', note: 'red lightning' }, cls: 'sprites' },
     { km: 83, cap: { name: 'Noctilucent clouds', fig: '83 km' }, cls: 'nlc' },
+    { km: 92, cap: { name: 'Meteors burn up', fig: '80–120 km' }, cls: 'meteor-band', dir: 'r' },
+    { km: 190, cap: { name: 'Aurora', fig: '100–300 km', note: 'curtains of air, lit' }, cls: 'aurora-band' },
+  ];
+
+  /* Two craft that touched space and came straight back down, drawn at the
+     top of their arcs: the X-15 rocket plane (1963) and New Shepard's
+     capsule (2015 on). They hang still, like the landmarks, so their flags
+     never cross. In the poster's night palette: paper, ink, an ember accent. */
+  const SPACE_SIGHTS = [
+    { km: 107, cap: { name: 'New Shepard', fig: '107 km', note: 'capsule at apogee' }, cls: 'shepard', dir: 'r', left: '14%', h: 31, svg: () => `<svg viewBox="0 0 30 36">
+        <path d="M6,30 L3,22 L5,14 C8,6 22,6 25,14 L27,22 L24,30Z" fill="#E9E1D0" stroke="${INK}" stroke-opacity=".6" stroke-width="1" stroke-linejoin="round" paint-order="stroke"/>
+        <path d="M18,8.5 C23,10 25.5,14 26,20 L23,20 C22.4,14.5 20.5,11 18,8.5Z" fill="${INK}" opacity=".22"/>
+        <path d="M6,30 L24,30 L22.5,34 L7.5,34Z" fill="#3A4566"/>
+        <path d="M8,20 l1.2,-6 h3.6 l1.2,6Z M17.2,20 l1.2,-6 h3.6 l1.2,6Z" fill="#0A0D1C" stroke="#FFB547" stroke-width=".7"/>
+        <path d="M3,22 H27" stroke="${INK}" stroke-opacity=".45" stroke-width=".7"/>
+        <path d="M12,9.4 C13.5,8.4 16.5,8.4 18,9.4" stroke="#FFFFFF" stroke-opacity=".8" stroke-width=".9" fill="none" stroke-linecap="round"/></svg>` },
+    { km: 108, cap: { name: 'X-15', fig: '108 km', note: 'rocket plane, 1963' }, cls: 'x15', dir: 'l', left: '76%', h: 22, svg: () => `<svg viewBox="0 0 64 24">
+        <path d="M2,12 L14,9.6 L46,8.6 L58,10.6 L62,12 L58,13.4 L46,15.4 L14,14.4Z" fill="#2B3350" stroke="${INK}" stroke-opacity=".7" stroke-width=".9" paint-order="stroke"/>
+        <path d="M20,9.6 L30,2.6 L34,2.6 L30,9.4Z M20,14.4 L30,21.4 L34,21.4 L30,14.6Z" fill="#20283F"/>
+        <path d="M36,8.6 L40,3 L43,3 L41,8.6Z M36,15.4 L40,21 L43,21 L41,15.4Z" fill="#1A2238"/>
+        <path d="M14,9.6 L46,8.6" stroke="#8E9BBE" stroke-opacity=".6" stroke-width=".6"/>
+        <rect x="41" y="10.6" width="5" height="2.8" rx=".6" fill="#0A0D1C" stroke="#FFB547" stroke-width=".6"/>
+        <circle cx="3.2" cy="12" r="1.6" fill="#3A4566" stroke="${INK}" stroke-opacity=".5" stroke-width=".5"/></svg>` },
+    { km: 215, cap: { name: 'Sputnik 1', fig: '215 km', note: 'the first, 1957' }, cls: 'sputnik', dir: 'l', left: '70%', h: 30, svg: () => `<svg viewBox="0 0 40 40">
+        <path d="M14,20 L2,9 M15,22 L3,30 M16.5,19 L7,4.5 M17,23 L9,36" stroke="#F6EEDD" stroke-opacity=".8" stroke-width=".8" stroke-linecap="round"/>
+        <circle cx="22" cy="20" r="7" fill="#E2DCCB" stroke="${INK}" stroke-opacity=".7" stroke-width="1" paint-order="stroke"/>
+        <path d="M22,13 A7,7 0 0 1 29,20 A7,7 0 0 1 24,26.7 A9,9 0 0 0 22,13Z" fill="${INK}" opacity=".25"/>
+        <path d="M17.6,17.6 A4,4 0 0 1 20.6,15.2" stroke="#FFFFFF" stroke-opacity=".85" stroke-width="1" fill="none" stroke-linecap="round"/></svg>` },
   ];
 
   /* Grounded landmarks are sized from the camera so their feet land exactly
@@ -647,7 +675,8 @@ K.scene = (() => {
       const dir = f.dir < 0 ? 'r' : 'l';
       addItem(f.km, `<div class="flyer ${f.dir < 0 ? 'rtl' : ''}" style="--dur:${f.dur}s;--delay:${delay.toFixed(1)}s;--rx:${(30 + (i * 23) % 50).toFixed(0)}vw;width:${f.w}px"><span class="flyer-art">${FLYER_ART[f.art]}</span>${cap(f.cap, dir, 10, `left:50%;top:${(-h / 2 - 2).toFixed(1)}px`)}</div>`, 'sight');
     });
-    BANDS.forEach((b) => addItem(b.km, `<div class="${b.cls}"></div>${cap(b.cap, 'l', 0, 'left:calc(100% - var(--cap-edge))')}`, 'band-item'));
+    BANDS.forEach((b) => addItem(b.km, `<div class="${b.cls}"></div>${b.dir === 'r' ? cap(b.cap, 'r', 0, 'left:var(--cap-edge)') : cap(b.cap, 'l', 0, 'left:calc(100% - var(--cap-edge))')}`, 'band-item'));
+    SPACE_SIGHTS.forEach((s) => addItem(s.km, `<div class="space-sight ${s.cls}" style="left:${s.left}"><span class="sight-art">${s.svg()}</span>${cap(s.cap, s.dir, 12, `left:0;top:${-s.h / 2 - 3}px`)}</div>`, 'sight'));
   }
 
   function buildWorld() {
@@ -676,11 +705,30 @@ K.scene = (() => {
         ${cap({ name: 'Airliners', fig: '11 km' }, 'l', 0, 'left:calc(100% - var(--cap-edge));top:50%')}</div>`, 'landmark');
     addItem(20, `<div class="ozone"></div>${cap({ name: 'Ozone layer', fig: '20 km' }, 'l', 0, 'left:calc(100% - var(--cap-edge))')}`, 'band-item');
     buildSights();
+    // The record skydive: a small figure in a pressure suit, steadied by a
+    // drogue chute, falling feet first from the 39 km line.
     addItem(39, `<div class="diver"><span class="diver-trail"></span>
-        <svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="3" fill="#F2E6CF"/><path d="M10,7 L10,13 M10,9 L4,6 M10,9 L16,6 M10,13 L6,19 M10,13 L14,19" stroke="#F2E6CF" stroke-width="2" stroke-linecap="round"/></svg>
-        ${cap({ name: 'Record skydive', fig: '39 km' }, 'r', 12, 'left:0;top:-12px')}</div>`, 'landmark left');
+        <svg viewBox="0 0 30 48" overflow="visible">
+          <path d="M8.5,9 L14.4,21 M21.5,9 L15.6,21 M15,9.2 L15,20.6" stroke="#F2E6CF" stroke-opacity=".75" stroke-width=".6"/>
+          <path d="M8,8.4 Q15,-1 22,8.4 L22,10 Q15,4 8,10Z" fill="#FF6A3D" stroke="${INK}" stroke-opacity=".7" stroke-width=".9" stroke-linejoin="round" paint-order="stroke"/>
+          <path d="M13.2,8.3 Q15,0.8 16.8,8.3 Q15,4.7 13.2,8.3Z" fill="#F3E9D6" opacity=".85"/>
+          <g fill="#F2E6CF" stroke="${INK}" stroke-opacity=".7" stroke-width=".9" stroke-linejoin="round" stroke-linecap="round" paint-order="stroke">
+            <path d="M12.4,26.2 L8.6,32.4 M17.6,26.2 L21.4,32.4" fill="none" stroke="#F2E6CF" stroke-width="2.4"/>
+            <path d="M13.5,34 L12.6,44.5 M16.5,34 L17.4,44.5" fill="none" stroke="#F2E6CF" stroke-width="2.6"/>
+            <rect x="12.1" y="25" width="5.8" height="9.6" rx="1.6"/>
+            <circle cx="15" cy="21.8" r="3.3"/>
+          </g>
+          <path d="M12.6,22 A2.5,2.5 0 0 1 17.4,22 L17.4,23.4 L12.6,23.4Z" fill="#0A0D1C"/>
+          <path d="M13.4,21.2 A1.8,1.8 0 0 1 15.4,20.2" stroke="#FFFFFF" stroke-opacity=".7" stroke-width=".6" fill="none"/>
+          <rect x="13.4" y="27.2" width="3.2" height="2.6" rx=".5" fill="#FF6A3D"/>
+          <path d="M11.4,44.4 h3 M15.6,44.4 h3" stroke="#3A4566" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12.4,26.2 L8.6,32.4 M17.6,26.2 L21.4,32.4 M13.5,34 L12.6,44.5 M16.5,34 L17.4,44.5" fill="none" stroke="${INK}" stroke-opacity=".35" stroke-width=".6" stroke-linecap="round"/>
+        </svg>
+        ${cap({ name: 'Record skydive', fig: '39 km', note: 'free fall from a balloon' }, 'r', 12, 'left:0;top:-12px')}</div>`, 'landmark left');
     addItem(50, `<div class="w-line"></div>${cap({ name: 'Stratopause', fig: '50 km' }, 'l', 0, 'left:calc(100% - var(--cap-edge))')}`, 'line-item');
     addItem(100, `<div class="w-line karman"></div>${cap({ name: 'Kármán line', fig: '100 km', note: 'space begins' }, 'r', 0, 'left:50%')}`, 'line-item karman-item');
+    // The top of the climb: a quiet cream hairline, no fanfare.
+    addItem(140, `<div class="w-line apogee"></div>${cap({ name: 'Apogee', fig: '140 km', note: 'as high as the flight goes' }, 'r', 0, 'left:50%')}`, 'line-item apogee-item');
     if (pbKm > 0.5) {
       addItem(pbKm, `<div class="w-line pb"></div>${cap({ name: 'Your best', fig: `${pbKm.toFixed(1)} km` }, 'l', 0, 'left:calc(100% - var(--cap-edge))')}`, 'line-item pb-item');
     }
@@ -711,6 +759,62 @@ K.scene = (() => {
       } else ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
     }
+    drawDeepStars();
+  }
+
+  /* The deep field. Past the Kármán line the air stops scattering light, so
+     the sky fills in: hundreds of faint stars, the pale band of the Milky
+     Way laid across the sheet in dry brush, and the sun itself, a hard
+     white coin with no haze round it. Painted once; faded in by altitude. */
+  function drawDeepStars() {
+    if (!deepEl) {
+      deepEl = document.createElement('canvas');
+      deepEl.id = 'stars-deep';
+      starsEl.after(deepEl);
+    }
+    const ctx = deepEl.getContext('2d');
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    deepEl.width = Math.round(W * dpr);
+    deepEl.height = Math.round(H * dpr);
+    ctx.scale(dpr, dpr);
+    const rand = K.rng.fromLabel('karman-deep-stars');
+    // the galactic band: a broad, soft diagonal wash with a few brighter
+    // clouds of light along it, all of it far below the threshold of a line
+    const ang = -0.3, cx = W * 0.5, cy = H * 0.3, len = Math.hypot(W, H);
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(ang);
+    const wash = ctx.createLinearGradient(0, -H * 0.22, 0, H * 0.22);
+    wash.addColorStop(0, 'rgba(214,222,255,0)'); wash.addColorStop(0.5, 'rgba(214,222,255,0.075)'); wash.addColorStop(1, 'rgba(214,222,255,0)');
+    ctx.fillStyle = wash; ctx.fillRect(-len, -H * 0.22, len * 2, H * 0.44);
+    for (let i = 0; i < 16; i++) {
+      const x = (rand() - 0.5) * len * 1.5, y = (rand() - 0.5) * H * 0.16, r = H * (0.05 + rand() * 0.08);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(226,232,255,${(0.04 + rand() * 0.05).toFixed(3)})`); g.addColorStop(1, 'rgba(226,232,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, r * 1.8, r, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+    // the stars: many and faint, denser along the band
+    for (let i = 0; i < 760; i++) {
+      let x = rand() * W, y = rand() * H;
+      if (i % 3 === 0) { // along the band
+        const u = (rand() - 0.5) * len * 1.4, v = (rand() - 0.5) * H * 0.2;
+        x = cx + u * Math.cos(ang) - v * Math.sin(ang); y = cy + u * Math.sin(ang) + v * Math.cos(ang);
+      }
+      const r = 0.3 + rand() * 0.6;
+      ctx.globalAlpha = 0.25 + rand() * 0.55;
+      ctx.fillStyle = rand() < 0.12 ? '#FFE3B8' : rand() < 0.2 ? '#C9D8FF' : '#EAF0FF';
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    // the sun in vacuum: a small hard coin, a thin cream ring, four fine spikes
+    const sx = W * 0.82, sy = H * 0.14;
+    ctx.globalAlpha = 1;
+    const halo = ctx.createRadialGradient(sx, sy, 0, sx, sy, 34);
+    halo.addColorStop(0, 'rgba(255,241,201,0.28)'); halo.addColorStop(1, 'rgba(255,241,201,0)');
+    ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(sx, sy, 34, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,241,201,0.35)'; ctx.lineWidth = 0.8;
+    for (const [dx, dy] of [[1, 0], [0, 1], [0.7, 0.7], [0.7, -0.7]]) { ctx.beginPath(); ctx.moveTo(sx - dx * 26, sy - dy * 26); ctx.lineTo(sx + dx * 26, sy + dy * 26); ctx.stroke(); }
+    ctx.fillStyle = '#FFF8E6'; ctx.beginPath(); ctx.arc(sx, sy, 6.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(34,48,90,0.55)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(sx, sy, 6.5, 0, Math.PI * 2); ctx.stroke();
   }
 
   /* ========================================================== rail */
@@ -789,8 +893,10 @@ K.scene = (() => {
     const dockTop = dock && !dock.hidden ? dock.getBoundingClientRect().top : Infinity;
     const env = rigEl.getBoundingClientRect();
     const balloon = { left: env.left + env.width * 0.1, right: env.right - env.width * 0.1, top: env.top, bottom: env.bottom };
-    const hud = ['topbar', 'altimeter', 'hud'].map((id) => document.getElementById(id))
-      .filter((e) => e && !e.hidden && e.offsetParent !== null).map((e) => e.getBoundingClientRect());
+    // (the milestone banner counts too, while it is up)
+    const hud = ['topbar', 'altimeter', 'hud', 'banner'].map((id) => document.getElementById(id))
+      .filter((e) => e && !e.hidden && e.offsetParent !== null && e.getClientRects().length && (e.id !== 'banner' || e.textContent.trim()))
+      .map((e) => e.getBoundingClientRect());
     // the rail's two printed labels (the next milestone, and Space) count as instruments too
     railEl.querySelectorAll('.rail-tick.next span, .rail-tick:last-child span').forEach((s) => {
       const r = s.getBoundingClientRect();
@@ -840,10 +946,13 @@ K.scene = (() => {
     const [top, mid, bot] = skyAt(cam.km);
     skyEl.style.background = `linear-gradient(to bottom, ${top} 0%, ${mid} 58%, ${bot} 100%)`;
     starsEl.style.opacity = clamp((cam.km - 26) / 40, 0, 1).toFixed(3);
+    if (deepEl) deepEl.style.opacity = clamp((cam.km - 94) / 30, 0, 1).toFixed(3);
     const et = clamp((cam.km - 52) / 48, 0, 1);
     earthEl.style.opacity = et.toFixed(3);
     earthEl.style.transform = `translate3d(-50%, ${((1 - et) * 38).toFixed(2)}vh, 0)`;
-    sunEl.style.opacity = (1 - clamp(cam.km / 40, 0, 0.75)).toFixed(3);
+    // The sun's haze is the air's doing: it thins with the air and is gone by 80 km
+    // (the deep field then carries the sun as a hard coin).
+    sunEl.style.opacity = (1 - clamp((cam.km - 4) / 76, 0, 1)).toFixed(3);
     // The paper's light tooth thins out as the sky darkens (stepped, so it rarely restyles).
     const paper = (Math.round(clamp(1 - (fOf(cam.km) - fOf(3)) / (fOf(40) - fOf(3)), 0.12, 1) * 25) / 25).toFixed(2);
     if (paper !== paperV) { paperV = paper; sceneEl.style.setProperty('--paper', paper); }
@@ -1004,7 +1113,7 @@ K.scene = (() => {
     flame.target = 1.1;
     flame.boost = Math.max(flame.boost, 0.7);
     inflateTo = 0;
-    K.vehicle.spin(0.5);
+    K.vehicle.spin(0.35);
     if (!K.fx.reduced()) { swayT0 = liftT0; K.vehicle.kick(1); }
     if (K.fx.hush) K.fx.hush(1900, 0.1);   // a few sparks drifting off the burner, not a shower
     return new Promise((r) => {

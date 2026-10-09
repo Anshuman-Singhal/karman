@@ -209,6 +209,7 @@ K.round = (() => {
 
   /* ------------------------------------------------------------ input */
   function press(k, btn) {
+    if (!fact || locked) return;   // no question on the card yet (take-off), or already locked
     if (locked) return;
     if (btn) {
       btn.classList.remove('tap');
@@ -298,6 +299,7 @@ K.round = (() => {
   }
   /** The committed guess in METRIC, for scoring. */
   function guessValue() {
+    if (!fact) return null;
     const v = typedValue();
     if (v == null) return null;
     return fact.scale === 'year' ? v : view.toMetric(v);

@@ -4,12 +4,13 @@
    the world. Each effect belongs to a band of altitude, so the climb feels
    like passing through real places:
 
-     0–6 km     god rays from the sun, breathing slowly
+     0–6 km     sunbeams falling from the sun, breathing slowly
      0.3–2.5 km a small flock of birds crossing
      2 km       a soft white flash as you punch through the cloud deck
      20–30 km   nacreous (mother-of-pearl) cloud bands
      45–95 km   sprites: brief red flashes of upper-atmosphere lightning
-     60 km +    aurora curtains, meteors burning up, and a passing satellite
+     86 km +    aurora curtains above the card (you rise through them by apogee),
+                meteors burning up, a Sputnik-era satellite crossing
      any        wind streaks while the camera is climbing fast
 
    Everything reads K.scene.km and K.scene.yOf(km), so it scrolls with the
@@ -62,19 +63,23 @@ K.ambient = (() => {
   }
 
   /* ---------------------------------------------------------- effects */
+  /* Sunbeams: a few soft shafts falling from the sun, down and to the left
+     across the meadow, breathing slowly. Gone by 6 km. */
   function godRays(km, t, still) {
-    const a = band(km, -1, 0, 3, 6) * 0.22;
+    const a = band(km, -1, 0, 3, 6) * 0.16;
     if (a <= 0) return;
-    const sx = W * 0.8, sy = H * 0.38;
-    const len = Math.hypot(W, H);
+    const sx = W * 0.8, sy = H * 0.38;        // the sun's centre (scene.css)
+    const len = Math.hypot(W, H) * 1.2;
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    for (let i = 0; i < 7; i++) {
-      const ang = 2.2 + i * 0.29 + (still ? 0 : Math.sin(t * 0.07 + i) * 0.03);
-      const w = 0.05 + 0.03 * Math.sin(i * 2.3);
-      const breathe = still ? 1 : 0.65 + 0.35 * Math.sin(t * 0.35 + i * 1.7);
-      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, len * 0.8);
+    for (let i = 0; i < 4; i++) {
+      // angles are measured from +x, clockwise on screen: ~1.75 is straight down
+      const ang = 1.78 + i * 0.22 + (still ? 0 : Math.sin(t * 0.06 + i * 1.9) * 0.025);
+      const w = 0.035 + 0.02 * Math.sin(i * 2.3 + 1);
+      const breathe = still ? 1 : 0.7 + 0.3 * Math.sin(t * 0.3 + i * 1.7);
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, len * 0.9);
       g.addColorStop(0, `rgba(255,236,200,${(a * breathe).toFixed(3)})`);
+      g.addColorStop(0.55, `rgba(255,236,200,${(a * breathe * 0.45).toFixed(3)})`);
       g.addColorStop(1, 'rgba(255,236,200,0)');
       ctx.fillStyle = g;
       ctx.beginPath();
@@ -153,60 +158,114 @@ K.ambient = (() => {
     ctx.restore();
   }
 
+  /* Aurora: thin curtains hung in the sky between about 102 and 128 km,
+     where the real ones begin. They are placed in the world (K.scene.yOf),
+     so you climb up into them from below and look down on them at apogee,
+     draped over the Earth's limb. One vertical sprite (green foot, violet
+     crown) is stamped in narrow columns whose height and brightness ripple,
+     so the curtain folds and rays without any per-column gradients. */
+  let curtain = null;
+  function curtainSprite() {
+    const c = document.createElement('canvas');
+    c.width = 1; c.height = 160;
+    const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, 0, 0, 160);
+    g.addColorStop(0, 'rgba(190,120,255,0)');
+    g.addColorStop(0.3, 'rgba(176,118,255,0.22)');
+    g.addColorStop(0.72, 'rgba(96,232,176,0.5)');
+    g.addColorStop(0.93, 'rgba(120,255,190,0.85)');
+    g.addColorStop(1, 'rgba(120,255,190,0)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, 1, 160);
+    return c;
+  }
+  let auroraBuf = null;
   function aurora(km, t, still) {
-    const a = clamp((km - 55) / 35, 0, 1);
+    const a = clamp((km - 86) / 16, 0, 1);
     if (a <= 0) return;
-    const base = Math.min(H * 0.8, (dockTop || H * 0.55) + 24);
+    // The curtains hang in the open sky above the card. As you climb on past
+    // the Kármán line you rise through them: by apogee they have sunk low
+    // and the sky above is clear, which is the quiet of the top.
+    const sink = clamp((km - 100) / 40, 0, 1);
+    const foot = Math.min(H * 0.92, (dockTop || H * 0.55) + 6 + sink * H * 0.22);
+    const span = H * 0.42;
+    if (!curtain) curtain = curtainSprite();
+    // Painted small (a quarter of the width, 180 px tall) and stretched: the
+    // curtains are soft anyway, and it keeps the per-frame work light.
+    const bw = Math.ceil(W / 4), bh = 180;
+    if (!auroraBuf) auroraBuf = document.createElement('canvas');
+    if (auroraBuf.width !== bw) { auroraBuf.width = bw; auroraBuf.height = bh; }
+    const bx = auroraBuf.getContext('2d');
+    bx.clearRect(0, 0, bw, bh);
+    const drift = still ? 0 : t;
+    const step = 2;
+    for (let x = 0; x < bw; x += step) {
+      const X = x * 4;
+      // folds: a slow wave along the curtain; rays: a finer flicker
+      const fold = Math.sin(X / 150 + drift * 0.22) * 0.5 + Math.sin(X / 61 - drift * 0.31) * 0.3;
+      const ray = 0.55 + 0.45 * (0.5 * Math.sin(X / 9 + drift * 1.3 + Math.sin(X / 40) * 3) + 0.5 * Math.sin(X / 23 - drift * 0.9));
+      const k = (0.55 + 0.45 * Math.sin(X / 230 + drift * 0.17)) * ray;
+      const h = bh * 0.9 * (0.62 + 0.38 * (0.5 + fold));
+      bx.globalAlpha = 0.62 * k;
+      const y1 = bh * 0.95 + fold * 7;
+      bx.drawImage(curtain, 0, 0, 1, 160, x, y1 - h, step, h);
+    }
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    for (let x = 0; x < W; x += 5) {
-      const wave = Math.sin(x / 90 + (still ? 0 : t * 0.25)) + Math.sin(x / 37 - (still ? 0 : t * 0.4)) * 0.5;
-      const h = 170 + wave * 55 + Math.sin(x / 210) * 60;
-      const k = 0.5 + 0.5 * Math.sin(x / 160 + (still ? 0 : t * 0.18));
-      const top = base - h - wave * 10;
-      const g = ctx.createLinearGradient(0, top, 0, base);
-      g.addColorStop(0, 'rgba(170,110,255,0)');
-      g.addColorStop(0.35, `rgba(160,110,255,${(0.3 * a * k).toFixed(3)})`);
-      g.addColorStop(0.85, `rgba(90,255,170,${(0.7 * a * k).toFixed(3)})`);
-      g.addColorStop(1, 'rgba(90,255,170,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(x, top, 5, base - top);
-    }
+    ctx.globalAlpha = a;
+    ctx.drawImage(auroraBuf, 0, foot - span, W, span);
     ctx.restore();
   }
 
+  /* A satellite of the first kind: a polished sphere trailing four whip
+     antennas, crossing slowly once you are past the Kármán line. */
   function satellite(km, dt, still) {
-    const a = clamp((km - 55) / 25, 0, 1);
+    const a = clamp((km - 98) / 8, 0, 1);
     if (a <= 0 || still) return;
     if (!sat) {
       satNext -= dt;
       if (satNext <= 0) {
         const fromLeft = Math.random() < 0.5;
-        sat = { x: fromLeft ? -10 : W + 10, y: H * (0.08 + Math.random() * 0.3), vx: (fromLeft ? 1 : -1) * W / 14, vy: H * 0.012, life: 0 };
+        sat = { x: fromLeft ? -30 : W + 30, y: H * (0.06 + Math.random() * 0.22), vx: (fromLeft ? 1 : -1) * W / 24, vy: H * 0.006, life: 0 };
       }
       return;
     }
     sat.x += sat.vx * dt;
     sat.y += sat.vy * dt;
     sat.life += dt;
-    const blink = 0.75 + 0.25 * Math.sin(sat.life * 3);
-    ctx.fillStyle = `rgba(255,255,255,${(0.85 * a * blink).toFixed(3)})`;
-    ctx.beginPath();
-    ctx.arc(sat.x, sat.y, 1.4, 0, Math.PI * 2);
-    ctx.fill();
-    if (sat.x < -20 || sat.x > W + 20) { sat = null; satNext = 10 + Math.random() * 12; }
+    const dir = sat.vx > 0 ? 1 : -1, r = 3.2;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(246,238,221,0.75)'; ctx.lineWidth = 0.8;
+    for (const [ang, len] of [[0.28, 16], [0.62, 13], [-0.28, 16], [-0.62, 13]]) {
+      ctx.beginPath();
+      ctx.moveTo(sat.x - dir * r * 0.6, sat.y);
+      ctx.lineTo(sat.x - dir * (r + Math.cos(ang) * len), sat.y + Math.sin(ang) * len);
+      ctx.stroke();
+    }
+    const sh = ctx.createRadialGradient(sat.x - r * 0.4, sat.y - r * 0.45, 0.4, sat.x, sat.y, r);
+    sh.addColorStop(0, '#FFFFFF'); sh.addColorStop(0.55, '#E2DCCB'); sh.addColorStop(1, '#8E96AE');
+    ctx.fillStyle = sh;
+    ctx.beginPath(); ctx.arc(sat.x, sat.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(34,48,90,0.7)'; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.arc(sat.x, sat.y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+    if (sat.x < -60 || sat.x > W + 60) { sat = null; satNext = 14 + Math.random() * 16; }
   }
 
-  /* Meteors burn up 70–110 km: short bright streaks, a few a minute. */
+  /* Meteors burn up between 80 and 120 km, far off in the open sky above
+     the card: a bright head and a dry-brush tail, a few a minute. */
   const meteors = [];
   let meteorNext = 2;
   function meteorShower(km, dt, still) {
-    const a = Math.min(1, Math.max(0, (km - 60) / 25));
+    const a = clamp((km - 66) / 20, 0, 1);
     if (a <= 0 || still) return;
     meteorNext -= dt;
     if (meteorNext <= 0) {
-      meteors.push({ x: Math.random() * W, y: Math.random() * H * 0.4, vx: -(260 + Math.random() * 200), vy: 120 + Math.random() * 90, life: 0, max: 0.6 + Math.random() * 0.5 });
-      meteorNext = 1.2 + Math.random() * 3;
+      const dir = Math.random() < 0.6 ? -1 : 1;
+      meteors.push({ x: Math.random() * W, y: H * (0.04 + Math.random() * 0.26), vx: dir * (260 + Math.random() * 220), vy: 130 + Math.random() * 90, life: 0, max: 0.5 + Math.random() * 0.5, w: 1.2 + Math.random() * 1.2 });
+      meteorNext = 2 + Math.random() * 4;
     }
     ctx.save();
     ctx.lineCap = 'round';
@@ -215,11 +274,21 @@ K.ambient = (() => {
       m.life += dt; m.x += m.vx * dt; m.y += m.vy * dt;
       const f = 1 - m.life / m.max;
       if (f <= 0) { meteors.splice(i, 1); continue; }
-      const g = ctx.createLinearGradient(m.x, m.y, m.x - m.vx * 0.18, m.y - m.vy * 0.18);
-      g.addColorStop(0, `rgba(255,244,220,${(0.9 * f * a).toFixed(3)})`);
-      g.addColorStop(1, 'rgba(255,200,140,0)');
-      ctx.strokeStyle = g; ctx.lineWidth = 1.6;
-      ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(m.x - m.vx * 0.18, m.y - m.vy * 0.18); ctx.stroke();
+      const burn = Math.sin(Math.min(1, m.life / m.max) * Math.PI);   // brightens, then gutters out
+      const tl = 0.22 + 0.1 * burn;
+      const tx = m.x - m.vx * tl, ty = m.y - m.vy * tl;
+      const g = ctx.createLinearGradient(m.x, m.y, tx, ty);
+      g.addColorStop(0, `rgba(255,244,220,${(0.95 * burn * a).toFixed(3)})`);
+      g.addColorStop(0.35, `rgba(255,214,160,${(0.5 * burn * a).toFixed(3)})`);
+      g.addColorStop(1, 'rgba(255,170,120,0)');
+      ctx.strokeStyle = g;
+      // three strokes of falling width: the tail is a brush, not a line
+      for (const [k, w] of [[1, 0.5], [0.6, 1], [0.3, 1.6]]) {
+        ctx.lineWidth = m.w * w;
+        ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(m.x + (tx - m.x) * k, m.y + (ty - m.y) * k); ctx.stroke();
+      }
+      ctx.fillStyle = `rgba(255,250,236,${(0.9 * burn * a).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(m.x, m.y, m.w * 0.9, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
   }

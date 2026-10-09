@@ -16,8 +16,14 @@
    whenever the altitude crosses a stage boundary. Results and reloads call
    set(km) to jump straight to the right stage with no transition.
 
-   Every colour is a literal hex (no CSS variables), so the live SVG can be
-   serialised into the share image as-is.
+   Every stage change is a short sequence of parts arriving and settling
+   (about 1.2 s), not a swap: the gondola's shells slide shut round the crew,
+   the rocket latches under the helium balloon, its fins unfold before the
+   burn, the panels hinge out in space. Reduced motion gets a crossfade.
+
+   Every colour is a literal hex (no CSS variables), and every texture is a
+   pattern inside this SVG, so the live SVG can be serialised into the share
+   image as-is.
    ========================================================================== */
 
 K.vehicle = (() => {
@@ -27,6 +33,7 @@ K.vehicle = (() => {
   const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
   const lerp = (a, b, t) => a + (b - a) * t;
   const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+  const f2 = (n) => n.toFixed(2);
 
   const C = {
     ember: '#FF6A3D', paper: '#F3E9D6', amber: '#FFB547', navy: '#1E2A55',
@@ -59,6 +66,9 @@ K.vehicle = (() => {
   if (ENV_YS[ENV_YS.length - 1] !== 150) ENV_YS.push(150);
   const ENV_R = ENV_YS.map(rAt);
   const xOn = (phi, i) => 100 + ENV_R[i] * Math.sin(phi);
+  /* Gores stop a hair short of the silhouette: the last sliver of a gore
+     turning out of view is thinner than a pixel and used to flicker. */
+  const EDGE = Math.PI / 2 - 0.07;
 
   function envelopePath() {
     let d = '';
@@ -79,8 +89,71 @@ K.vehicle = (() => {
     return d;
   }
 
-  /** A truncated-cone capsule: top width tw at y, base width bw at y + h. */
+  /* ---------------------------------------------------------- the pen
+     A dip-pen contour: a closed ribbon round a polygon whose width swells
+     and thins (w0 … w1), filled in ink. Drawn once; it never animates. */
+  function penRing(points, w0, w1, rand) {
+    const n = points.length, outer = [], inner = [];
+    let k = rand() * 10;
+    for (let i = 0; i < n; i++) {
+      const [x, y] = points[i], [px, py] = points[(i + n - 1) % n], [nx, ny] = points[(i + 1) % n];
+      let tx = nx - px, ty = ny - py;
+      const L = Math.hypot(tx, ty) || 1; tx /= L; ty /= L;
+      let ox = -ty, oy = tx;                               // a normal
+      if ((x - 100) * ox + (y - 80) * oy < 0) { ox = -ox; oy = -oy; }   // pointing out from the envelope's heart
+      k += 0.28 + rand() * 0.25;
+      const w = w0 + (w1 - w0) * (0.5 + 0.5 * Math.sin(k));
+      outer.push(`${f2(x + ox * w / 2)},${f2(y + oy * w / 2)}`);
+      inner.push(`${f2(x - ox * w / 2)},${f2(y - oy * w / 2)}`);
+    }
+    return `M${outer.join(' L')}Z M${inner.join(' L')}Z`;
+  }
+  const envRing = () => {
+    const pts = [];
+    ENV_YS.forEach((y, i) => pts.push([100 - ENV_R[i], y]));
+    for (let i = ENV_YS.length - 1; i >= 0; i--) pts.push([100 + ENV_R[i], ENV_YS[i]]);
+    return penRing(pts, 0.7, 2, K.rng.fromLabel('karman-envelope-pen'));
+  };
+  /* The paper's tooth: a tile of specks and a few short dry strokes. */
+  function paperTile(rand) {
+    let dots = '', strokes = '';
+    for (let i = 0; i < 26; i++) dots += `M${f2(rand() * 22)},${f2(rand() * 22)} h.5 `;
+    for (let i = 0; i < 4; i++) { const x = rand() * 22, y = rand() * 22, l = 3 + rand() * 6; strokes += `M${f2(x)},${f2(y)} q${f2(l / 2)},${f2((rand() - 0.5) * 1.2)} ${f2(l)},${f2((rand() - 0.5) * 0.6)} `; }
+    return `<pattern id="v-paper" width="22" height="22" patternUnits="userSpaceOnUse">
+        <path d="${dots}" stroke="${C.ink}" stroke-width=".55" stroke-opacity=".16" stroke-linecap="round"/>
+        <path d="${strokes}" stroke="#FFFFFF" stroke-width=".7" stroke-opacity=".3" stroke-linecap="round" fill="none"/></pattern>`;
+  }
+  const HATCH = `<pattern id="v-hatch" width="3.2" height="3.2" patternUnits="userSpaceOnUse" patternTransform="rotate(36)">
+        <path d="M.7,0 V3.2" stroke="${C.ink}" stroke-width=".6" stroke-opacity=".5"/></pattern>`;
+  const hatch = (d, op = 0.4) => `<path d="${d}" fill="url(#v-hatch)" opacity="${op}"/>`;
+  const inked = (d, op = 0.55, w = 1.1) => `<path d="${d}" fill="none" stroke="${C.ink}" stroke-opacity="${op}" stroke-width="${w}" stroke-linejoin="round" stroke-linecap="round"/>`;
+
+  /** A truncated-cone gondola: top width tw at y, base width bw at y + h. */
   const capsule = (cx, y, tw, bw, h) => `M${cx - tw / 2},${y} L${cx + tw / 2},${y} L${cx + bw / 2},${y + h} L${cx - bw / 2},${y + h}Z`;
+
+  /* ---------------------------------------------------------- the capsule
+     Shared by the rocket's nose section and the orbiter: a blunt dome, a
+     straight body with the crew porthole in it, a separation band below.
+     Drawn in rocket coordinates (y 38 … 92, body x 86 … 114). */
+  const DOME = 'M86,58 C86,45 92,38 100,38 C108,38 114,45 114,58Z';
+  const CBODY = 'M86,58 L114,58 L114,90 L86,90Z';
+  const CAP_OUTLINE = 'M86,90 L86,58 C86,45 92,38 100,38 C108,38 114,45 114,58 L114,90Z';
+  function capsuleArt() {
+    return `
+      <path d="${CBODY}" fill="${C.paper}"/><path d="${CBODY}" fill="url(#v-body)"/>
+      <path d="${DOME}" fill="${C.ember}"/>
+      <path d="M100,38 C108,38 114,45 114,58 L106,58 C106,47 103.5,41 100,38Z" fill="${C.night}" opacity=".22"/>
+      <path d="M90.5,53 C91,46 94.5,41.5 98.5,40" fill="none" stroke="${C.cream}" stroke-opacity=".85" stroke-width="1.1" stroke-linecap="round"/>
+      ${hatch('M107,58 L114,58 L114,90 L107,90Z', 0.4)}
+      <rect x="86" y="86.5" width="28" height="4" fill="${C.navy}"/>
+      <path d="M86,58.5 H114" stroke="${C.navy}" stroke-opacity=".55" stroke-width=".9"/>
+      <circle cx="100" cy="72" r="7.6" fill="${C.amber}" opacity=".28"/>
+      <circle cx="100" cy="72" r="6.4" fill="${C.night}" stroke="${C.amber}" stroke-width="1.5"/>
+      <path d="M95.6,70.2 A5,5 0 0 1 99.4,66.8" fill="none" stroke="${C.cream}" stroke-opacity=".7" stroke-width=".9" stroke-linecap="round"/>
+      <circle cx="89" cy="62" r=".7" fill="${C.navy}" opacity=".6"/><circle cx="111" cy="62" r=".7" fill="${C.navy}" opacity=".6"/>
+      <circle cx="89" cy="83" r=".7" fill="${C.navy}" opacity=".6"/><circle cx="111" cy="83" r=".7" fill="${C.navy}" opacity=".6"/>
+      ${inked(CAP_OUTLINE, 0.6, 1.2)}`;
+  }
 
   /* ---------------------------------------------------------- state */
   let svg = null;
@@ -97,11 +170,23 @@ K.vehicle = (() => {
   function build(svgEl) {
     svg = svgEl;
     const env = envelopePath();
+    const gon = capsule(100, 190, 22, 36, 30);
+    const shell = (side) => `
+        <path d="${gon}" fill="${C.paper}"/>
+        <path d="${gon}" fill="url(#v-body)"/>
+        <path d="M82,220 Q100,228 118,220 L118,221.5 Q100,229.5 82,221.5Z" fill="${C.navy}"/>
+        <path d="M89,190 H111" stroke="${C.navy}" stroke-opacity=".5" stroke-width=".8"/>
+        ${side === 'r' ? hatch('M107,190 L111,190 L118,220 L110,220Z', 0.42) : ''}
+        ${inked(gon, 0.55, 1.1)}`;
     svg.setAttribute('viewBox', '0 0 200 250');
     svg.setAttribute('xmlns', NS);
     svg.innerHTML = `
       <defs>
         <clipPath id="v-env"><path d="${env}"/></clipPath>
+        <clipPath id="v-cl"><rect x="0" y="0" width="100" height="250"/></clipPath>
+        <clipPath id="v-cr"><rect x="100" y="0" width="100" height="250"/></clipPath>
+        ${paperTile(K.rng.fromLabel('karman-envelope-paper'))}
+        ${HATCH}
         <linearGradient id="v-shade" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stop-color="${C.amber}" stop-opacity=".18"/>
           <stop offset=".38" stop-color="${C.amber}" stop-opacity="0"/>
@@ -147,11 +232,14 @@ K.vehicle = (() => {
           <g class="v-gores"></g>
           <g class="v-pins" fill="none" stroke="${C.amber}" stroke-width=".8"></g>
           <g class="v-teeth" fill="${C.navy}"></g>
+          <rect x="0" y="0" width="200" height="160" fill="url(#v-paper)" opacity=".55"/>
           <path d="${env}" fill="url(#v-vert)"/>
           <path d="${env}" fill="url(#v-shade)"/>
+          ${hatch(gorePath(0.86, Math.PI / 2), 0.32)}
+          ${hatch(gorePath(1.18, Math.PI / 2), 0.3)}
         </g>
-        <!-- the same hand-inked contour as the sights in the sky -->
-        <path d="${env}" fill="none" stroke="${C.ink}" stroke-opacity=".5" stroke-width="1.2" stroke-linejoin="round"/>
+        <!-- the same hand-inked contour as the sights in the sky, in a dip pen -->
+        <path d="${envRing()}" fill="${C.ink}" fill-opacity=".55" fill-rule="evenodd"/>
         <g class="v-medal">
           <circle r="8" fill="${C.paper}" stroke="${C.navy}" stroke-width="1.4"/>
           <path d="M-3.6,1.8 L0,-2.2 L3.6,1.8" fill="none" stroke="${C.navy}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -177,26 +265,33 @@ K.vehicle = (() => {
               <line x1="85" y1="212" x2="115" y2="212"/><line x1="85" y1="216" x2="115" y2="216"/>
               <line x1="92" y1="200" x2="92" y2="221"/><line x1="100" y1="200" x2="100" y2="222"/><line x1="108" y1="200" x2="108" y2="221"/>
             </g>
+            ${hatch('M106,196 L117,196 L115,219 Q115,222 112,222 L106,222Z', 0.5)}
+            ${inked('M83,196 L117,196 L115,219 Q115,222 112,222 L88,222 Q85,222 85,219Z', 0.5, 1)}
             <rect x="82" y="196" width="36" height="4.5" rx="2" fill="${C.rim}"/>
           </g>
         </g>
 
-        <!-- stage 1: ropes to a ring + sealed gondola -->
+        <!-- stage 1: ropes to a ring + sealed gondola (two shells that slide shut) -->
         <g class="v-gondola" style="transform-origin:100px 182px;opacity:0">
           <g class="v-swing2" style="transform-origin:100px 164px">
-            <g stroke="#2A2730" stroke-width="1" opacity=".9">
-              <line x1="86" y1="162" x2="100" y2="182"/><line x1="94" y1="162" x2="100" y2="182"/>
-              <line x1="106" y1="162" x2="100" y2="182"/><line x1="114" y1="162" x2="100" y2="182"/>
+            <g class="v-grig">
+              <g stroke="#2A2730" stroke-width="1" opacity=".9">
+                <line x1="86" y1="162" x2="100" y2="182"/><line x1="94" y1="162" x2="100" y2="182"/>
+                <line x1="106" y1="162" x2="100" y2="182"/><line x1="114" y1="162" x2="100" y2="182"/>
+              </g>
+              <rect x="92" y="168" width="16" height="8" rx="1.5" fill="${C.steel}"/>
+              <circle cx="100" cy="182" r="2.2" fill="none" stroke="${C.steel}" stroke-width="1.4"/>
+              <rect x="94" y="186" width="12" height="4.5" rx="1" fill="${C.steel}"/>
             </g>
-            <rect x="92" y="168" width="16" height="8" rx="1.5" fill="${C.steel}"/>
-            <circle cx="100" cy="182" r="2.2" fill="none" stroke="${C.steel}" stroke-width="1.4"/>
-            <rect x="94" y="186" width="12" height="4.5" rx="1" fill="${C.steel}"/>
-            <path d="${capsule(100, 190, 22, 36, 30)}" fill="${C.paper}"/>
-            <path d="${capsule(100, 190, 22, 36, 30)}" fill="url(#v-body)"/>
-            <path d="M82,220 Q100,228 118,220 L118,221.5 Q100,229.5 82,221.5Z" fill="${C.navy}"/>
-            <circle cx="100" cy="204" r="9" fill="${C.amber}" opacity=".35"/>
-            <circle cx="100" cy="204" r="5.5" fill="${C.night}" stroke="${C.amber}" stroke-width="1.5"/>
-            <path class="v-gfrost" d="${capsule(100, 190, 22, 36, 30)}" fill="none" stroke="#fff" stroke-width="1.2" opacity="0"/>
+            <g class="v-gshl" clip-path="url(#v-cl)">${shell('l')}</g>
+            <g class="v-gshr" clip-path="url(#v-cr)">${shell('r')}</g>
+            <line class="v-gseam" x1="100" y1="190" x2="100" y2="221" stroke="${C.cream}" stroke-width="1.4" opacity="0"/>
+            <g class="v-gwin" style="transform-origin:100px 204px">
+              <circle cx="100" cy="204" r="9" fill="${C.amber}" opacity=".35"/>
+              <circle cx="100" cy="204" r="5.5" fill="${C.night}" stroke="${C.amber}" stroke-width="1.5"/>
+              <path d="M96.4,202.6 A4,4 0 0 1 99.4,199.8" fill="none" stroke="${C.cream}" stroke-opacity=".7" stroke-width=".8" stroke-linecap="round"/>
+            </g>
+            <path class="v-gfrost" d="${gon}" fill="none" stroke="#fff" stroke-width="1.2" opacity="0"/>
           </g>
         </g>
       </g>
@@ -214,52 +309,60 @@ K.vehicle = (() => {
       <!-- STAGES 2–3: the rocket (hangs small under the balloon, then flies) -->
       <g class="v-payload" style="transform-origin:100px 40px;opacity:0">
         <g class="v-tilt" style="transform-origin:100px 110px">
-          <g class="v-plumewrap" style="transform-origin:100px 186px">
-            <circle cx="100" cy="190" r="30" fill="url(#v-glow)" opacity=".5"/>
+          <g class="v-plumewrap" style="transform-origin:100px 182px">
+            <circle cx="100" cy="186" r="30" fill="url(#v-glow)" opacity=".5"/>
             <path class="v-plume-o" fill="${C.ember}" opacity=".55"/>
             <path class="v-plume-m" fill="url(#v-plume)"/>
             <path class="v-plume-c" fill="${C.cream}" opacity=".9"/>
           </g>
           <g class="v-booster" style="transform-origin:100px 130px">
-            <path d="M89,150 L76,180 L89,176Z M111,150 L124,180 L111,176Z" fill="${C.ember}"/>
-            <rect x="89" y="88" width="22" height="88" fill="${C.paper}"/>
-            <rect x="89" y="88" width="22" height="88" fill="url(#v-body)"/>
-            <rect x="89" y="100" width="22" height="4" fill="${C.navy}"/>
-            <rect x="89" y="160" width="22" height="4" fill="${C.navy}"/>
-            <rect x="98" y="150" width="4" height="26" fill="${C.ember}"/>
-            <path d="M94,176 L106,176 L110,186 L90,186Z" fill="${C.steel}"/>
-            <path d="M83,80 L117,80 L111,88 L89,88Z" fill="${C.navy}"/>
+            <g class="v-finl" style="transform-origin:86px 174px">
+              <path d="M86,138 L68,178 L68,186 L86,175Z" fill="${C.ember}"/>
+              <path d="M86,138 L68,178 L68,186 L86,175Z" fill="${C.night}" opacity=".18"/>
+              ${inked('M86,138 L68,178 L68,186 L86,175', 0.6, 1)}
+            </g>
+            <g class="v-finr" style="transform-origin:114px 174px">
+              <path d="M114,138 L132,178 L132,186 L114,175Z" fill="${C.ember}"/>
+              ${hatch('M114,138 L132,178 L132,186 L114,175Z', 0.45)}
+              ${inked('M114,138 L132,178 L132,186 L114,175', 0.6, 1)}
+            </g>
+            <path d="M86,92 L114,92 L114,168 L86,168Z" fill="${C.paper}"/>
+            <path d="M86,92 L114,92 L114,168 L86,168Z" fill="url(#v-body)"/>
+            ${hatch('M107,92 L114,92 L114,168 L107,168Z', 0.4)}
+            <rect x="86" y="150" width="28" height="8" fill="${C.ember}"/>
+            <path d="M86,150 L93,158 M93,150 L100,158 M100,150 L107,158 M107,150 L114,158" stroke="${C.paper}" stroke-opacity=".55" stroke-width="1.2"/>
+            <rect x="86" y="92" width="28" height="3" fill="${C.navy}"/>
+            <path d="M97,144 L103,144 L103,182 L97,182Z" fill="${C.navy}"/>
+            <path d="M91,168 L109,168 L113,182 L87,182Z" fill="${C.steel}"/>
+            <path d="M93,172 L107,172" stroke="${C.night}" stroke-opacity=".5" stroke-width="1"/>
+            ${inked('M86,168 L86,92 M114,92 L114,168 M91,168 L109,168 L113,182 L87,182Z', 0.6, 1.2)}
           </g>
-          <g class="v-rcap">
-            <path d="M91,40 Q100,33 109,40 L117,80 L83,80Z" fill="${C.paper}"/>
-            <path d="M91,40 Q100,33 109,40 L117,80 L83,80Z" fill="url(#v-body)"/>
-            <circle cx="100" cy="60" r="4.2" fill="${C.night}" stroke="${C.amber}" stroke-width="1.3"/>
-            <path d="M83,80 Q100,85 117,80" fill="none" stroke="${C.navy}" stroke-width="2"/>
-          </g>
-          <circle class="v-flash" cx="100" cy="186" r="40" fill="#FFF6DF" opacity="0" style="transform-origin:100px 186px"/>
+          <g class="v-rcap">${capsuleArt()}</g>
+          <circle class="v-flash" cx="100" cy="182" r="40" fill="#FFF6DF" opacity="0" style="transform-origin:100px 182px"/>
         </g>
       </g>
 
-      <!-- STAGE 4: the capsule in space -->
+      <!-- STAGE 4: the capsule in space, panels hinged out -->
       <g class="v-orbiter" style="transform-origin:100px 120px;opacity:0">
-        <g class="v-bob4" style="transform-origin:100px 120px"><g transform="translate(100 124) scale(1.3) translate(-100 -120)">
-          <g class="v-wing" style="transform-origin:80px 120px">
-            <line x1="74" y1="120" x2="82" y2="120" stroke="${C.steel}" stroke-width="2"/>
-            <rect x="30" y="113" width="44" height="14" fill="${C.navy}" stroke="${C.amber}" stroke-width=".6"/>
-            <path d="M41,113V127M52,113V127M63,113V127M30,120H74" stroke="${C.amber}" stroke-width=".6"/>
+        <g class="v-bob4" style="transform-origin:100px 126px"><g transform="translate(100 126) scale(1.3) translate(-100 -65)">
+          <g class="v-wing v-wingl" style="transform-origin:86px 71px">
+            <line x1="86" y1="71" x2="78" y2="71" stroke="${C.steel}" stroke-width="1.8"/>
+            <rect x="36" y="65" width="42" height="12" fill="${C.navy}" stroke="${C.amber}" stroke-width=".6"/>
+            <path d="M46.5,65V77M57,65V77M67.5,65V77M36,71H78" stroke="${C.amber}" stroke-width=".6"/>
+            <path d="M36,65 H78" stroke="#FFFFFF" stroke-opacity=".35" stroke-width=".7"/>
           </g>
-          <g class="v-wing" style="transform-origin:120px 120px">
-            <line x1="118" y1="120" x2="126" y2="120" stroke="${C.steel}" stroke-width="2"/>
-            <rect x="126" y="113" width="44" height="14" fill="${C.navy}" stroke="${C.amber}" stroke-width=".6"/>
-            <path d="M137,113V127M148,113V127M159,113V127M126,120H170" stroke="${C.amber}" stroke-width=".6"/>
+          <g class="v-wing v-wingr" style="transform-origin:114px 71px">
+            <line x1="114" y1="71" x2="122" y2="71" stroke="${C.steel}" stroke-width="1.8"/>
+            <rect x="122" y="65" width="42" height="12" fill="${C.navy}" stroke="${C.amber}" stroke-width=".6"/>
+            <path d="M132.5,65V77M143,65V77M153.5,65V77M122,71H164" stroke="${C.amber}" stroke-width=".6"/>
+            <path d="M122,65 H164" stroke="#FFFFFF" stroke-opacity=".35" stroke-width=".7"/>
           </g>
-          <line class="v-antenna" x1="100" y1="98" x2="100" y2="80" stroke="${C.steel}" stroke-width="1.2" style="transform-origin:100px 98px"/>
-          <circle class="v-tip" cx="100" cy="80" r="1.8" fill="${C.amber}"/>
-          <path d="M88,98 Q100,92 112,98 L120,142 L80,142Z" fill="${C.paper}"/>
-          <path d="M88,98 Q100,92 112,98 L120,142 L80,142Z" fill="url(#v-body)"/>
-          <path d="M88,98 L80,142" stroke="${C.amber}" stroke-width="1.4" opacity=".7"/>
-          <circle cx="100" cy="116" r="5" fill="${C.night}" stroke="${C.amber}" stroke-width="1.4"/>
-          <path d="M80,142 Q100,148 120,142" fill="none" stroke="${C.navy}" stroke-width="2.4"/>
+          <g class="v-antenna" style="transform-origin:100px 38px">
+            <line x1="100" y1="38" x2="100" y2="24" stroke="${C.steel}" stroke-width="1.2"/>
+            <circle class="v-tip" cx="100" cy="23.5" r="1.6" fill="${C.amber}"/>
+          </g>
+          ${capsuleArt()}
+          <path d="M85,90.5 Q100,96.5 115,90.5" fill="none" stroke="${C.navy}" stroke-width="2.4" stroke-linecap="round"/>
         </g></g>
       </g>`;
 
@@ -268,8 +371,10 @@ K.vehicle = (() => {
       hot: q('.v-hot'), gores: q('.v-gores'), pins: q('.v-pins'), teeth: q('.v-teeth'), medal: q('.v-medal'),
       frost: q('.v-frost'), flame: q('.v-flame'), glow: q('.v-glowwrap'),
       basket: q('.v-basket'), swing: q('.v-swing'), gondola: q('.v-gondola'), swing2: q('.v-swing2'), gfrost: q('.v-gfrost'),
+      grig: q('.v-grig'), gshl: q('.v-gshl'), gshr: q('.v-gshr'), gseam: q('.v-gseam'), gwin: q('.v-gwin'),
       helium: q('.v-helium'), bubble: q('.v-bubble'), tapes: q('.v-tapes'), pleats: q('.v-pleats'), valve: q('.v-valve'),
       payload: q('.v-payload'), tilt: q('.v-tilt'), plume: q('.v-plumewrap'), booster: q('.v-booster'), rcap: q('.v-rcap'),
+      finl: q('.v-finl'), finr: q('.v-finr'),
       po: q('.v-plume-o'), pm: q('.v-plume-m'), pc: q('.v-plume-c'), flash: q('.v-flash'),
       orbiter: q('.v-orbiter'), bob4: q('.v-bob4'), wings: svg.querySelectorAll('.v-wing'), tip: q('.v-tip'), antenna: q('.v-antenna'),
     };
@@ -288,16 +393,21 @@ K.vehicle = (() => {
   /* ---------------------------------------------------------- per-stage looks */
   const PAYLOAD_HANG = 'translate(0px, 110px) scale(0.6)';      // under the helium balloon
   const PAYLOAD_FLY = 'translate(0px, 0px) scale(1)';
+  const FIN_FOLDED = 'scaleX(0.08)';                              // fins lie flat until the burn
+  const WING_FOLDED = ['rotate(-90deg)', 'rotate(90deg)'];        // panels lie along the capsule until space
+
+  /** Every part that a transition may move, so show() can reset them all. */
+  const MOVERS = () => [el.hot, el.basket, el.gondola, el.grig, el.gshl, el.gshr, el.gseam, el.gwin, el.helium, el.payload, el.booster, el.rcap, el.plume, el.finl, el.finr, el.orbiter, el.antenna, ...el.wings];
 
   /** Jump straight to the look of a stage (no animation). */
   function show(s) {
     stage = s;
     const vis = (node, on) => { node.style.opacity = on ? '1' : '0'; node.style.visibility = on ? 'visible' : 'hidden'; };
-    [el.hot, el.basket, el.gondola, el.helium, el.payload, el.booster, el.rcap, el.plume, el.orbiter].forEach((n) => {
+    for (const n of MOVERS()) {
       n.getAnimations().forEach((a) => a.cancel());
       n.style.transform = '';
-    });
-    el.wings.forEach((w) => { w.getAnimations().forEach((a) => a.cancel()); w.style.transform = ''; });
+      n.style.opacity = '';
+    }
     vis(el.hot, s <= 1);
     vis(el.basket, s === 0);
     vis(el.gondola, s === 1);
@@ -307,13 +417,27 @@ K.vehicle = (() => {
     vis(el.rcap, true);
     vis(el.plume, s === 3);
     el.payload.style.transform = s === 2 ? PAYLOAD_HANG : PAYLOAD_FLY;
+    el.finl.style.transform = el.finr.style.transform = s === 2 ? FIN_FOLDED : '';
     vis(el.orbiter, s === 4);
+    el.gseam.setAttribute('opacity', '0');
     el.flash.setAttribute('opacity', '0');
   }
 
-  /* ---------------------------------------------------------- transitions */
-  const anim = (node, frames, ms, delay = 0, easing = 'cubic-bezier(.16,1,.3,1)') =>
-    node.animate(frames, { duration: ms, delay, easing, fill: 'forwards' });
+  /* ---------------------------------------------------------- transitions
+     Each is a timeline of WAAPI animations with delays, about 1.2 s long:
+     parts arrive, adjust and settle, in order, like a suit being put on. */
+  const SETTLE = 'cubic-bezier(.16,1,.3,1)';
+  const DROP = 'cubic-bezier(.55,0,1,.45)';
+  /* A timeline with more than two keyframes runs on a linear clock, and
+     each segment eases on its own (SETTLE unless the keyframe says otherwise),
+     so the middle keyframes are honoured instead of being blown through. */
+  function anim(node, frames, ms, delay = 0, easing) {
+    if (frames.length > 2 && !easing) {
+      easing = 'linear';
+      frames = frames.map((f) => (f.easing ? f : { ...f, easing: SETTLE }));
+    }
+    return node.animate(frames, { duration: ms, delay, easing: easing || SETTLE, fill: 'both' });
+  }
   const appear = (node) => { node.style.visibility = 'visible'; };
 
   function play(to, quick) {
@@ -328,59 +452,101 @@ K.vehicle = (() => {
       return 220;
     }
     const pt = (x, y) => K.scene.svgPoint(x, y);
+    const later = (fn, ms) => setTimeout(() => { if (stage === to) fn(); }, ms * k);
 
     if (from === 0 && to === 1) {                 // 15 km: the basket is sealed into a gondola
       K.audio.stage('seal');
-      const p = pt(100, 205);
-      K.fx.embers(p.x, p.y, { count: 14, speed: 90, life: 0.7, color: C.paper });
-      K.scene.flare(1.3);
+      K.scene.flare(1.2);
       appear(el.gondola);
-      anim(el.basket, [{ transform: 'scaleY(1)', opacity: 1 }, { transform: 'scaleY(0)', opacity: 0 }], 300 * k, 120 * k, 'cubic-bezier(.55,0,1,.45)');
-      anim(el.gondola, [{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1.08)', opacity: 1, offset: 0.7 }, { transform: 'scale(1)', opacity: 1 }], 400 * k, 160 * k);
-      return 720 * k;
+      el.gondola.style.opacity = '1';
+      // 1. the wicker lets go and drops away
+      anim(el.basket, [{ transform: 'scaleY(1)', opacity: 1 }, { transform: 'scaleY(.7) translateY(14px)', opacity: 0 }], 380 * k, 0, DROP);
+      // 2. the ropes gather to a ring
+      anim(el.grig, [{ opacity: 0 }, { opacity: 1 }], 320 * k, 160 * k, 'ease-out');
+      // 3. the two shells slide in from either side and meet
+      anim(el.gshl, [{ transform: 'translate(-36px, 10px)', opacity: 0 }, { transform: 'translate(-36px, 10px)', opacity: 1, offset: 0.2 }, { transform: 'translate(0, 0)', opacity: 1 }], 560 * k, 260 * k);
+      anim(el.gshr, [{ transform: 'translate(36px, 10px)', opacity: 0 }, { transform: 'translate(36px, 10px)', opacity: 1, offset: 0.2 }, { transform: 'translate(0, 0)', opacity: 1 }], 560 * k, 300 * k);
+      // 4. the seam seals with a glint
+      anim(el.gseam, [{ opacity: 0 }, { opacity: 0.95, offset: 0.35 }, { opacity: 0 }], 300 * k, 800 * k, 'ease-in-out');
+      later(() => { const p = pt(100, 205); K.fx.embers(p.x, p.y, { count: 10, speed: 80, life: 0.6, color: C.paper }); }, 820);
+      // 5. the porthole lights
+      anim(el.gwin, [{ transform: 'scale(.3)', opacity: 0 }, { transform: 'scale(1.12)', opacity: 1, offset: 0.7 }, { transform: 'scale(1)', opacity: 1 }], 340 * k, 900 * k);
+      return 1240 * k;
     }
-    if (from === 1 && to === 2) {                 // 21 km: helium balloon takes over
+    if (from === 1 && to === 2) {                 // 21 km: helium balloon takes over, rocket latches under it
       K.audio.stage('swap');
       appear(el.helium); appear(el.payload);
+      el.helium.style.opacity = '1'; el.payload.style.opacity = '1';
       el.payload.style.transform = PAYLOAD_HANG;
+      el.finl.style.transform = el.finr.style.transform = FIN_FOLDED;
       el.plume.style.visibility = 'hidden'; el.plume.style.opacity = '0';
-      anim(el.hot, [{ transform: 'scaleX(1)', opacity: 1 }, { transform: 'scaleX(.25) translateY(-30px)', opacity: 0 }], 420 * k, 0, 'cubic-bezier(.55,0,1,.45)');
-      anim(el.helium, [{ transform: 'scale(0)', opacity: 0 }, { transform: 'scale(1.06)', opacity: 1, offset: 0.75 }, { transform: 'scale(1)', opacity: 1 }], 420 * k, 150 * k);
-      anim(el.payload, [{ transform: 'translate(0px, 170px) scale(0.6)', opacity: 0 }, { transform: 'translate(0px, 106px) scale(0.6)', opacity: 1, offset: 0.8 }, { transform: PAYLOAD_HANG, opacity: 1 }], 420 * k, 300 * k);
-      return 820 * k;
+      // 1. the hot-air envelope goes limp and folds away upward
+      anim(el.hot, [
+        { transform: 'scale(1, 1) translateY(0)', opacity: 1, easing: 'ease-in-out' },
+        { transform: 'scale(.9, 1.05) translateY(-6px)', opacity: 1, offset: 0.4, easing: DROP },
+        { transform: 'scale(.16, 1.2) translateY(-54px)', opacity: 0 },
+      ], 640 * k, 0);
+      // 2. the helium bubble inflates from its valve
+      anim(el.helium, [{ transform: 'scale(.04)', opacity: 0, easing: 'ease-in' }, { transform: 'scale(.3)', opacity: 1, offset: 0.25, easing: 'ease-in-out' }, { transform: 'scale(1.05)', offset: 0.82 }, { transform: 'scale(1)' }], 700 * k, 320 * k);
+      // 3. the rocket rises on its line and latches, with a small overshoot
+      anim(el.payload, [
+        { transform: 'translate(0px, 206px) scale(0.6)', opacity: 0, easing: 'linear' },
+        { transform: 'translate(0px, 180px) scale(0.6)', opacity: 1, offset: 0.25, easing: 'cubic-bezier(.3,.6,.3,1)' },
+        { transform: 'translate(0px, 104px) scale(0.6)', offset: 0.72, easing: 'ease-in-out' },
+        { transform: 'translate(0px, 113px) scale(0.6)', offset: 0.86, easing: 'ease-in-out' },
+        { transform: PAYLOAD_HANG },
+      ], 600 * k, 640 * k);
+      later(() => { const p = pt(100, 150); K.fx.sparks(p.x, p.y, { count: 5, speed: 70, color: C.paper }); }, 1080);
+      return 1280 * k;
     }
-    if (from === 2 && to === 3) {                 // 45 km: release, drop, ignition
+    if (from === 2 && to === 3) {                 // 45 km: release, drop, fins out, ignition
       K.audio.stage('ignite');
       const cut = pt(100, 150);
-      K.fx.sparks(cut.x, cut.y, { count: 14, speed: 160, color: C.amber });
-      anim(el.helium, [{ transform: 'translateY(0)', opacity: 1 }, { transform: 'translateY(-260px)', opacity: 0 }], 780 * k, 120 * k, 'cubic-bezier(.55,0,1,.45)');
+      K.fx.sparks(cut.x, cut.y, { count: 12, speed: 150, color: C.amber });
+      // 1. the line is cut: the balloon floats away, the rocket falls
+      anim(el.helium, [{ transform: 'translateY(0)', opacity: 1, easing: 'ease-in' }, { transform: 'translateY(-36px)', opacity: 1, offset: 0.3, easing: DROP }, { transform: 'translateY(-300px)', opacity: 0 }], 1000 * k, 60 * k);
       anim(el.payload, [
-        { transform: PAYLOAD_HANG },
-        { transform: 'translate(0px, 120px) scale(0.6)', offset: 0.35, easing: 'cubic-bezier(.55,0,1,.45)' },
+        { transform: PAYLOAD_HANG, easing: DROP },
+        { transform: 'translate(0px, 140px) scale(0.6)', offset: 0.34, easing: 'linear' },
+        { transform: 'translate(0px, 146px) scale(0.62)', offset: 0.52, easing: 'cubic-bezier(.2,.7,.2,1)' },
         { transform: PAYLOAD_FLY },
-      ], 780 * k, 120 * k);
+      ], 1260 * k, 0);
+      // 2. the fins unfold while it falls
+      const fin = [{ transform: FIN_FOLDED }, { transform: 'scaleX(1.18)', offset: 0.75 }, { transform: 'scaleX(1)' }];
+      anim(el.finl, fin, 340 * k, 380 * k);
+      anim(el.finr, fin, 340 * k, 430 * k);
+      // 3. ignition: a flash, then the plume grows and the rocket climbs to its flying position
       appear(el.plume);
-      anim(el.plume, [{ transform: 'scaleY(0)', opacity: 0 }, { transform: 'scaleY(1)', opacity: 1 }], 480 * k, 420 * k);
-      setTimeout(() => {
-        const n = pt(100, 186);
+      anim(el.plume, [{ transform: 'scaleY(0)', opacity: 0, easing: 'ease-out' }, { transform: 'scaleY(.5)', opacity: 1, offset: 0.3 }, { transform: 'scaleY(1)', opacity: 1 }], 420 * k, 650 * k);
+      later(() => {
+        const n = pt(100, 182);
         K.fx.ringBurst(n.x, n.y, '#FFD9A0');
-        K.fx.embers(n.x, n.y, { count: 30, speed: 260, color: C.amber });
+        K.fx.embers(n.x, n.y, { count: 28, speed: 250, color: C.amber });
         K.fx.nudge();
-        el.flash.animate([{ transform: 'scale(0)', opacity: 0.9 }, { transform: 'scale(1)', opacity: 0 }], { duration: 260, easing: 'ease-out' });
-      }, 380 * k);
-      return 900 * k;
+        el.flash.animate([{ transform: 'scale(0)', opacity: 0.9 }, { transform: 'scale(1)', opacity: 0 }], { duration: 280, easing: 'ease-out' });
+      }, 650);
+      return 1300 * k;
     }
-    if (from === 3 && to === 4) {                 // 100 km: cut-off, separation, panels out
+    if (from === 3 && to === 4) {                 // 100 km: cut-off, separation, panels hinge out, antenna up
       K.audio.stage('separate');
-      anim(el.plume, [{ opacity: 1, transform: 'scaleY(1)' }, { opacity: 0, transform: 'scaleY(.2)' }], 120 * k, 0);
-      const s = pt(100, 84);
-      K.fx.sparks(s.x, s.y, { count: 10, speed: 140, color: C.paper });
-      anim(el.booster, [{ transform: 'translateY(0) rotate(0deg)', opacity: 1 }, { transform: 'translateY(90px) rotate(25deg)', opacity: 0 }], 650 * k, 150 * k, 'cubic-bezier(.55,0,1,.45)');
-      anim(el.rcap, [{ opacity: 1 }, { opacity: 0 }], 250 * k, 150 * k);
+      // 1. the burn ends
+      anim(el.plume, [{ opacity: 1, transform: 'scaleY(1)' }, { opacity: 0, transform: 'scaleY(.2)' }], 160 * k, 0);
+      later(() => { const s = pt(100, 90); K.fx.sparks(s.x, s.y, { count: 10, speed: 130, color: C.paper }); }, 200);
+      // 2. the booster falls away, tumbling
+      anim(el.booster, [{ transform: 'translateY(0) rotate(0deg)', opacity: 1, easing: 'ease-in' }, { transform: 'translateY(16px) rotate(2deg)', opacity: 1, offset: 0.25, easing: DROP }, { transform: 'translateY(120px) rotate(24deg)', opacity: 0 }], 820 * k, 200 * k);
+      // 3. the capsule drifts up to the centre of the frame, growing as the camera closes in
       appear(el.orbiter);
-      anim(el.orbiter, [{ transform: 'translateY(-60px) scale(.85)', opacity: 0 }, { transform: 'translateY(-60px) scale(.85)', opacity: 1, offset: 0.3 }, { transform: 'translateY(0) scale(1)', opacity: 1 }], 800 * k, 150 * k);
-      el.wings.forEach((w) => anim(w, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1.08)', offset: 0.8 }, { transform: 'scaleX(1)' }], 450 * k, 450 * k));
-      return 950 * k;
+      el.orbiter.style.opacity = '1';
+      el.wings[0].style.transform = WING_FOLDED[0];
+      el.wings[1].style.transform = WING_FOLDED[1];
+      el.antenna.style.transform = 'scaleY(0)';
+      anim(el.rcap, [{ opacity: 1, easing: 'linear' }, { opacity: 1, offset: 0.4, easing: 'ease-in' }, { opacity: 0 }], 360 * k, 200 * k);
+      anim(el.orbiter, [{ transform: 'translateY(-61px) scale(.77)', opacity: 0 }, { transform: 'translateY(-61px) scale(.77)', opacity: 1, offset: 0.3 }, { transform: 'translateY(0) scale(1)', opacity: 1 }], 820 * k, 240 * k);
+      // 4. the panels hinge out, one then the other, and the antenna extends
+      anim(el.wings[0], [{ transform: WING_FOLDED[0] }, { transform: 'rotate(7deg)', offset: 0.78 }, { transform: 'rotate(0deg)' }], 420 * k, 860 * k);
+      anim(el.wings[1], [{ transform: WING_FOLDED[1] }, { transform: 'rotate(-7deg)', offset: 0.78 }, { transform: 'rotate(0deg)' }], 420 * k, 940 * k);
+      anim(el.antenna, [{ transform: 'scaleY(0)' }, { transform: 'scaleY(1.15)', offset: 0.7 }, { transform: 'scaleY(1)' }], 300 * k, 1120 * k);
+      return 1440 * k;
     }
     show(to);                                    // any other jump (e.g. a big climb): no ceremony
     return 0;
@@ -430,13 +596,13 @@ K.vehicle = (() => {
     if (stage === 2 || el.helium.style.visibility === 'visible') {
       if (!calm) tapePhase += dt * ((Math.PI * 2) / 40);
       drawHelium(ease(clamp((km - 21) / 24, 0, 1)), tapePhase);
-      if (!calm && stage === 2) el.payload.style.transform = `translate(0px, 110px) scale(0.6) rotate(${(Math.sin(t * 1.05) * 1.5).toFixed(2)}deg)`;
+      if (!calm && stage === 2 && !el.payload.getAnimations().length) el.payload.style.transform = `translate(0px, 110px) scale(0.6) rotate(${(Math.sin(t * 1.05) * 1.5).toFixed(2)}deg)`;
     }
 
     // Rocket: flickering plume that spreads out as the air thins, slight tilt.
     if (stage === 3) {
       const f = clamp((km - 45) / 55, 0, 1);
-      const jitter = calm ? 0 : Math.sin(t * 37) * 0.6;
+      const jitter = calm ? 0 : Math.sin(t * 37) * 0.5;
       el.tilt.style.transform = `translateX(${jitter.toFixed(2)}px) rotate(${(f * 6).toFixed(2)}deg)`;
       drawPlume(calm ? 57 : 57 + Math.sin(t * 13) * 3 + Math.sin(t * 21) * 2 + Math.sin(t * 7.7) * 2, 1 + f * 1.2, 0.95 - f * 0.35);
     } else if (el.tilt.style.transform) {
@@ -455,13 +621,12 @@ K.vehicle = (() => {
     const N = gores.n, step = (Math.PI * 2) / N;
     let g = 0, p = 0, th = 0;
     const wrap = (a) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
-    const front = (a) => Math.cos(a) > 0;
-    const yA = ENV_YS.indexOf(126), yB = ENV_YS.length - 1;
+    const r1 = rAt(126), r2 = rAt(138);
     for (let k = 0; k < N; k++) {
       const a0 = wrap(phase + k * step);
-      let a = a0, b = a0 + step;
-      // Clip to the visible half (−π/2 … π/2).
-      const lo = Math.max(a, -Math.PI / 2), hi = Math.min(b, Math.PI / 2);
+      const b = a0 + step;
+      // Clip to the visible half, a hair inside the silhouette.
+      const lo = Math.max(a0, -EDGE), hi = Math.min(b, EDGE);
       const isEmber = k % 3 !== 2;
       if (hi > lo && g < el.gorePool.length) {
         const path = el.gorePool[g++];
@@ -470,16 +635,15 @@ K.vehicle = (() => {
       }
       // Seam pinline between the two ember gores of each pair.
       if (k % 3 === 0) {
-        const seam = wrap(a0 + step);
-        if (front(seam) && p < el.pinPool.length) el.pinPool[p++].setAttribute('d', meridianPath(seam));
+        const seam = wrap(b);
+        if (Math.abs(seam) < EDGE && p < el.pinPool.length) el.pinPool[p++].setAttribute('d', meridianPath(seam));
       }
-      // Tooth: one navy triangle per gore under the belly.
-      const c = a0 + step / 2;
-      if (Math.cos(a0) > 0.05 && Math.cos(a0 + step) > 0.05 && th < el.teethPool.length) {
-        const r1 = rAt(126), r2 = rAt(138);
-        el.teethPool[th++].setAttribute('d', `M${(100 + r1 * Math.sin(a0)).toFixed(2)},126 L${(100 + r1 * Math.sin(a0 + step)).toFixed(2)},126 L${(100 + r2 * Math.sin(c)).toFixed(2)},138Z`);
+      // Tooth: one navy triangle per gore under the belly. Clipped like the
+      // gores, so a tooth turns into view gradually instead of popping.
+      if (hi > lo && hi - lo > 0.02 && th < el.teethPool.length) {
+        const c = (lo + hi) / 2;
+        el.teethPool[th++].setAttribute('d', `M${(100 + r1 * Math.sin(lo)).toFixed(2)},126 L${(100 + r1 * Math.sin(hi)).toFixed(2)},126 L${(100 + r2 * Math.sin(c)).toFixed(2)},138Z`);
       }
-      void yA; void yB; void b;
     }
     for (let i = g; i < el.gorePool.length; i++) el.gorePool[i].setAttribute('d', '');
     for (let i = p; i < el.pinPool.length; i++) el.pinPool[i].setAttribute('d', '');
@@ -520,7 +684,7 @@ K.vehicle = (() => {
   }
 
   function drawPlume(len, widen, alpha) {
-    const y0 = 186;
+    const y0 = 182;
     const shape = (w, l) => `M${100 - w},${y0} C${100 - w * 1.1},${y0 + l * 0.35} ${100 - w * 0.5},${y0 + l * 0.8} 100,${y0 + l} C${100 + w * 0.5},${y0 + l * 0.8} ${100 + w * 1.1},${y0 + l * 0.35} ${100 + w},${y0}Z`;
     el.po.setAttribute('d', shape(11 * widen, len));
     el.pm.setAttribute('d', shape(8 * widen, len * 0.8));
@@ -540,7 +704,7 @@ K.vehicle = (() => {
   /** Width chips change the gore count: tighter bet, tighter stripes. */
   function setGores(n, twirl) {
     gores.n = n;
-    if (twirl) gores.spin = 1.4;
+    if (twirl) gores.spin = 0.95;   // a quick turn, eased back to idle by the frame loop
   }
   const spin = (v) => { gores.spin = v; };
   /** A gentle pendulum kick to the basket (take-off). */
@@ -549,9 +713,9 @@ K.vehicle = (() => {
   /** Points on the craft in viewBox units, for particles. Depends on stage. */
   function anchor(which) {
     const s = stage;
-    if (which === 'burner') return s <= 1 ? [100, 166] : s === 2 ? [100, 238] : s === 3 ? [100, 190] : [100, 145];
-    if (which === 'basket') return s === 0 ? [100, 222] : s === 1 ? [100, 224] : s === 2 ? [100, 238] : [100, 145];
-    return s <= 1 ? [100, 70] : s === 2 ? [100, 50] : s === 3 ? [100, 70] : [100, 120];
+    if (which === 'burner') return s <= 1 ? [100, 166] : s === 2 ? [100, 236] : s === 3 ? [100, 184] : [100, 150];
+    if (which === 'basket') return s === 0 ? [100, 222] : s === 1 ? [100, 224] : s === 2 ? [100, 236] : [100, 150];
+    return s <= 1 ? [100, 70] : s === 2 ? [100, 50] : s === 3 ? [100, 70] : [100, 126];
   }
 
   return { build, frame, set, setGores, spin, kick, anchor, stageOf, get stage() { return stage; }, STAGES };

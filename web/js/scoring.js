@@ -42,7 +42,7 @@ K.scoring = (() => {
     { id: 'skydive',     km: 39,    name: 'Record skydive height', short: 'Skydive' },
     { id: 'stratopause', km: 50,    name: 'The stratopause',       short: 'Stratopause' },
     { id: 'karman',      km: 100,   name: 'The Kármán line',       short: 'Space' },
-    { id: 'orbit',       km: 140,   name: 'The ceiling: 140 km',   short: 'Ceiling' },
+    { id: 'orbit',       km: 140,   name: 'Apogee',                short: 'Apogee' },
   ];
 
   /* Stamp ink tiers. A milestone's ink upgrades as you pass it more often.

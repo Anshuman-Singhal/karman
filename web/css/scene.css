@@ -366,3 +366,54 @@ body {
    Heights and figures come back on the home and results screens. */
 body[data-screen="round"] .cap-fig { display: none; }
 body[data-screen="round"] .cap-sub:has(.cap-fig):not(:has(.cap-note)) { display: none; }
+
+/* ================= v16 · sky to 140 km, rocket, transformations ================= */
+
+/* ================= v16 · the edge of space ================= */
+/* ==========================================================================
+   KÁRMÁN · scene v16
+   Append to the END of web/css/scene.css, after v15.
+
+   Above the Kármán line the sky fills in: a deep star field and the sun as
+   a hard coin (a second canvas, #stars-deep, made by scene.js), aurora
+   curtains and meteors on the ambient canvas, two craft at the top of
+   their arcs, and the Apogee hairline at 140 km. Down low, the sunbeams
+   now fall from the sun, the skydiver is a figure under a drogue, and the
+   balloon loses its blurred drop shadow (ink does the work, and the SVG
+   no longer re-rasterises through a filter every frame).
+   ========================================================================== */
+
+#stars-deep { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; }
+
+/* The balloon: no per-frame filter. The dip-pen contour carries it. */
+#balloon { filter: none; }
+
+/* Two craft at the top of their arcs, hung like the landmarks. */
+.space-sight { position: absolute; top: 0; }
+.space-sight .sight-art { display: block; transform: translate(-50%, -50%); }
+.space-sight .sight-art svg { display: block; height: auto; overflow: visible; }
+.shepard .sight-art svg { width: 26px; }
+.x15 .sight-art svg { width: 58px; }
+
+/* The skydiver: a figure under a drogue, falling feet first off the 39 km line. */
+.diver svg { width: 26px; height: auto; transform: translate(-50%, -46%) rotate(4deg); }
+.diver-trail { top: 22px; height: 76px; }
+
+/* Apogee: a quiet cream hairline, dotted like a chart's limit. */
+.line-item .w-line.apogee {
+  height: 1px;
+  background: repeating-linear-gradient(to right, rgba(246, 238, 221, 0.5) 0 2px, transparent 2px 8px);
+}
+.apogee-item .cap { --cap-line: rgba(246, 238, 221, 0.6); }
+.apogee-item .cap::after { background: #F6EEDD; box-shadow: 0 0 0 1.5px rgba(10, 13, 28, 0.35), 0 0 10px rgba(246, 238, 221, 0.45); }
+.apogee-item .w-label { left: 0; transform: translateX(-50%); border-left: 0; border-radius: 3px; align-items: center; bottom: 8px; }
+.apogee-item .cap-fig { color: #F6EEDD; }
+
+/* Earth from space: a hair of airglow over the limb, the green of the night
+   sky's own light, which is what the aurora drapes over at apogee. */
+#earth::before {
+  content: ""; position: absolute; inset: -9px; border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(176, 236, 150, 0.22), 0 0 16px 5px rgba(150, 230, 130, 0.16);
+}
+.sputnik .sight-art svg { width: 34px; }
+.landmark.left .diver { left: 34%; }

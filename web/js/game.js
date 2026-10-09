@@ -270,7 +270,6 @@ K.game = (() => {
       setTimeout(() => K.coach.start(), K.fx.reduced() ? 0 : 500);
       return;
     }
-    legShownAt = Date.now();
     startTimer(C.ROUND_SECONDS);
   }
 
