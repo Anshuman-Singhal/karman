@@ -152,7 +152,7 @@ K.round = (() => {
     c.dataset.state = st;
     c.disabled = st === 'spent';
     c.innerHTML = {
-      ready: '<span class="ct-main">Clue</span><span class="ct-stub">½<small>pts</small></span>',
+      ready: '<span class="ct-main">Clue</span><span class="ct-stub">½<small>lift</small></span>',
       on: '<span class="ct-main">Clue on</span>',
       spent: `<span class="ct-main">Used on leg ${leg}</span>`,
     }[st];
@@ -168,7 +168,7 @@ K.round = (() => {
     const c = els.clue;
     if (c.dataset.state !== 'armed') {
       c.dataset.state = 'armed';
-      c.innerHTML = '<span class="ct-main">Confirm</span><span class="ct-stub">½<small>pts</small></span>';
+      c.innerHTML = '<span class="ct-main">Confirm</span><span class="ct-stub">½<small>lift</small></span>';
       c.setAttribute('aria-label', 'Tap again to use your clue. This leg pays half');
       els.hint.classList.remove('is-clue');
       els.hint.classList.add('is-cost');

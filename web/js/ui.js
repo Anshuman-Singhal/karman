@@ -424,9 +424,8 @@ K.ui = (() => {
     btn.classList.remove('nudge'); tag.classList.remove('in');
     if (!on) return;
     nudgeTimer = setTimeout(() => {
-      // Phones: the tickets can sit below the fold of the pass, so bring them up first.
-      const box = $('screen-results'), r = btn.getBoundingClientRect(), b = box.getBoundingClientRect();
-      if (r.bottom > b.bottom || r.top < b.top) btn.scrollIntoView({ block: 'center', behavior: K.fx.reduced() ? 'auto' : 'smooth' });
+      // The pass never scrolls itself: the score is the first thing to read.
+      // Below the fold the ticket still bumps, so it catches the eye on the way down.
       btn.classList.add('nudge');
       nudgeTimer = setTimeout(() => tag.classList.remove('in'), 6000);
     }, 1800);

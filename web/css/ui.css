@@ -1294,7 +1294,7 @@ body[data-screen="home"] #dock { height: max(calc(268px + env(safe-area-inset-bo
 
 
 /* Krillion-style footer line: tiny mono caps, links underlined */
-.site-foot { margin: 18px 0 2px; text-align: center; font: 500 10.5px/1.6 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(224, 230, 248, 0.38); }
+.site-foot { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 14px; margin: 18px 0 2px; text-align: center; font: 500 10.5px/1.6 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(224, 230, 248, 0.38); }
 .site-foot a { color: rgba(224, 230, 248, 0.7); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(224, 230, 248, 0.3); }
 .site-foot a:hover { color: var(--amber); }
 
@@ -1309,7 +1309,7 @@ body[data-screen="home"] #dock { height: max(calc(268px + env(safe-area-inset-bo
 .leaf b { flex: 1; display: grid; place-items: center; font: 800 15px/1 var(--f-display); color: var(--ink); }
 
 /* Copy passport: an ink stamp pressed onto the page itself */
-.pp-legend { padding-right: 84px; }
+.pp-legend { padding-right: 84px; min-height: 68px; align-content: flex-start; box-sizing: border-box; }   /* room for the stamp, so it never sits on the last visa's name */
 .pp-stamp { position: absolute; right: 14px; bottom: 12px; width: 78px; height: 78px; padding: 0; border: 0; background: none; cursor: pointer; transform: rotate(-12deg); transition: transform var(--d-state) var(--ease-spring); }
 .pp-stamp svg { width: 100%; height: 100%; overflow: visible; }
 .pps-ring { fill: rgba(255, 106, 61, 0.06); stroke: var(--ember); stroke-width: 3.5; }
@@ -2398,7 +2398,7 @@ body[data-screen="results"] #dock {
 /* ---------------------------------------------------------------- 3 · watermark */
 #screen-results::after {
   content: ""; position: absolute; z-index: -1; pointer-events: none;
-  top: 22px; right: 8px; width: 168px; height: 200px;
+  top: 18px; right: 10px; width: 132px; height: 156px;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 260' fill='none' stroke='%2314213D' stroke-width='1.4' stroke-linecap='round'%3E %3Cpath d='M110 44C160 44 190 80 190 122C190 160 152 190 126 214H94C68 190 30 160 30 122C30 80 60 44 110 44Z'/%3E %3Cpath d='M110 44C86 80 84 160 101 214M110 44C134 80 136 160 119 214M110 44C62 72 54 150 94 214M110 44C158 72 166 150 126 214'/%3E %3Cpath d='M94 214L100 236M126 214L120 236'/%3E %3Crect x='99' y='236' width='22' height='15' rx='2.5'/%3E %3C/svg%3E") center / contain no-repeat;
   opacity: 0.075;
 }
@@ -2460,7 +2460,7 @@ body[data-screen="results"] #dock {
         rgba(110, 82, 40, 0.16) 53%, rgba(140, 108, 58, 0.05) 70%, transparent 100%);
   }
   /* The watermark sits on the data page, to the right of the score. */
-  #screen-results::after { top: 24px; right: auto; left: 248px; width: 190px; height: 224px; }
+  #screen-results::after { top: 14px; right: auto; left: 256px; width: 124px; height: 146px; }
 
   /* Columns fade out before they pass under the printed rails. */
   .results .res-main, .results .res-side {
@@ -2673,6 +2673,9 @@ body[data-screen="round"]:has(#dock.away) #hud { opacity: 0; }
                 radial-gradient(circle at 100% 50%, transparent 4px, #000 4.5px) right / 51% 100% no-repeat;
 }
 @media (min-width: 720px) { #hud .hud-strip { max-width: 280px; } }
+/* Phones: the strip is short. The dots already say "leg 2 of 7", so the words
+   go, and the category gets the whole line instead of being cut mid-word. */
+@media (max-width: 719.98px) { #hud .cat-tag .leg-no, #hud .cat-tag .leg-of { display: none; } #hud .cat-tag { letter-spacing: 0.06em; } }
 
 /* The dial: ink bezel ticks, the arc of time left in ink (amber ≤ 15 s,
    ember ≤ 5 s), whole seconds in the middle. */
@@ -3454,8 +3457,10 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
    The pass drops to a slim strip; the rail shows where everyone landed and
    where each of your legs took you. */
 .res-handle { display: block; width: 100%; margin: -6px 0 6px; padding: 8px 0 6px; background: none; border: 0; cursor: grab; touch-action: none; }
+@media (min-width: 1024px) { .res-handle { display: none; } }
 .res-handle i { display: block; width: 44px; height: 5px; margin: 0 auto; border-radius: 3px; background: rgba(20, 33, 61, 0.22); }
-.pctl-sky { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; font: 600 13px/1 var(--f-ui); color: var(--amber-deep, #C25A12); text-decoration: none; }
+.pctl-read { flex-direction: column; align-items: flex-start; gap: 10px; }
+.pctl-sky { display: inline-flex; align-items: center; gap: 4px; margin: 0; align-self: flex-start; font: 600 13px/1 var(--f-ui); color: var(--amber-deep, #C25A12); text-decoration: none; }
 .pctl-sky svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 #screen-results .crowd-chart { display: none; }   /* the chart lives on the sky now, vertically */
 body[data-screen="results"] #dock { transition: border-color var(--d-state), width var(--d-sheet) var(--ease-out), height var(--d-sheet) var(--ease-out), translate 420ms var(--ease-out); }
@@ -3473,13 +3478,25 @@ body.res-collapsed .res-strip { display: flex; }
 #replay { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 300ms ease; }
 #replay.on { opacity: 1; }
 #replay .rp-chart { position: absolute; overflow: visible; }
-#replay .rp-bar { fill: rgba(246, 237, 219, 0.28); }
+/* Where everyone landed: one bar per 5 km, out from the rail. Yours is amber. */
+#replay .rp-bar { fill: rgba(246, 237, 219, 0.26); transform-box: fill-box; transform-origin: 0 50%; animation: rpGrow 520ms var(--ease-out) both; animation-delay: calc(90ms + var(--i, 0) * 9ms); }
 #replay .rp-bar.me { fill: #FFB547; }
-.rp-leg { position: absolute; translate: 0 -50%; display: flex; align-items: center; gap: 5px; font: 700 11px/1 var(--f-ui); color: #F6EDDB; white-space: nowrap; }
-.rp-leg i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px rgba(10, 13, 28, 0.6); }
-.rp-leg span { opacity: 0.7; }
-.rp-leg b { font: 800 12px/1 var(--f-display); letter-spacing: 0.04em; color: #FFB547; }
-.rp-leg.miss b { color: rgba(246, 237, 219, 0.5); }
+@keyframes rpGrow { from { transform: scaleX(0); } }
+#replay .rp-you { stroke: #FFB547; stroke-width: 1.2; stroke-dasharray: 3 3; }
+#replay .rp-you-t { fill: #FFB547; font: 800 11px var(--f-display); letter-spacing: 0.12em; }
+#replay .rp-tick { stroke: rgba(246, 237, 219, 0.55); stroke-width: 1; }
+#replay .rp-tick-t { fill: rgba(246, 237, 219, 0.6); font: 600 10px var(--f-ui); font-variant-numeric: tabular-nums; }
+/* Your legs: a thin line on the rail in the width's colour; a miss is a faint grey one. */
+.rp-leg { position: absolute; width: 16px; height: 1.5px; translate: 0 -50%; padding: 5px 0; box-sizing: content-box; margin-top: -5px; pointer-events: auto; cursor: default; outline: none; }
+.rp-leg i { display: block; width: 100%; height: 1.5px; background: var(--c); box-shadow: 0 0 4px rgba(0, 0, 0, 0.35); }
+.rp-leg.miss i { background: rgba(246, 237, 219, 0.32); box-shadow: none; }
+.rp-tag {
+  position: absolute; left: 22px; top: 50%; translate: 0 -50%;
+  padding: 3px 7px; border-radius: 4px; background: #F3E9D6; color: #14213D;
+  font: 600 11px/1 var(--f-ui); white-space: nowrap; letter-spacing: 0.02em;
+  opacity: 0; transition: opacity 140ms; pointer-events: none;
+}
+.rp-leg.show .rp-tag, .rp-leg:focus-visible .rp-tag { opacity: 1; }
 body.res-collapsed #scene { cursor: ns-resize; }
 @media (prefers-reduced-motion: reduce) { body[data-screen="results"] #dock { transition: none; } }
 
@@ -3491,8 +3508,12 @@ body.res-collapsed #screen-results { visibility: hidden; }
 #screen-results #btn-keep .kt-main small { opacity: 0.75; }
 
 /* replay: the rail stretches while the pass is down; milestone labels step aside for your legs */
-body.res-collapsed #rail { height: calc(100% - 64px - 150px - env(safe-area-inset-top, 0px)); }
-body.res-collapsed .rail-tick span, body.res-collapsed .rail-ghost { opacity: 0; }
-#replay .rp-area { fill: rgba(246, 237, 219, 0.16); stroke: rgba(246, 237, 219, 0.55); stroke-width: 1.2; }
-#replay .rp-you { stroke: #FFB547; stroke-width: 1.5; stroke-dasharray: 3 3; }
-#replay .rp-you-t { fill: #FFB547; font: 800 11px 'Big Shoulders Display', sans-serif; letter-spacing: 0.1em; }
+#rail { transition: opacity 300ms, left 420ms var(--ease-out), height 420ms var(--ease-out); }
+body.res-collapsed #rail { left: max(38px, calc(env(safe-area-inset-left, 0px) + 26px)); height: calc(100% - 64px - 150px - env(safe-area-inset-top, 0px)); }
+body.res-collapsed .rail-tick, body.res-collapsed .rail-ghost { opacity: 0; }
+.rail-tick { transition: opacity 300ms; }
+/* The balloon steps right so the chart has the left of the sky to itself. */
+#balloon-rig { transition: left 600ms var(--ease-out); }
+body.res-collapsed #balloon-rig { left: 64%; }
+@media (min-width: 720px) { body.res-collapsed #balloon-rig { left: 56%; } }
+@media (prefers-reduced-motion: reduce) { #rail, #balloon-rig { transition: none; } #replay .rp-bar { animation: none; } }

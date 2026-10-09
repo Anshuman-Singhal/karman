@@ -1,12 +1,16 @@
 /* ==========================================================================
    KÁRMÁN · replay.js
    After landing, the results pass can be swiped down to a slim strip so the
-   sky takes over. On the altitude rail we then draw:
-     • where everyone landed today: a vertical histogram of 5 km bars beside
-       the rail, your bar in amber ("the game is about going up");
-     • your seven legs: a marker at the altitude each leg carried you to,
-       with its lift, so you can see which answers got you higher;
-   and the pilot can drag on the sky to scroll back down through the climb.
+   sky takes over. The rail steps right to make room and becomes the axis:
+     • km ticks (0, 20, 50, 100, 140) to its left;
+     • where everyone landed today: one bar per 5 km bin, running out from
+       the rail, your bin in amber, a dashed YOU line at your altitude.
+       Kept within the left ~40% of the sky and short of the balloon, which
+       steps right while the pass is down. Nothing drawn without stats;
+     • your seven legs: a thin line on the rail in the width's colour at the
+       altitude each leg reached (a miss is a faint grey one, stepped 2.5 px
+       above the last mark so it still counts). Hover or tap one for a tag.
+   The pilot can drag or wheel on the sky to travel back down the climb.
    Tap the strip (or swipe up) to bring the pass back.
    ========================================================================== */
 
@@ -21,6 +25,22 @@ K.replay = (() => {
     layer.id = 'replay';
     layer.innerHTML = '<svg class="rp-chart" aria-hidden="true"></svg><div class="rp-legs"></div>';
     document.getElementById('app').appendChild(layer);
+    // Leg marks: hover (or a tap) shows one small tag, nothing otherwise.
+    const legs = layer.querySelector('.rp-legs');
+    let tagTimer = 0;
+    const tagOf = (el, on) => {
+      legs.querySelectorAll('.rp-leg.show').forEach((m) => { if (m !== el) m.classList.remove('show'); });
+      el.classList.toggle('show', on);
+    };
+    legs.addEventListener('pointerover', (e) => { const m = e.target.closest('.rp-leg'); if (m && e.pointerType !== 'touch') tagOf(m, true); });
+    legs.addEventListener('pointerout', (e) => { const m = e.target.closest('.rp-leg'); if (m && e.pointerType !== 'touch') m.classList.remove('show'); });
+    legs.addEventListener('click', (e) => {
+      const m = e.target.closest('.rp-leg'); if (!m) return;
+      e.stopPropagation();
+      clearTimeout(tagTimer);
+      tagOf(m, !m.classList.contains('show'));
+      tagTimer = setTimeout(() => m.classList.remove('show'), 2200);
+    });
     strip = document.createElement('button');
     strip.type = 'button';
     strip.className = 'res-strip';
@@ -42,60 +62,90 @@ K.replay = (() => {
     return out;
   }
 
+  /** Re-bin the server's buckets (any step) into 5 km bins from 0 to MAX_KM. */
+  const BIN = 5;
+  function bins(st) {
+    const n = Math.ceil(K.scene.MAX_KM / BIN);
+    const out = new Array(n).fill(0);
+    const step = st.step || BIN;
+    for (const [from, c] of st.buckets || []) {
+      const i = Math.min(n - 1, Math.max(0, Math.floor((from + step / 2) / BIN)));
+      out[i] += c;
+    }
+    return out;
+  }
+
+  const TICKS = [0, 20, 50, 100, 140];
+  let lastKey = '';
+
   function paint() {
     if (!open || !layer) return;
     const rail = $('rail');
     const rr = rail.getBoundingClientRect();
     const app = $('app').getBoundingClientRect();
-    const top = rr.top - app.top, h = rr.height, x0 = rr.left - app.left + 128;   // chart sits right of the leg labels
+    const rig = $('balloon-rig');
+    const W = Math.round(app.width), H = Math.round(app.height);
+    const top = rr.top - app.top, h = rr.height;
+    const xr = rr.left - app.left + 4.5;                    // the rail line itself
+    // The chart never meets the balloon: it stops short of the envelope, and
+    // never runs past the left 40% of the screen.
+    const balloonL = rig.offsetLeft - rig.offsetWidth / 2;
+    const x0 = xr + 16;                                     // bars start after the leg marks
+    const x1 = Math.min(W * 0.4, balloonL - 14, x0 + 170);
+    const key = [W, H, top.toFixed(1), h.toFixed(1), xr.toFixed(1), x1.toFixed(0)].join('|');
+    if (key === lastKey) return;
+    lastKey = key;
+
     const yOf = (km) => top + (1 - K.scene.railFrac(km)) * h;
     const svg = layer.querySelector('.rp-chart');
-    const W = 120;
-    svg.setAttribute('viewBox', `0 0 ${W} ${Math.round(app.height)}`);
-    svg.style.left = `${x0}px`; svg.style.width = `${W}px`; svg.style.top = '0'; svg.style.height = `${Math.round(app.height)}px`;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.style.left = '0'; svg.style.top = '0'; svg.style.width = `${W}px`; svg.style.height = `${H}px`;
     let g = '';
-    if (stats && stats.players > 0) {
-      // A smooth silhouette of where everyone landed: width = how many pilots
-      // ended up at that altitude, drawn up the rail like a mountain seen side-on.
-      const step = stats.step || 5;
-      const counts = new Map(stats.buckets.map(([f, c]) => [f, c]));
-      const max = Math.max(1, ...counts.values());
-      const pts = [];
-      for (let from = 0; from < K.scene.MAX_KM; from += step) {
-        const c = counts.get(from) || 0;
-        pts.push([ (c / max) * (W - 36), yOf(from + step / 2) ]);
-      }
-      const top = yOf(K.scene.MAX_KM), bottom = yOf(0);
-      let d = `M0 ${bottom.toFixed(1)}`;
-      pts.slice().reverse().forEach(([w, y], k, arr) => {
-        if (k === 0) { d += ` L${w.toFixed(1)} ${y.toFixed(1)}`; return; }
-        const [pw, py] = arr[k - 1];
-        const cy = (py + y) / 2;
-        d += ` C${pw.toFixed(1)} ${cy.toFixed(1)} ${w.toFixed(1)} ${cy.toFixed(1)} ${w.toFixed(1)} ${y.toFixed(1)}`;
+
+    // km ticks on the rail: a short dash to the left, the number beside it
+    TICKS.forEach((km) => {
+      const y = yOf(km);
+      g += `<line x1="${(xr - 9).toFixed(1)}" x2="${(xr - 3).toFixed(1)}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" class="rp-tick"/>`
+        + `<text x="${(xr - 12).toFixed(1)}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" class="rp-tick-t">${km}</text>`;
+    });
+
+    // where everyone landed: one bar per 5 km bin, running out from the rail
+    const alt = record.alt || 0;
+    if (stats && stats.players > 0 && x1 - x0 > 30) {
+      const counts = bins(stats);
+      const mine = Math.min(counts.length - 1, Math.floor(alt / BIN));
+      if (!counts[mine]) counts[mine] = 1;
+      const peak = Math.max(1, ...counts);
+      let bars = '';
+      counts.forEach((c, i) => {
+        if (!c) return;
+        // The rail is a log scale: low bins are tall, high ones thin. A bar fills
+        // its bin up to a cap, centred on it, so the bottom never turns into slabs.
+        const yb = yOf(i * BIN), yt = yOf((i + 1) * BIN);
+        const t = Math.max(1.5, Math.min(10, (yb - yt) - 2));
+        const y = (yb + yt) / 2 - t / 2;
+        const w = Math.max(3, (c / peak) * (x1 - x0));
+        bars += `<rect x="${x0.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${t.toFixed(1)}" class="rp-bar${i === mine ? ' me' : ''}" style="--i:${i}"/>`;
       });
-      d += ` L0 ${top.toFixed(1)} Z`;
-      g += `<path d="${d}" class="rp-area"/>`;
-      const my = yOf(record.alt);
-      g += `<line x1="0" y1="${my.toFixed(1)}" x2="${W - 20}" y2="${my.toFixed(1)}" class="rp-you"/><text x="${W - 18}" y="${(my + 4).toFixed(1)}" class="rp-you-t">YOU</text>`;
+      g += `<g class="rp-bars">${bars}</g>`;
+      const my = yOf(alt);
+      g += `<line x1="${(xr + 10).toFixed(1)}" y1="${my.toFixed(1)}" x2="${(x1 + 6).toFixed(1)}" y2="${my.toFixed(1)}" class="rp-you"/>`
+        + `<text x="${(x1 + 11).toFixed(1)}" y="${(my + 3.6).toFixed(1)}" class="rp-you-t">YOU</text>`;
     }
     svg.innerHTML = g;
-    // leg markers: where each answer carried you
+
+    // your seven legs: a thin line on the rail at the altitude each one reached.
+    // Legs that didn't lift sit on the previous mark, stepped 2.5 px so they still count.
     const legs = layer.querySelector('.rp-legs');
     const alts = legAltitudes(record);
-    let html = '';
-    // the rail is a log scale, so high legs bunch up: push markers apart (18 px) from the top down
     const ys = alts.map((l) => yOf(l.km));
-    for (let i = alts.length - 1; i >= 0; i--) {
-      const limit = i === alts.length - 1 ? -Infinity : ys[i + 1] + 18;
-      if (ys[i] < limit) ys[i] = limit;
-    }
-    alts.forEach((l, i) => {
-      const y = ys[i];
+    for (let i = 1; i < ys.length; i++) if (ys[i] > ys[i - 1] - 2.5) ys[i] = ys[i - 1] - 2.5;
+    legs.innerHTML = alts.map((l, i) => {
       const chip = S().CHIPS[l.chip];
-      html += `<div class="rp-leg${l.hit ? '' : ' miss'}" style="top:${y.toFixed(1)}px;left:${(rr.left - app.left - 5).toFixed(0)}px;--c:var(--c-${chip ? chip.key : 'miss'})">
-        <i></i><span>${i + 1}</span><b>${l.hit ? `+${l.delta}` : 'miss'}</b></div>`;
-    });
-    legs.innerHTML = html;
+      const km = K.units.alt(l.km, 0).text;
+      return `<div class="rp-leg${l.hit ? '' : ' miss'}" style="top:${ys[i].toFixed(1)}px;left:${(xr - 6).toFixed(1)}px;--c:var(--c-${chip && l.hit ? chip.key : 'miss'})" tabindex="0" aria-label="Leg ${i + 1}: ${l.hit ? `+${l.delta} km` : 'no lift'}, ${km}">`
+        + `<i></i><span class="rp-tag">Leg ${i + 1} · ${l.hit ? `+${l.delta} km` : 'miss'}</span></div>`;
+    }).join('');
   }
 
   /* ---------------------------------------------------------- drag to scroll the climb */
@@ -137,6 +187,7 @@ K.replay = (() => {
     const a = K.units.alt(rec.alt, 0);
     strip.querySelector('.rs-main').innerHTML = `${rec.mode === 'unlimited' ? 'Unlimited' : `Flight #${rec.n}`} · <b>${a.text} up</b>`;
     layer.classList.add('on');
+    lastKey = '';                       // a fresh record or stats: redraw even at the same geometry
     K.scene.setCaptionsDetail(true);
     cancelAnimationFrame(raf);
     const loop = () => { paint(); if (open) raf = requestAnimationFrame(loop); };
@@ -151,7 +202,7 @@ K.replay = (() => {
     K.scene.climbTo(record.alt, { duration: 700 });
     const r = $('screen-results'); if (r) r.scrollTop = 0;
   }
-  function setStats(st) { stats = st; }
+  function setStats(st) { stats = st; lastKey = ''; }
   function hide() { if (open) close(); }
 
   return { show, close, hide, setStats, get open() { return open; } };
