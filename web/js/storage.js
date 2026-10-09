@@ -50,7 +50,6 @@ K.storage = (() => {
       parked: {},
       tutored: false,       // has seen the one-time guided first leg
       guideV: 2,            // bump to show the guided leg once more to everyone
-      scoreV: 2,            // 2 = kilometres (was points, 0–700)
       runNext: 1,           // (unused since random runs; kept for old saves)
       runsDone: [],         // numbered Unlimited runs this pilot has flown (no repeats until all done)
       unlimitedCount: 0,    // how many Unlimited flights: shown as Unlimited · Flight #N           // flights left mid-way when switching modes, by slot
@@ -77,33 +76,10 @@ K.storage = (() => {
     }
     // Points are the source of truth; altitude is re-derived so a change in
     // metres-per-point (e.g. when the Burn was removed) never leaves stale km.
-    // Score v2: points became kilometres. Old flights are re-scored leg by leg
-    // with the km table (Wide 2 … Pinpoint 20, clue halves), so nobody's history
-    // is lost and every logbook entry reads in the same units.
-    const OLD_PTS = [15, 30, 55, 85, 100];
-    const rescore = (rec) => {
-      if (!rec || rec.scoreV === 2) return;
-      let total = 0;
-      (rec.rounds || []).forEach((r) => {
-        if (!r.hit) { r.delta = 0; return; }
-        const full = K.scoring.legPoints(r.chip);
-        const clued = OLD_PTS[r.chip] && r.delta != null && r.delta < OLD_PTS[r.chip];
-        r.delta = clued ? Math.round(full * K.scoring.CLUE_FACTOR) : full;
-        total += r.delta;
-      });
-      rec.pts = (rec.rounds || []).length ? total : Math.round((rec.pts || 0) / 5);
-      rec.scoreV = 2;
-    };
-    const liveList = [out.live, ...Object.values(out.parked || {})];
-    Object.values(out.days || {}).forEach(rescore);
-    (out.runs || []).forEach(rescore);
-    liveList.forEach((l) => { if (l && l.scoreV !== 2) { rescore(l); l.alt = K.scoring.kmOf(l.pts); l.maxAlt = l.alt; } });
     Object.values(out.days || {}).forEach((d) => {
-      if (d.pts == null && d.alt != null) d.pts = Math.round(d.alt);
-      if (d.pts != null) { d.alt = K.scoring.kmOf(d.pts); if (d.maxAlt != null) d.maxAlt = d.alt; }
+      if (d.pts == null && d.alt != null) d.pts = Math.round(d.alt * 10);
+      if (d.pts != null) d.alt = K.scoring.kmOf(d.pts);
     });
-    (out.runs || []).forEach((d) => { if (d.pts != null) { d.alt = K.scoring.kmOf(d.pts); if (d.maxAlt != null) d.maxAlt = d.alt; } });
-    out.scoreV = 2;
     const best = Object.values(out.days || {}).reduce((m, d) => Math.max(m, d.alt || 0), 0);
     out.stats.bestAlt = best;
     // Everyone (launch-day pilots included) gets the guided leg once in guide v2.

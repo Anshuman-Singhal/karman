@@ -91,12 +91,12 @@ K.stats = (() => {
   /** Deterministic fake distribution for previewing the design. */
   function sample(n) {
     const rand = K.rng.fromLabel(`karman-sample-stats-${n}`);
-    const step = 5;
+    const step = 25;
     const buckets = [];
     let players = 0;
     for (let from = 0; from < K.scoring.MAX_PTS; from += step) {
-      // Right-skewed: most flights land around 25–45 km.
-      const x = (from + step / 2) / 28;
+      // Right-skewed: most flights land around 80–180 points.
+      const x = (from + step / 2) / 130;
       const count = Math.round(4000 * x * Math.exp(-x * 1.4) * (0.85 + rand() * 0.3));
       if (count > 0) { buckets.push([from, count]); players += count; }
     }

@@ -77,7 +77,7 @@
   <div id="altimeter">
     <span class="alt-label">Altitude</span>
     <span class="alt-value"><span id="odo" class="odo"></span><span class="alt-unit">km</span></span>
-    <span class="alt-pts" hidden><b id="alt-pts">0</b></span>
+    <span class="alt-pts"><b id="alt-pts">0</b> pts</span>
   </div>
 
   <!-- Round HUD: the dial and the route, up top so the card stays calm (shown only on the round screen) -->
@@ -167,20 +167,18 @@
 
     <!-- RESULTS: one short screen; details on demand -->
     <section class="screen results" id="screen-results" hidden aria-labelledby="res-tier">
-      <button type="button" class="res-handle" id="res-handle" aria-label="Swipe down to see your climb on the sky"><i></i></button>
       <div class="res-main">
         <p class="eyebrow" id="res-eyebrow"></p>
         <div class="res-hero">
-          <span class="res-alt" id="res-alt"></span><span class="res-unit" id="res-unit">km up</span>
+          <span class="res-alt" id="res-alt"></span><span class="res-unit">points</span>
         </div>
-        <p class="res-tier"><span id="res-km" hidden></span><em id="res-tier"></em></p>
+        <p class="res-tier"><span id="res-km"></span> · <em id="res-tier"></em></p>
 
         <!-- Today's pilots: one percentile sentence over the live histogram (ui.js renderPercentile) -->
         <div class="pctl" id="pctl" hidden>
           <div class="pctl-read">
-            <span class="pctl-fig" aria-hidden="true" hidden><b id="pctl-num">0</b><i>%</i></span>
+            <span class="pctl-fig" aria-hidden="true"><b id="pctl-num">0</b><i>%</i></span>
             <p class="pctl-txt" id="pctl-txt"></p>
-            <button type="button" class="link-btn pctl-sky" id="btn-sky">See where everyone landed <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
           </div>
           <div class="crowd-chart" id="crowd-chart"></div>
         </div>
@@ -215,7 +213,7 @@
           <span>Next flight in <b id="countdown">--:--:--</b></span>
           <span id="res-streak"></span>
         </div>
-        <p class="site-foot"><span>Found a bug? Wrong answer? <a id="contact-link" href="mailto:hello@karman.day">Contact us</a></span><span><a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></span></p>
+        <p class="site-foot">Found a bug? Wrong answer? <a id="contact-link" href="mailto:hello@karman.day">Contact us</a> · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>
         <!-- The pass's machine-readable zone: decoration, filled by ui.js mrz() -->
         <p class="res-mrz" id="res-mrz" aria-hidden="true"></p>
       </div>
@@ -342,7 +340,7 @@
           <p><b>Climb to space.</b> <span id="help-space"></span></p>
           <svg class="hf-ill" viewBox="0 0 72 40" aria-hidden="true"><path d="M2 39Q36 29 70 39" class="hi-line"/><path d="M4 8h64" class="hi-karman"/><path d="M36 30V16" class="hi-climb"/><g transform="translate(36 19)"><path d="M0-9c-5 0-7.6 3.4-7.6 7.2 0 3 2.5 5.6 4.6 7.2h6c2.1-1.6 4.6-4.2 4.6-7.2C7.6-5.6 5-9 0-9z" class="hi-env"/><rect x="-2.6" y="6.6" width="5.2" height="3.6" rx=".8" class="hi-basket"/></g></svg></li>
       </ol>
-      <p class="hf-note">One clue per flight gives a closer reference point, for half the lift. A new flight every day.</p>
+      <p class="hf-note">One clue per flight shows where the answer sits, for half the points. A new flight every day.</p>
       <div class="br-foot">
         <button type="button" class="ready-ticket" id="btn-ready"><span class="rt-main">Got it</span><span class="rt-stub" id="help-stub"><small>Gate</small><b>#1</b></span></button>
       </div>
@@ -369,7 +367,6 @@
 <script src="js/ambient.js"></script>
 <script src="js/round.js"></script>
 <script src="js/coach.js"></script>
-<script src="js/replay.js"></script>
 <script src="js/share.js"></script>
 <script src="js/shareimg.js"></script>
 <script src="js/stats.js"></script>

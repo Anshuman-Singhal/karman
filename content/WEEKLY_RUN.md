@@ -17,8 +17,7 @@ Add **70 new questions**: the tool puts 49 into the next 7 daily flights and 21 
 4. Write 70 candidates into `content/batches/YYYY-MM-DD.json`, a JSON array of objects shaped like:
    ```json
    { "cat": "Structures", "q": "How tall is the Leaning Tower of Pisa?", "unit": "metres", "answer": 56,
-     "scale": "log", "min": 1, "max": 2000, "hint": "For scale: a 10-story building is about {30 m} tall.",
-     "clue": "Closer: the Leaning Tower is about as tall as a 16-story building.",
+     "scale": "log", "min": 1, "max": 2000, "hint": "For scale: a 10-storey building is about {30 m} tall.",
      "card": "It leans about 4 degrees, down from 5.5 before engineers steadied it in 2001.",
      "source": "https://en.wikipedia.org/wiki/Leaning_Tower_of_Pisa" }
    ```
@@ -30,8 +29,6 @@ Add **70 new questions**: the tool puts 49 into the next 7 daily flights and 21 
    - **Answer**: the commonly cited figure from the source. Decimals are fine.
    - **min / max**: for `log`, about answer ÷ 25 rounded down to a power of ten, and answer × 25 rounded up. For `year`, about 150 years before to 100 years after (no later than 2050).
    - **hint**: starts "For scale:" and gives a related reference point, **never the answer or something that trivially implies it**. Put convertible measurements in braces so they show in the player's units: `{330 m}`, `{42 km}`, `{350 km/h}`, `{1,500 kg}`, `{327 °C}`.
-   - **clue**: a SECOND, CLOSER benchmark, starting "Closer:". Players pay half the leg's points to see it, so it must genuinely narrow things: a reference within about ×2–3 of the answer for number questions, within 5–30 years for dates, that still needs a little reasoning. Never the answer, never the hint's reference again. Braces for measurements, like hints. Max 110 characters. Example: hint "For scale: a 30-story office tower is about {100 m} tall." → clue "Closer: the Chrysler Building in New York is about {319 m} tall."
-   - **American English** only (story, meters, liters, color, center, gray). The checker rejects British spellings.
    - **card**: one surprising true sentence, 170 characters max.
    - **source**: a URL where the answer can be confirmed (Wikipedia is fine).
 5. **Independent verification pass.** For each candidate, open its source and check the answer again without looking at what you wrote. If the numbers disagree by more than 2% (or 0 years for year questions), fix it or drop it. Replace dropped ones so the batch stays at 70.

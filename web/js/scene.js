@@ -10,14 +10,12 @@
    ALTITUDE → SCREEN
    Real altitude is compressed with a log curve, f(km), so the first few
    kilometres (clouds, Everest, airliners) get as much screen travel as the
-   empty stretch from 50 to 100 km. f(0) = 0 and f(MAX_KM) = 1, where
-   MAX_KM (140) is a perfect flight: seven Pinpoints. The Kármán line at
-   100 km is a milestone on the way, not the ceiling.
+   empty stretch from 50 to 100 km. f(0) = 0 and f(120) = 1.
    ========================================================================== */
 
 K.scene = (() => {
-  const MAX_KM = (K.CONFIG && K.CONFIG.MAX_KM) || 140;   // a perfect flight
-  const fOf = (km) => Math.log(1 + Math.max(0, km) / 1.5) / Math.log(1 + MAX_KM / 1.5);
+  const SKY_MAX_KM = 120;
+  const fOf = (km) => Math.log(1 + Math.max(0, km) / 1.5) / Math.log(1 + SKY_MAX_KM / 1.5);
   const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
   const lerp = (a, b, t) => a + (b - a) * t;
   const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
@@ -33,8 +31,6 @@ K.scene = (() => {
     [39,  '#101C52', '#213F8C', '#3B67B4'],
     [60,  '#090E2C', '#141F55', '#22397A'],
     [100, '#03040C', '#070A1F', '#0E1840'],
-    [120, '#020309', '#060A1C', '#0C1A44'],
-    [140, '#020207', '#05081A', '#0B1C4A'],   // the thermosphere: a last cool glow low down
   ];
 
   /* Gore count by width chip: tighter bet, tighter stripes. */
@@ -294,20 +290,15 @@ K.scene = (() => {
 
   /* ========================================================== captions
      Every sight carries the same caption: a dot on the object, a hairline
-     leader, and a small flag on the end of it holding the name. The flag
-     always opens toward the open sky (dir 'r' or 'l'), so it never sits on
-     the art it describes.
+     leader, and a small flag of night glass on the end of it holding the
+     name and its altitude. The flag always opens toward the open sky
+     (dir 'r' or 'l'), so it never sits on the art it describes.
        name  short, set in small capitals
        fig   the number, in the altimeter's display face
-       note  optional aside, in the serif italic
-     During a flight the flags carry the name only: a height printed in the
-     sky would answer a question ("how tall is the Eiffel Tower?"), and a
-     phone shows less sky than a desktop. fig and note are always in the DOM
-     but only shown once setCaptionsDetail(true) (results, replay). A caption
-     with keep (your own best) always shows its figure. */
-  function cap({ name, fig = '', note = '' }, dir = 'r', lead = 14, style = '', keep = false) {
+       note  optional aside, in the serif italic */
+  function cap({ name, fig = '', note = '' }, dir = 'r', lead = 14, style = '') {
     const sub = fig || note ? `<span class="cap-sub">${fig ? `<span class="cap-fig">${fig}</span>` : ''}${note ? `<span class="cap-note">${note}</span>` : ''}</span>` : '';
-    return `<span class="cap cap-${dir}${lead ? '' : ' flat'}${keep ? ' cap-keep' : ''}" style="--lead:${lead}px;${style}"><span class="w-label"><span class="cap-name">${name}</span>${sub}</span></span>`;
+    return `<span class="cap cap-${dir}${lead ? '' : ' flat'}" style="--lead:${lead}px;${style}"><span class="w-label"><span class="cap-name">${name}</span>${sub}</span></span>`;
   }
 
   /* ========================================================== sights on the way up
@@ -584,70 +575,6 @@ K.scene = (() => {
     })(),
   };
 
-  /* ---------------------------------------------------------- above 100 km
-     The edge of space, in the same poster hand: a record rocket plane on
-     its ballistic arc, SpaceShipOne with its twin booms, a meteor burning
-     up, and (drawn on the ambient canvas) the aurora's curtains. */
-
-  /* X-15, in profile, nose up on the arc of its record flight: the black
-     airframe, the wedge tail above and below, a dotted flight path behind. */
-  function x15SVG() {
-    const body = 'M12,12.7 L58,12 C67,12 73.6,13.4 78.6,15 C73.6,16.6 67,17.8 58,17.8 L12,18Z';
-    return `<svg viewBox="0 0 132 92" overflow="visible">
-      <path d="M-14,104 C2,80 18,62 35,52" fill="none" stroke="#F3E9D6" stroke-opacity=".5" stroke-width="1" stroke-dasharray="1.2 4" stroke-linecap="round"/>
-      <g transform="translate(70 36) rotate(-24) translate(-44 -15)">
-        <path d="M8,12.8 L3.2,2.6 L13.6,2.6 L21,12.6Z M8,17.8 L4.4,26 L13,26 L19,17.8Z" fill="#2E3550" stroke="#F3E9D6" stroke-width="1.3" stroke-opacity=".5" stroke-linejoin="round" paint-order="stroke"/>
-        <path d="${body}" fill="#2B3148" stroke="#F3E9D6" stroke-width="1.3" stroke-opacity=".55" stroke-linejoin="round" paint-order="stroke"/>
-        <path d="M12,12.7 L58,12 C67,12 73.6,13.4 78.6,15 L12,15Z" fill="#59648C"/>
-        <path d="M8,12.8 L3.2,2.6 L6,2.6 L11,12.7Z" fill="#59648C"/>
-        <path d="M24,16.4 H56 L54,18 H25Z" fill="#3A4160"/>
-        <path d="M8.8,15.4 L18,14.8 L18.6,16.2 L8.8,17Z" fill="#3A4160"/>
-        <path d="M12,13.4 L7.4,13.9 L7.4,16.9 L12,17.3Z" fill="#8F97AE"/>
-        <path d="M60,12.3 C61.6,10 65.6,10 68,12.6Z" fill="#9DB6D8"/><path d="M62,11.6 L64.6,11.1" stroke="#FFF8EC" stroke-width=".7" stroke-linecap="round"/>
-        <path d="M14,13.2 L56,12.6" stroke="#B7C2DB" stroke-opacity=".55" stroke-width=".6"/></g></svg>`;
-  }
-
-  /* SpaceShipOne in plan, nose to the right like the spotter's cards: the
-     stubby pod, the broad wing and the twin tail booms at its tips. */
-  function ss1SVG() {
-    const wing = 'M22,20 L23,5.4 L31,5.4 L37,20Z', boom = 'M6,4.2 L31,4.2 L31,6.6 L6,6.6Z', stab = 'M6,4.4 L4.4,0.6 L7.6,0.6 L10.4,4.4Z';
-    return `<svg viewBox="0 0 60 40"><defs>${halves('sk-ss1', 20, '#FBF7EF', '#C3CADA')}</defs>
-      <g fill="url(#sk-ss1)" stroke="${INK}" stroke-opacity=".6" stroke-width=".9" stroke-linejoin="round" paint-order="stroke">
-        <path d="${wing} ${mirrorY(wing, 20)}"/><path d="${boom} ${mirrorY(boom, 20)} ${stab} ${mirrorY(stab, 20)}"/>
-        <path d="M13,20 C13,16.6 19,15 30,15 C41,15 51,17 57.6,20 C51,23 41,25 30,25 C19,25 13,23.4 13,20Z"/></g>
-      <path d="M11,18.4 L13,18.6 L13,21.4 L11,21.6Z" fill="#8F97AE"/>
-      <path d="M44,17.4 C47,17.8 50,18.6 52,19.4" stroke="#FFFFFF" stroke-width=".8" stroke-linecap="round" fill="none"/>
-      <path d="M23.6,7.6 H30 M23.6,32.4 H30" stroke="#E35F3E" stroke-width="1.1"/>
-      <circle cx="40" cy="20" r="1.1" fill="#3A4160"/><circle cx="35.6" cy="20" r="1.1" fill="#3A4160"/></svg>`;
-  }
-
-  /* A meteor burning up: a hot head, a long tapering train of ionised air,
-     a few fragments shed behind, like a woodcut of the 1833 Leonids. */
-  function meteorSVG() {
-    return `<svg viewBox="0 0 150 64" overflow="visible"><defs>
-      <linearGradient id="sk-met" gradientUnits="userSpaceOnUse" x1="138" y1="52" x2="4" y2="4"><stop offset="0" stop-color="#FFF4DA"/><stop offset=".18" stop-color="#FFC979" stop-opacity=".85"/><stop offset=".55" stop-color="#E9805A" stop-opacity=".32"/><stop offset="1" stop-color="#8FB7E8" stop-opacity="0"/></linearGradient>
-      <radialGradient id="sk-met-g" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFE3B0" stop-opacity=".7"/><stop offset="1" stop-color="#FF8A55" stop-opacity="0"/></radialGradient></defs>
-      <path d="M138,49.6 Q72,28 4,4 Q74,34 138,55Z" fill="url(#sk-met)"/>
-      <path d="M137,50.2 Q90,35 52,20" fill="none" stroke="#FFF8EC" stroke-opacity=".7" stroke-width=".7" stroke-linecap="round"/>
-      <path d="M118,49 L104,45.6 M100,40 L84,35.2 M70,32.6 L56,28.4" stroke="#FFE7C2" stroke-opacity=".45" stroke-width=".6" stroke-linecap="round"/>
-      <circle cx="138" cy="52.4" r="11" fill="url(#sk-met-g)"/>
-      <circle cx="122" cy="44" r=".9" fill="#FFE3B0"/><circle cx="112" cy="50.6" r=".7" fill="#FFE3B0" opacity=".8"/><circle cx="96" cy="38.4" r=".6" fill="#FFE3B0" opacity=".6"/>
-      <path d="${blob(138, 52.4, 3, K.rng.fromLabel('meteor'), 0.12, 8)}" fill="#FFF8EC" stroke="${INK}" stroke-opacity=".5" stroke-width=".8" paint-order="stroke"/></svg>`;
-  }
-
-  /* The record skydive (39 km): a striped round canopy, lines gathered to a
-     small pressure-suited jumper, and the dotted fall from above. */
-  function chuteSVG() {
-    const dome = 'M3,12 C3,3.4 8.4,-1 15,-1 C21.6,-1 27,3.4 27,12 Q24,10.4 21,12 Q18,10.4 15,12 Q12,10.4 9,12 Q6,10.4 3,12Z';
-    return `<svg viewBox="0 0 30 40" overflow="visible"><defs><clipPath id="sk-chute"><path d="${dome}"/></clipPath></defs>
-      <path d="M3.4,12 L15,27 M9,12 L15,27 M15,12 L15,27 M21,12 L15,27 M26.6,12 L15,27" stroke="#F3E9D6" stroke-opacity=".75" stroke-width=".45"/>
-      <path d="${dome}" fill="#F3E9D6" stroke="${INK}" stroke-opacity=".8" stroke-width="1.4" paint-order="stroke"/>
-      <g clip-path="url(#sk-chute)"><path d="M15,-1 L3,12 L9,12Z M15,-1 L15,12 L21,12Z" fill="#E35F3E"/><path d="M15,-1 L21,12 L27,12 L27,-1Z" fill="#22305A" opacity=".22"/></g>
-      <path d="M12.6,1.4 C9.6,2.6 7.4,5 6.6,8" stroke="#FFFFFF" stroke-opacity=".7" stroke-width=".8" fill="none" stroke-linecap="round"/>
-      <g fill="#EDE6D8" stroke="${INK}" stroke-opacity=".7" stroke-width=".9" paint-order="stroke"><circle cx="15" cy="28.6" r="1.9"/><path d="M13.3,30.4 Q15,29.6 16.7,30.4 L16.2,36.4 Q15,37 13.8,36.4Z"/></g>
-      <circle cx="15.5" cy="28.3" r=".9" fill="#E9B25A"/></svg>`;
-  }
-
   /* Data. fig and note go into the caption; km places the object. */
   const GROUNDED = [
     { km: 0.828, cap: { name: 'Burj Khalifa', fig: '828 m' }, cx: 27, ar: 13, plane: 'far', dir: 'r', tip: 50.6, svg: burjSVG },
@@ -665,20 +592,11 @@ K.scene = (() => {
     { km: 25.9, cap: { name: 'SR-71 Blackbird', fig: '25.9 km', note: 'fastest jet' }, dur: 9, dir: -1, w: 66, vb: [70, 30], art: 'sr71' },
     { km: 35, cap: { name: 'Weather balloons burst', fig: '~35 km' }, dur: 140, dir: 1, w: 22, vb: [26, 38], art: 'burst' },
     { km: 53, cap: { name: 'Highest balloon ever', fig: '53 km' }, dur: 160, dir: -1, w: 22, vb: [24, 50], art: 'highballoon' },
-    // Far above the ceiling, so it crosses over the capsule at a perfect flight.
-    { km: 152, cap: { name: 'Space station', fig: '~400 km', note: 'in orbit, far above' }, dur: 26, dir: 1, w: 58, vb: [64, 34], art: 'iss' },
+    { km: 103, cap: { name: 'Space station', fig: '~400 km', note: 'in orbit, far above' }, dur: 26, dir: 1, w: 58, vb: [64, 34], art: 'iss' },
   ];
   const BANDS = [
     { km: 70, cap: { name: 'Sprites', fig: '50–90 km', note: 'red lightning' }, cls: 'sprites' },
     { km: 83, cap: { name: 'Noctilucent clouds', fig: '83 km' }, cls: 'nlc' },
-    { km: 96, cap: { name: 'Airglow', fig: '~95 km', note: 'the sky’s own light' }, cls: 'airglow' },
-    { km: 124, cap: { name: 'Aurora', fig: '100–300 km' }, cls: 'aurora-band' },
-  ];
-  /* Sights above the line: static vignettes off to one side of the craft. */
-  const HIGH = [
-    { km: 107.8, cap: { name: 'X-15', fig: '107.8 km', note: 'record, 1963' }, cls: 'x15', dir: 'r', art: x15SVG, at: 'left:53%;top:39%' },
-    { km: 112, cap: { name: 'SpaceShipOne', fig: '112 km', note: '2004' }, cls: 'ss1', dir: 'l', art: ss1SVG, at: 'left:50%;top:50%' },
-    { km: 117, cap: { name: 'Meteor', fig: '80–120 km', note: 'burning up' }, cls: 'meteor', dir: 'r', art: meteorSVG, at: 'left:92%;top:82%' },
   ];
 
   /* Grounded landmarks are sized from the camera so their feet land exactly
@@ -730,7 +648,6 @@ K.scene = (() => {
       addItem(f.km, `<div class="flyer ${f.dir < 0 ? 'rtl' : ''}" style="--dur:${f.dur}s;--delay:${delay.toFixed(1)}s;--rx:${(30 + (i * 23) % 50).toFixed(0)}vw;width:${f.w}px"><span class="flyer-art">${FLYER_ART[f.art]}</span>${cap(f.cap, dir, 10, `left:50%;top:${(-h / 2 - 2).toFixed(1)}px`)}</div>`, 'sight');
     });
     BANDS.forEach((b) => addItem(b.km, `<div class="${b.cls}"></div>${cap(b.cap, 'l', 0, 'left:calc(100% - var(--cap-edge))')}`, 'band-item'));
-    HIGH.forEach((h) => addItem(h.km, `<div class="hi-sight ${h.cls}">${h.art()}${cap(h.cap, h.dir, 12, h.at)}</div>`, 'sight high'));
   }
 
   function buildWorld() {
@@ -759,12 +676,13 @@ K.scene = (() => {
         ${cap({ name: 'Airliners', fig: '11 km' }, 'l', 0, 'left:calc(100% - var(--cap-edge));top:50%')}</div>`, 'landmark');
     addItem(20, `<div class="ozone"></div>${cap({ name: 'Ozone layer', fig: '20 km' }, 'l', 0, 'left:calc(100% - var(--cap-edge))')}`, 'band-item');
     buildSights();
-    addItem(39, `<div class="diver chute"><span class="diver-trail"></span>${chuteSVG()}
-        ${cap({ name: 'Record skydive', fig: '39 km' }, 'r', 12, 'left:0;top:-16px')}</div>`, 'landmark left');
+    addItem(39, `<div class="diver"><span class="diver-trail"></span>
+        <svg viewBox="0 0 20 20"><circle cx="10" cy="4" r="3" fill="#F2E6CF"/><path d="M10,7 L10,13 M10,9 L4,6 M10,9 L16,6 M10,13 L6,19 M10,13 L14,19" stroke="#F2E6CF" stroke-width="2" stroke-linecap="round"/></svg>
+        ${cap({ name: 'Record skydive', fig: '39 km' }, 'r', 12, 'left:0;top:-12px')}</div>`, 'landmark left');
     addItem(50, `<div class="w-line"></div>${cap({ name: 'Stratopause', fig: '50 km' }, 'l', 0, 'left:calc(100% - var(--cap-edge))')}`, 'line-item');
-    addItem(100, `<div class="w-line karman"></div>${cap({ name: 'Kármán line', fig: '100 km', note: 'edge of space' }, 'r', 0, 'left:50%')}`, 'line-item karman-item');
+    addItem(100, `<div class="w-line karman"></div>${cap({ name: 'Kármán line', fig: '100 km', note: 'space begins' }, 'r', 0, 'left:50%')}`, 'line-item karman-item');
     if (pbKm > 0.5) {
-      addItem(pbKm, `<div class="w-line pb"></div>${cap({ name: 'Your best', fig: `${pbKm.toFixed(1)} km` }, 'l', 0, 'left:calc(100% - var(--cap-edge))', true)}`, 'line-item pb-item');
+      addItem(pbKm, `<div class="w-line pb"></div>${cap({ name: 'Your best', fig: `${pbKm.toFixed(1)} km` }, 'l', 0, 'left:calc(100% - var(--cap-edge))')}`, 'line-item pb-item');
     }
   }
 
@@ -796,20 +714,14 @@ K.scene = (() => {
   }
 
   /* ========================================================== rail */
-  /* The rail runs from the meadow to a perfect flight (MAX_KM). Space (the
-     Kármán line) keeps its printed label as the goal; the top of the rail
-     carries a quiet ceiling mark of its own. */
-  const railFrac = (km) => clamp(fOf(km) / fOf(MAX_KM), 0, 1);
+  const railFrac = (km) => clamp(fOf(km) / fOf(110), 0, 1);
 
   function buildRail() {
     const ticks = railEl.querySelector('.rail-ticks');
     ticks.innerHTML = '';
-    const list = K.scoring.MILESTONES.filter((m) => m.km < MAX_KM - 0.01).slice();
-    const top = K.scoring.MILESTONES.find((m) => m.km >= MAX_KM - 0.01);
-    list.push(top || { id: 'ceiling', km: MAX_KM, short: (K.CONFIG && K.CONFIG.MAX_LABEL) || 'Perfect', ceiling: true });
-    railTicks = list.map((m) => {
+    railTicks = K.scoring.MILESTONES.map((m) => {
       const t = document.createElement('div');
-      t.className = `rail-tick${m.id === 'karman' ? ' goal' : ''}${m.km >= MAX_KM - 0.01 ? ' ceil' : ''}`;
+      t.className = 'rail-tick';
       t.style.top = `${(1 - railFrac(m.km)) * 100}%`;
       t.innerHTML = `<i></i><span>${m.short}</span>`;
       ticks.appendChild(t);
@@ -870,7 +782,7 @@ K.scene = (() => {
   }
 
   /* ========================================================== frame loop */
-  let tuckT = 0, railNext = null, railKm = -1, earthV = '', earthTop = Infinity;
+  let tuckT = 0;
   const hits = (a, b, pad = 6) => a.left < b.right + pad && a.right > b.left - pad && a.top < b.bottom + pad && a.bottom > b.top - pad;
   function tuckCaptions() {
     const dock = document.getElementById('dock');
@@ -880,9 +792,9 @@ K.scene = (() => {
     const hud = ['topbar', 'altimeter', 'hud'].map((id) => document.getElementById(id))
       .filter((e) => e && !e.hidden && e.offsetParent !== null).map((e) => e.getBoundingClientRect());
     // the rail's two printed labels (the next milestone, and Space) count as instruments too
-    railEl.querySelectorAll('.rail-tick.next span, .rail-tick.goal span, .rail-tick.ceil span').forEach((s) => {
+    railEl.querySelectorAll('.rail-tick.next span, .rail-tick:last-child span').forEach((s) => {
       const r = s.getBoundingClientRect();
-      if (r.width && getComputedStyle(s).opacity > 0.05) hud.push(r);
+      if (r.width) hud.push(r);
     });
     for (const it of items) {
       if (!it.visible) continue;
@@ -928,25 +840,10 @@ K.scene = (() => {
     const [top, mid, bot] = skyAt(cam.km);
     skyEl.style.background = `linear-gradient(to bottom, ${top} 0%, ${mid} 58%, ${bot} 100%)`;
     starsEl.style.opacity = clamp((cam.km - 26) / 40, 0, 1).toFixed(3);
-    /* Earth rises into view from 52 km. Past the line it keeps rising and
-       its curve tightens (scaled about its top), so the planet visibly
-       rounds off under you on the way to a perfect flight. */
     const et = clamp((cam.km - 52) / 48, 0, 1);
-    const eh = easeInOutCubic(clamp((cam.km - 100) / (MAX_KM - 100), 0, 1));
-    // the limb climbs to sit just under the craft at a perfect flight, so it shows above the card
-    const baseTop = H - 0.2 * Math.max(W, H);
-    const lift = Math.min(0, anchorY + 14 - baseTop) * eh;
-    const ty = (1 - et) * 0.38 * H + lift;
-    earthTop = et > 0 ? baseTop + ty : Infinity;
-    const ev = `${et.toFixed(3)}|${eh.toFixed(3)}|${ty.toFixed(1)}`;
-    if (ev !== earthV) {
-      earthV = ev;
-      earthEl.style.opacity = et.toFixed(3);
-      earthEl.style.transform = `translate3d(-50%, ${ty.toFixed(1)}px, 0) scale(${(1 - eh * 0.3).toFixed(4)})`;
-      earthEl.style.setProperty('--thermo', eh.toFixed(2));
-    }
-    // The sun's warm glow belongs to the air: it is gone by the time the sky is black.
-    sunEl.style.opacity = (1 - clamp(cam.km / 40, 0, 0.75) - clamp((cam.km - 40) / 40, 0, 1) * 0.25).toFixed(3);
+    earthEl.style.opacity = et.toFixed(3);
+    earthEl.style.transform = `translate3d(-50%, ${((1 - et) * 38).toFixed(2)}vh, 0)`;
+    sunEl.style.opacity = (1 - clamp(cam.km / 40, 0, 0.75)).toFixed(3);
     // The paper's light tooth thins out as the sky darkens (stepped, so it rarely restyles).
     const paper = (Math.round(clamp(1 - (fOf(cam.km) - fOf(3)) / (fOf(40) - fOf(3)), 0.12, 1) * 25) / 25).toFixed(2);
     if (paper !== paperV) { paperV = paper; sceneEl.style.setProperty('--paper', paper); }
@@ -993,16 +890,10 @@ K.scene = (() => {
     const rf = railFrac(cam.km);
     railBug.style.top = `${((1 - rf) * 100).toFixed(2)}%`;
     railFill.style.height = `${(rf * 100).toFixed(2)}%`;
-    const nextTick = railTicks.find((t) => cam.km < t.m.km - 0.05);
-    if (nextTick !== railNext || Math.abs(cam.km - railKm) > 0.01) {
-      // classList only when something changed: no style churn on a still frame
-      railNext = nextTick; railKm = cam.km;
-      for (const t of railTicks) {
-        const lit = cam.km >= t.m.km - 0.05;
-        if (lit !== t.lit) { t.lit = lit; t.el.classList.toggle('lit', lit); }
-        const nx = t === nextTick;
-        if (nx !== t.nx) { t.nx = nx; t.el.classList.toggle('next', nx); }
-      }
+    const nextTick = railTicks.find((t) => cam.km < t.m.km);
+    for (const t of railTicks) {
+      t.el.classList.toggle('lit', cam.km >= t.m.km);
+      t.el.classList.toggle('next', t === nextTick);
     }
 
     requestAnimationFrame(frame);
@@ -1059,7 +950,6 @@ K.scene = (() => {
   /** Prepare the sky for a flight. Call on boot and when switching flights. */
   function reset(opts) {
     weather = opts.weather;
-    setCaptionsDetail(!!opts.captionsDetail);
     pbKm = opts.pbKm || 0;
     pbAnnounced = false;
     stamped = opts.stamps || {};
@@ -1167,26 +1057,13 @@ K.scene = (() => {
     setTimeout(() => bag.remove(), 1500);
   }
 
-  /** Caption flags show their figures and notes (results / replay), or the
-      name only (in flight, the default; reset() returns to it). */
-  let capsDetail = false;
-  function setCaptionsDetail(on) {
-    capsDetail = !!on;
-    if (sceneEl) sceneEl.classList.toggle('caps-detail', capsDetail);
-    tuckT = 0;   // flags changed size: re-check overlaps on the next frame
-  }
-
   return {
     init, reset, climbTo, setChip, setLift, liftOff, inflate, flare, setFlameTarget,
-    setAnchor, planAnchor, point, svgPoint, dropSandbag, fOf, skyAt, railFrac, setCaptionsDetail,
-    MAX_KM,
-    get captionsDetail() { return capsDetail; },
+    setAnchor, planAnchor, point, svgPoint, dropSandbag, fOf, skyAt,
     /** Screen y of a given altitude right now (for ambient effects). */
     yOf: (km) => anchorY + liftPx + (fOf(cam.km) - fOf(km)) * span,
     set onCross(fn) { onCross = fn; },
     get km() { return cam.km; },
-    /** Screen y of Earth's limb (Infinity while it is out of sight). */
-    get earthTop() { return earthTop; },
     get balloonPx() { return balloonPx; },
   };
 })();

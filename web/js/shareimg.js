@@ -283,17 +283,17 @@ K.shareImage = (() => {
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.font = `500 24px ${MONO}`;
-    ctx.fillText('ALTITUDE', x0 + 6, 330);
+    ctx.fillText('ALTITUDE POINTS', x0 + 6, 330);
     ctx.fillStyle = AMBER;
     ctx.font = `800 260px ${DISPLAY}`;
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.3)';
     ctx.shadowBlur = 24;
-    ctx.fillText(K.units.alt(record.alt, 0).v.toFixed(0), x0, 560);
+    ctx.fillText(record.pts.toLocaleString('en-US'), x0, 560);
     ctx.restore();
     ctx.fillStyle = '#FFFFFF';
     ctx.font = `600 44px ${UI}`;
-    ctx.fillText(`${K.units.alt(record.alt).unit} up · ${S.tierName(record.alt)}`, x0 + 6, 640);
+    ctx.fillText(`${record.alt.toFixed(1)} km · ${S.tierName(record.alt)}`, x0 + 6, 640);
 
     legs(ctx, record, x0, 760);
 
@@ -345,7 +345,7 @@ K.shareImage = (() => {
     for (let i = 0; i < S.MILESTONES.length; i++) {
       const m = S.MILESTONES[i];
       const c = counts[m.id] || 0;
-      const col = i % cols;                             // 9 stamps: three rows of three
+      const col = i === 6 ? 1 : i % cols;               // the Kármán line sits centred on its own row
       const cx = px + 70 + cw * col + cw / 2, cy = top + rh * Math.floor(i / cols) + 80;
       const tier = S.tierIndex(c);
       ctx.save();

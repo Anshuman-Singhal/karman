@@ -20,8 +20,6 @@ K.units = (() => {
     'km per hour':   { imp: 'miles per hour',   to: (v) => v * 0.621371, from: (v) => v / 0.621371 },
     'kg':            { imp: 'pounds',           to: (v) => v * 2.20462,  from: (v) => v / 2.20462 },
   };
-  /* 'metres' stays the data key (hints use {330 m}); players see 'meters'. */
-  const SPELL = { metres: 'meters', litres: 'liters', 'metres per second': 'meters per second' };
   const SHORT = { metres: 'm', feet: 'ft', 'km per second': 'km/s', 'miles per second': 'mi/s', 'm per second': 'm/s', 'feet per second': 'ft/s', 'km per hour': 'km/h', 'miles per hour': 'mph', pounds: 'lb' };
 
   /** Default: imperial for US English, metric for everyone else. */
@@ -45,7 +43,7 @@ K.units = (() => {
     const imperial = Boolean(m) && system() === 'imperial';
     const toDisp = (v) => (imperial ? m.to(v) : v);
     const toMetric = (v) => (imperial ? m.from(v) : v);
-    const unit = imperial ? m.imp : SPELL[fact.unit] || fact.unit || '';   // American spelling on screen
+    const unit = imperial ? m.imp : fact.unit || '';
 
     /** Format a metric value for display. exact = the true answer. */
     function fmt(vMetric, exact) {
@@ -71,12 +69,5 @@ K.units = (() => {
     });
   }
 
-  /** Altitude for display: km, or miles when the pilot flies imperial. */
-  function alt(km, digits = 1) {
-    const imperial = system() === 'imperial';
-    const v = imperial ? km * 0.621371 : km;
-    return { v, unit: imperial ? 'mi' : 'km', text: `${v.toFixed(digits)} ${imperial ? 'mi' : 'km'}`, imperial };
-  }
-
-  return { view, system, setSystem, convertible, defaultSystem, hint, alt };
+  return { view, system, setSystem, convertible, defaultSystem, hint };
 })();

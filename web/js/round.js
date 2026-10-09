@@ -31,8 +31,6 @@ K.round = (() => {
   let onChange = () => {};
   let ruler = null;
   let clueArmTimer = 0;
-  let renderedAt = 0;        // when this leg's card appeared (Lock ignores taps for the first 400 ms)
-  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   let lastSec = 0;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -97,7 +95,6 @@ K.round = (() => {
     };
     onChange = opts.onChange;
     locked = false;
-    renderedAt = performance.now();
 
     els.card.classList.remove('is-locked', 'is-revealed', 't-mid', 't-low', 'clued', 'show-ruler');
     els.band.className = 'band';
@@ -132,9 +129,8 @@ K.round = (() => {
   function renderHint() {
     els.hint.classList.remove('is-clue', 'is-cost');
     if (ctx.clueHere) {
-      // The clue is a second, closer benchmark written for this question ("Closer: …").
-      const text = K.units.hint((K.CLUES && K.CLUES[fact.id]) || '').replace(/^Closer:\s*/, '');
-      els.hint.innerHTML = `<b>Clue</b>${text ? esc(text) : 'No clue for this one.'}`;
+      const w = S.clueWindow(fact);
+      els.hint.innerHTML = `<b>Clue</b>Between <b>${view.fmt(w.lo, true)}</b> and <b>${view.fmt(w.hi, true)}</b>${view.short ? ' ' + view.short : ''}`;
       els.hint.classList.add('is-clue');
       els.card.classList.add('clued');
     } else {
@@ -152,13 +148,13 @@ K.round = (() => {
     c.dataset.state = st;
     c.disabled = st === 'spent';
     c.innerHTML = {
-      ready: '<span class="ct-main">Clue</span><span class="ct-stub">½<small>lift</small></span>',
+      ready: '<span class="ct-main">Clue</span><span class="ct-stub">½<small>pts</small></span>',
       on: '<span class="ct-main">Clue on</span>',
       spent: `<span class="ct-main">Used on leg ${leg}</span>`,
     }[st];
     c.setAttribute('aria-label', {
-      ready: 'Use your one clue for this flight. This leg lifts half as far',
-      on: 'Clue on. This leg lifts half as far',
+      ready: 'Use your one clue for this flight. This leg scores half points',
+      on: 'Clue on. This leg scores half points',
       spent: `Clue already used on leg ${leg}`,
     }[st]);
   }
@@ -168,7 +164,7 @@ K.round = (() => {
     const c = els.clue;
     if (c.dataset.state !== 'armed') {
       c.dataset.state = 'armed';
-      c.innerHTML = '<span class="ct-main">Confirm</span><span class="ct-stub">½<small>lift</small></span>';
+      c.innerHTML = '<span class="ct-main">Confirm</span><span class="ct-stub">½<small>pts</small></span>';
       c.setAttribute('aria-label', 'Tap again to use your clue. This leg pays half');
       els.hint.classList.remove('is-clue');
       els.hint.classList.add('is-cost');
@@ -388,14 +384,14 @@ K.round = (() => {
     els.lockMain.textContent = guess == null ? 'Type a guess' : 'Lock it in';
     const bet = ctx.clueHere ? Math.round(S.legPoints(state.chip) * S.CLUE_FACTOR) : S.legPoints(state.chip);
     els.lockStub.innerHTML = `<i class="kl-pip"></i>+${bet}`;
-    els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `Lock it in for ${bet} km`);
+    els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `Lock it in for ${bet} points`);
 
     // Width buttons: the chosen one lights up; values halve when the clue is on.
     els.wbtnEls.forEach((b, i) => {
       const full = S.legPoints(i);
       b.classList.toggle('on', i === state.chip);
       b.setAttribute('aria-checked', String(i === state.chip));
-      b.querySelector('b').textContent = `+${ctx.clueHere ? Math.round(full * S.CLUE_FACTOR) : full} km`;
+      b.querySelector('b').textContent = `+${ctx.clueHere ? Math.round(full * S.CLUE_FACTOR) : full}`;
     });
   }
 
@@ -465,18 +461,17 @@ K.round = (() => {
     return S.offBy({ ...fact, answer: view.toDisp(fact.answer) }, view.toDisp(metricGuess), false);
   }
 
-  function showResult({ hit, chipIdx, delta, timedOut, typed, guess, lo, hi, clue, nextLabel, nextStub }) {
+  function showResult({ hit, chipIdx, delta, timedOut, guess, lo, hi, clue, nextLabel, nextStub }) {
     const chip = S.CHIPS[chipIdx];
     const unit = view.unit ? ` ${view.unit}` : '';
     const verdict = els.result.querySelector('.verdict');
-    verdict.textContent = hit ? (chipIdx === 4 ? 'Pinpoint' : 'Hit') : timedOut ? 'Ran out of time' : guess == null ? 'No answer' : 'Miss';
+    verdict.textContent = hit ? (chipIdx === 4 ? 'Pinpoint' : 'Hit') : guess == null ? 'No answer' : 'Miss';
     verdict.className = `verdict ${hit ? 'is-hit' : 'is-miss'}`;
     verdict.style.setProperty('--c', hit ? `var(--c-${chip.key})` : 'var(--c-miss)');
 
     let d;
-    if (hit) d = `+${delta} km${clue ? ' (clue: half)' : ''}`;
-    else if (timedOut) d = typed == null ? '+0 km · nothing was locked in' : `+0 km · ${view.fmt(typed)} was never locked in`;
-    else d = guess == null ? '+0 km' : `+0 km · ${offByText(guess)}`;
+    if (hit) d = `+${delta} points${clue ? ' (clue: half)' : ''}`;
+    else d = guess == null ? `0 points${timedOut ? ' · time ran out' : ''}` : `0 points · ${offByText(guess)}`;
     els.result.querySelector('.verdict-delta').textContent = d;
 
     els.result.querySelector('.result-line').innerHTML = guess == null
@@ -495,7 +490,6 @@ K.round = (() => {
      0 ms .leg-out (body tears off) → OUT ms render(next) + .leg-in → +IN ms done.
      Any key or tap jumps to the end; the key still types into the new leg. */
   function advance(opts) {
-    renderedAt = Infinity;                 // mid-transition: no lock can land until the new card renders
     const OUT = reduce.matches ? 120 : 200;
     const IN = reduce.matches ? 160 : 460;
     const card = els.card;
@@ -531,7 +525,6 @@ K.round = (() => {
     init, render, advance, setUnits, setTimer, lockVisual, dropNeedle, markOutcome, bandPoint, showResult,
     renderLegs, selectChip, key, guessValue, offByText,
     get locked() { return locked; },
-    get settled() { return performance.now() - renderedAt > 400; },
     get state() { return state; },
   };
 })();

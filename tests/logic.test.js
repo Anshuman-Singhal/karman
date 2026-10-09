@@ -69,10 +69,10 @@ check(S.isHit(eiffel, S.range(eiffel, 320, 4)), 'Pinpoint at 320 should hit 330'
 const titanic = K.FACTS.find((f) => f.id === 's1-hi-01'); // 1912
 check(S.isHit(titanic, S.range(titanic, 1910, 4)), 'Pinpoint ±2 at 1910 should hit 1912');
 check(!S.isHit(titanic, S.range(titanic, 1909, 4)), 'Pinpoint ±2 at 1909 should miss 1912');
-check([0, 1, 2, 3, 4].map(S.legPoints).join() === '2,5,10,15,20', 'leg lift in km: Wide 2 … Pinpoint 20');
-check(S.MAX_PTS === K.CONFIG.LEGS * 20, 'max = legs × Pinpoint (20 km)');
-check(S.kmOf(S.MAX_PTS) === K.CONFIG.MAX_KM && 5 * S.legPoints(4) === K.CONFIG.KARMAN_KM, 'a perfect flight is 140 km; five Pinpoints reach the Kármán line');
-check(S.ptsOf(S.kmOf(55)) === 55 && S.kmOf(7) === 7, 'one point is one km, and back');
+check([0, 1, 2, 3, 4].map(S.legPoints).join() === '15,30,55,85,100', 'leg points: Wide 15 … Pinpoint 100');
+check(S.MAX_PTS === K.CONFIG.LEGS * 100, 'max points = legs × Pinpoint');
+check(S.kmOf(S.MAX_PTS) === K.CONFIG.KARMAN_KM, 'a perfect flight reaches the Kármán line exactly');
+check(S.ptsOf(S.kmOf(55)) === 55 && Math.abs(S.kmOf(7) - 1) < 1e-9, '7 points per km, and back');
 check(S.roundGuess(eiffel, 333.333) === 333 && S.roundGuess(titanic, 1911.6) === 1912, 'guess rounding');
 console.log(`  perfect flight = ${S.MAX_PTS} pts (${S.kmOf(S.MAX_PTS)} km); ${S.METRES_PER_POINT} m per point`);
 
@@ -87,7 +87,7 @@ const sun = K.FACTS.find((f) => f.unit === '°C');
 check(Math.round(K.units.view(sun).toDisp(100)) === 212, '°C → °F');
 check(!K.units.view(titanic).convertible, 'years have no unit toggle');
 K.storage.data.prefs.units = 'metric';
-check(K.units.view(eiffel).unit === 'meters', 'metric view (American spelling on screen)');
+check(K.units.view(eiffel).unit === 'metres', 'metric view');
 
 /* ---- misses described in words ---- */
 check(S.offBy(titanic, 1865, false) === '47 years too early', `offBy years: ${S.offBy(titanic, 1865, false)}`);

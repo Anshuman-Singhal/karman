@@ -45,23 +45,23 @@ check((await call('/api/me', { headers: { authorization: 'Bearer g-42.forged' } 
 check((await call('/api/play', { method: 'POST', headers: { authorization: `Bearer g-42.${sig}` } })).status === 204, 'play logged');
 
 // results validation (7 legs)
-const res = (legs) => call('/api/result', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ n: 1, device: 'device-abc-123', pts: 60, legs, chips: '2222222'.slice(0, legs.length) }) });
+const res = (legs) => call('/api/result', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ n: 1, device: 'device-abc-123', pts: 300, legs, chips: '2222222'.slice(0, legs.length) }) });
 check((await res('1101011')).status === 204, '7-leg result accepted');
 check((await res('11010')).status === 422, '5-leg result rejected');
 
 // stats ignore rows recorded before the flight's date (old launch-date test plays)
 db.exec("INSERT INTO results (n, device, pts, legs, chips, created) VALUES (1, 'old-device-0001', 700, '1111111', '4444444', '2020-01-01 00:00:00')");
 const s1 = await (await call('/api/stats/1')).json();
-check(s1.players === 1 && s1.buckets.length === 1 && s1.buckets[0][0] === 60, 'stats count only current-era rows');
+check(s1.players === 1 && s1.buckets.length === 1 && s1.buckets[0][0] === 300, 'stats count only current-era rows');
 
 // numbered Unlimited runs: their own crowd, kept apart from daily flights
 const runPost = (run, device, pts) => call('/api/result', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ run, device, pts, legs: '1111111', chips: '2222222' }) });
-check((await runPost(3, 'device-run-0001', 80)).status === 204, 'run result accepted');
-await runPost(3, 'device-run-0002', 40);
+check((await runPost(3, 'device-run-0001', 400)).status === 204, 'run result accepted');
+await runPost(3, 'device-run-0002', 200);
 const r3 = await (await call('/api/stats/r3')).json();
 check(r3.players === 2 && r3.run === true, 'run stats count only that run');
 check((await (await call('/api/stats/r4')).json()).players === 0, 'other runs are separate');
-check((await runPost(0, 'device-run-0003', 20)).status === 422, 'run 0 rejected');
+check((await runPost(0, 'device-run-0003', 100)).status === 422, 'run 0 rejected');
 
 console.log(fails ? `${fails} failed` : 'Worker checks passed.');
 process.exit(fails ? 1 : 0);

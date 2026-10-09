@@ -1294,7 +1294,7 @@ body[data-screen="home"] #dock { height: max(calc(268px + env(safe-area-inset-bo
 
 
 /* Krillion-style footer line: tiny mono caps, links underlined */
-.site-foot { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 14px; margin: 18px 0 2px; text-align: center; font: 500 10.5px/1.6 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(224, 230, 248, 0.38); }
+.site-foot { margin: 18px 0 2px; text-align: center; font: 500 10.5px/1.6 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(224, 230, 248, 0.38); }
 .site-foot a { color: rgba(224, 230, 248, 0.7); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(224, 230, 248, 0.3); }
 .site-foot a:hover { color: var(--amber); }
 
@@ -1309,7 +1309,7 @@ body[data-screen="home"] #dock { height: max(calc(268px + env(safe-area-inset-bo
 .leaf b { flex: 1; display: grid; place-items: center; font: 800 15px/1 var(--f-display); color: var(--ink); }
 
 /* Copy passport: an ink stamp pressed onto the page itself */
-.pp-legend { padding-right: 84px; min-height: 68px; align-content: flex-start; box-sizing: border-box; }   /* room for the stamp, so it never sits on the last visa's name */
+.pp-legend { padding-right: 84px; }
 .pp-stamp { position: absolute; right: 14px; bottom: 12px; width: 78px; height: 78px; padding: 0; border: 0; background: none; cursor: pointer; transform: rotate(-12deg); transition: transform var(--d-state) var(--ease-spring); }
 .pp-stamp svg { width: 100%; height: 100%; overflow: visible; }
 .pps-ring { fill: rgba(255, 106, 61, 0.06); stroke: var(--ember); stroke-width: 3.5; }
@@ -2398,7 +2398,7 @@ body[data-screen="results"] #dock {
 /* ---------------------------------------------------------------- 3 · watermark */
 #screen-results::after {
   content: ""; position: absolute; z-index: -1; pointer-events: none;
-  top: 18px; right: 10px; width: 132px; height: 156px;
+  top: 22px; right: 8px; width: 168px; height: 200px;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 260' fill='none' stroke='%2314213D' stroke-width='1.4' stroke-linecap='round'%3E %3Cpath d='M110 44C160 44 190 80 190 122C190 160 152 190 126 214H94C68 190 30 160 30 122C30 80 60 44 110 44Z'/%3E %3Cpath d='M110 44C86 80 84 160 101 214M110 44C134 80 136 160 119 214M110 44C62 72 54 150 94 214M110 44C158 72 166 150 126 214'/%3E %3Cpath d='M94 214L100 236M126 214L120 236'/%3E %3Crect x='99' y='236' width='22' height='15' rx='2.5'/%3E %3C/svg%3E") center / contain no-repeat;
   opacity: 0.075;
 }
@@ -2460,7 +2460,7 @@ body[data-screen="results"] #dock {
         rgba(110, 82, 40, 0.16) 53%, rgba(140, 108, 58, 0.05) 70%, transparent 100%);
   }
   /* The watermark sits on the data page, to the right of the score. */
-  #screen-results::after { top: 14px; right: auto; left: 256px; width: 124px; height: 146px; }
+  #screen-results::after { top: 24px; right: auto; left: 248px; width: 190px; height: 224px; }
 
   /* Columns fade out before they pass under the printed rails. */
   .results .res-main, .results .res-side {
@@ -2477,7 +2477,7 @@ body[data-screen="results"] #dock {
 
 /* Percentile as one sentence: "You did better than 78% of today's N pilots." */
 #screen-results #pctl-txt { font-size: 17px; line-height: 1.35; }
-#screen-results #pctl-txt .pctl-inline { font-weight: 700; color: var(--amber-deep); font-variant-numeric: tabular-nums; }   /* one size: no mid-sentence jumps */
+#screen-results #pctl-txt .pctl-inline { font: 800 1.55em/1 var(--f-display); letter-spacing: 0.01em; color: var(--amber-deep); font-variant-numeric: tabular-nums; }
 
 /* ---------------------------------------------------------------- unlock page (Krillion-style: a page, not a sales sheet)
    Full screen night, the balloon, one line, one ticket. Prices live only here. */
@@ -2673,9 +2673,6 @@ body[data-screen="round"]:has(#dock.away) #hud { opacity: 0; }
                 radial-gradient(circle at 100% 50%, transparent 4px, #000 4.5px) right / 51% 100% no-repeat;
 }
 @media (min-width: 720px) { #hud .hud-strip { max-width: 280px; } }
-/* Phones: the strip is short. The dots already say "leg 2 of 7", so the words
-   go, and the category gets the whole line instead of being cut mid-word. */
-@media (max-width: 719.98px) { #hud .cat-tag .leg-no, #hud .cat-tag .leg-of { display: none; } #hud .cat-tag { letter-spacing: 0.06em; } }
 
 /* The dial: ink bezel ticks, the arc of time left in ink (amber ≤ 15 s,
    ember ≤ 5 s), whole seconds in the middle. */
@@ -3213,39 +3210,40 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 .pp-legend span:nth-child(3) i { background: #6E7A90 !important; }
 
 /* ---------------------------------------------------------------- guided first leg (coach.js)
-   A dim shield freezes the whole screen; a spotlight cut-out shows the one
-   control the slip is about; the slip has Next / Skip. Nothing behind it is
-   tappable until the pilot taps through. */
-.coach-shield { position: fixed; inset: 0; z-index: 28; background: rgba(5, 8, 22, 0); transition: background 260ms ease; pointer-events: none; }
-.coach-shield.on { background: rgba(5, 8, 22, 0.55); pointer-events: auto; }
-.coach-spot {
-  position: fixed; z-index: 29; border-radius: 12px; pointer-events: none; opacity: 0;
-  box-shadow: 0 0 0 9999px rgba(5, 8, 22, 0.55), 0 0 0 3px rgba(242, 166, 90, 0.95), 0 0 28px rgba(242, 166, 90, 0.55);
-  transition: left 320ms var(--ease-out), top 320ms var(--ease-out), width 320ms var(--ease-out), height 320ms var(--ease-out), opacity 260ms ease;
-}
-.coach-spot.on { opacity: 1; animation: coachpulse 1.4s ease-in-out infinite; }
-.coach-shield.on { background: transparent; }   /* the spotlight's own shadow does the dimming */
+   A small paper slip with an arrow, pinned above the thing to touch next. */
 .coach-slip {
-  position: fixed; z-index: 30; display: grid; grid-template-columns: auto 1fr; gap: 6px 10px;
-  padding: 12px 14px 10px; border-radius: 6px;
-  background: #F6EDDB; color: #14213D; font: 500 15px/1.4 var(--f-ui);
-  box-shadow: 0 14px 36px rgba(5, 8, 22, 0.45), inset 0 0 0 1px rgba(20, 33, 61, 0.14);
-  opacity: 0; transform: translateY(6px); transition: opacity 220ms ease, transform 260ms var(--ease-out), top 320ms var(--ease-out), left 320ms var(--ease-out);
+  position: fixed; z-index: 30; display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 12px; border-radius: 6px;
+  background: #F6EDDB; color: #14213D; font: 500 14px/1.35 var(--f-ui);
+  box-shadow: 0 10px 28px rgba(5, 8, 22, 0.35), inset 0 0 0 1px rgba(20, 33, 61, 0.14);
+  opacity: 0; transform: translateY(6px); transition: opacity 220ms ease, transform 260ms var(--ease-out);
+  pointer-events: none;
 }
 .coach-slip.in { opacity: 1; transform: none; }
 .coach-slip b { font-weight: 700; }
 .coach-slip::after {
   content: ""; position: absolute; top: 100%; left: var(--arrow-x, 50%); translate: -50% 0;
-  border: 9px solid transparent; border-top-color: #F6EDDB; filter: drop-shadow(0 2px 1px rgba(5, 8, 22, 0.2));
+  border: 8px solid transparent; border-top-color: #F6EDDB; filter: drop-shadow(0 2px 1px rgba(5, 8, 22, 0.2));
 }
+.coach-step { flex: none; font: 800 12px/1.4 var(--f-display); letter-spacing: 0.08em; color: var(--amber-deep, #C25A12); padding-top: 1px; }
+.coach-target { position: relative; animation: coachpulse 1.6s ease-in-out infinite; border-radius: 10px; }
+@keyframes coachpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(240, 124, 44, 0); } 50% { box-shadow: 0 0 0 5px rgba(240, 124, 44, 0.35); } }
+@media (prefers-reduced-motion: reduce) { .coach-target { animation: none; box-shadow: 0 0 0 3px rgba(240, 124, 44, 0.45); } .coach-slip { transition: none; } }
+
+/* Share nudge: two small bumps on the share ticket and a paper tag above it */
+.ticket-row { position: relative; }
+.share-nudge {
+  position: absolute; left: 10px; bottom: calc(100% + 8px); z-index: 2;
+  padding: 5px 9px; border-radius: 4px; background: #14213D; color: #F6EDDB;
+  font: 700 11px/1 var(--f-ui); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
+  opacity: 0; transform: translateY(4px); transition: opacity 240ms ease, transform 280ms var(--ease-out); pointer-events: none;
+}
+.share-nudge::after { content: ""; position: absolute; top: 100%; left: 22px; border: 5px solid transparent; border-top-color: #14213D; }
+.share-nudge.in { opacity: 1; transform: none; }
+#btn-share.nudge { animation: sharebump 900ms var(--ease-out) 2; }
+@keyframes sharebump { 0%, 100% { translate: 0 0; } 30% { translate: 0 -4px; } 55% { translate: 0 0; } 70% { translate: 0 -2px; } }
+@media (prefers-reduced-motion: reduce) { #btn-share.nudge { animation: none; } }
 .coach-slip.below::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #F6EDDB; }
-.coach-step { font: 800 12px/1.5 var(--f-display); letter-spacing: 0.08em; color: var(--amber-deep, #C25A12); padding-top: 2px; }
-.coach-btns { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
-.coach-btns button { font: 600 13px/1 var(--f-ui); border-radius: 6px; padding: 9px 14px; cursor: pointer; }
-.coach-skip { background: none; border: 0; color: rgba(20, 33, 61, 0.6); text-decoration: underline; text-underline-offset: 3px; }
-.coach-next { background: #14213D; color: #F6EDDB; border: 0; letter-spacing: 0.04em; }
-@keyframes coachpulse { 0%, 100% { box-shadow: 0 0 0 9999px rgba(5, 8, 22, 0.55), 0 0 0 3px rgba(242, 166, 90, 0.95), 0 0 20px rgba(242, 166, 90, 0.4); } 50% { box-shadow: 0 0 0 9999px rgba(5, 8, 22, 0.55), 0 0 0 5px rgba(242, 166, 90, 1), 0 0 36px rgba(242, 166, 90, 0.7); } }
-@media (prefers-reduced-motion: reduce) { .coach-spot.on { animation: none; } .coach-slip, .coach-spot { transition: none; } }
 /* the tag sits under the share ticket (Keep flying is right above it) */
 .share-nudge { bottom: auto; top: calc(100% + 8px); }
 .share-nudge::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #14213D; }
@@ -3429,91 +3427,3 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 
 /* Next leg gets focus programmatically (for Enter); only show a ring for keyboard users */
 #btn-next:focus:not(:focus-visible), #btn-lock:focus:not(:focus-visible) { outline: none; box-shadow: none; }
-
-/* v17 · km scoring tidy-ups */
-.round .kl-stub, .round .kl-main { white-space: nowrap; }
-.round .kl-stub { font-size: 15px; }
-@media (max-width: 719px) { .round .kl-stub { font-size: 14px; letter-spacing: 0; } }
-/* Keep flying is a secondary action next to Share: navy, so the apricot stays for the main flow */
-#screen-results .keep-ticket, #screen-results #btn-keep { background: #1E2A55; color: #F6EDDB; }
-#screen-results #btn-keep .kt-stub { background: #14213D; color: #FFB547; }
-#screen-results #btn-keep::before, #screen-results #btn-keep::after { display: none; }
-/* Phones: a shorter card ("it takes two-thirds of the screen") — smaller keys,
-   tighter gaps, a smaller guess number; the sky gets the room back. */
-@media (max-width: 719px) and (pointer: coarse) {
-  :root { --kh: 40px; --kg: 5px; --gondola-h: clamp(392px, 50vh, 440px); --round-h: clamp(392px, 49svh, 436px); }
-  .round .question { font-size: 17px; }
-  .round .hint { margin-bottom: 8px; }
-  .round .readout { min-height: 52px; }
-  .round .guess { font-size: clamp(34px, 11vw, 44px); }
-  .round .controls { padding-top: 8px; }
-  .round .wbtn { padding-top: 6px; padding-bottom: 6px; }
-}
-@media (max-width: 719px) and (pointer: coarse) and (max-height: 700px) {
-  :root { --kh: 36px; --gondola-h: 396px; --round-h: 396px; }
-}
-
-/* ---------------------------------------------------------------- results → sky (replay.js)
-   The pass drops to a slim strip; the rail shows where everyone landed and
-   where each of your legs took you. */
-.res-handle { display: block; width: 100%; margin: -6px 0 6px; padding: 8px 0 6px; background: none; border: 0; cursor: grab; touch-action: none; }
-@media (min-width: 1024px) { .res-handle { display: none; } }
-.res-handle i { display: block; width: 44px; height: 5px; margin: 0 auto; border-radius: 3px; background: rgba(20, 33, 61, 0.22); }
-.pctl-read { flex-direction: column; align-items: flex-start; gap: 10px; }
-.pctl-sky { display: inline-flex; align-items: center; gap: 4px; margin: 0; align-self: flex-start; font: 600 13px/1 var(--f-ui); color: var(--amber-deep, #C25A12); text-decoration: none; }
-.pctl-sky svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-#screen-results .crowd-chart { display: none; }   /* the chart lives on the sky now, vertically */
-body[data-screen="results"] #dock { transition: border-color var(--d-state), width var(--d-sheet) var(--ease-out), height var(--d-sheet) var(--ease-out), translate 420ms var(--ease-out); }
-body.res-collapsed #dock { translate: 0 calc(100% - 64px - env(safe-area-inset-bottom, 0px)); }
-body.res-collapsed #screen-results { pointer-events: none; }
-.res-strip {
-  position: absolute; left: 0; right: 0; top: 0; height: 64px; z-index: 5;
-  display: none; align-items: center; justify-content: space-between; padding: 0 20px;
-  background: none; border: 0; font: 500 15px/1 var(--f-ui); color: #14213D; cursor: pointer;
-}
-.res-strip b { font: 800 20px/1 var(--f-display); letter-spacing: 0.04em; color: #14213D; }
-.res-strip .rs-cue { display: inline-flex; align-items: center; gap: 4px; font: 600 12px/1 var(--f-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber-deep, #C25A12); }
-.res-strip .rs-cue svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-body.res-collapsed .res-strip { display: flex; }
-#replay { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity 300ms ease; }
-#replay.on { opacity: 1; }
-#replay .rp-chart { position: absolute; overflow: visible; }
-/* Where everyone landed: one bar per 5 km, out from the rail. Yours is amber. */
-#replay .rp-bar { fill: rgba(246, 237, 219, 0.26); transform-box: fill-box; transform-origin: 0 50%; animation: rpGrow 520ms var(--ease-out) both; animation-delay: calc(90ms + var(--i, 0) * 9ms); }
-#replay .rp-bar.me { fill: #FFB547; }
-@keyframes rpGrow { from { transform: scaleX(0); } }
-#replay .rp-you { stroke: #FFB547; stroke-width: 1.2; stroke-dasharray: 3 3; }
-#replay .rp-you-t { fill: #FFB547; font: 800 11px var(--f-display); letter-spacing: 0.12em; }
-#replay .rp-tick { stroke: rgba(246, 237, 219, 0.55); stroke-width: 1; }
-#replay .rp-tick-t { fill: rgba(246, 237, 219, 0.6); font: 600 10px var(--f-ui); font-variant-numeric: tabular-nums; }
-/* Your legs: a thin line on the rail in the width's colour; a miss is a faint grey one. */
-.rp-leg { position: absolute; width: 16px; height: 1.5px; translate: 0 -50%; padding: 5px 0; box-sizing: content-box; margin-top: -5px; pointer-events: auto; cursor: default; outline: none; }
-.rp-leg i { display: block; width: 100%; height: 1.5px; background: var(--c); box-shadow: 0 0 4px rgba(0, 0, 0, 0.35); }
-.rp-leg.miss i { background: rgba(246, 237, 219, 0.32); box-shadow: none; }
-.rp-tag {
-  position: absolute; left: 22px; top: 50%; translate: 0 -50%;
-  padding: 3px 7px; border-radius: 4px; background: #F3E9D6; color: #14213D;
-  font: 600 11px/1 var(--f-ui); white-space: nowrap; letter-spacing: 0.02em;
-  opacity: 0; transition: opacity 140ms; pointer-events: none;
-}
-.rp-leg.show .rp-tag, .rp-leg:focus-visible .rp-tag { opacity: 1; }
-body.res-collapsed #scene { cursor: ns-resize; }
-@media (prefers-reduced-motion: reduce) { body[data-screen="results"] #dock { transition: none; } }
-
-.res-strip { background: #F3E9D6; border-radius: var(--r-card) var(--r-card) 0 0; }
-body.res-collapsed #screen-results { visibility: hidden; }
-#screen-results #btn-keep .kt-main, #screen-results #btn-keep .kt-sub, #screen-results #btn-keep .kt-title, #screen-results #btn-keep > span:first-child { color: #F6EDDB; }
-#screen-results #btn-keep .kt-sub { color: rgba(246, 237, 219, 0.72); }
-#screen-results #btn-keep .kt-main b, #screen-results #btn-keep .kt-main small { color: #F6EDDB; }
-#screen-results #btn-keep .kt-main small { opacity: 0.75; }
-
-/* replay: the rail stretches while the pass is down; milestone labels step aside for your legs */
-#rail { transition: opacity 300ms, left 420ms var(--ease-out), height 420ms var(--ease-out); }
-body.res-collapsed #rail { left: max(38px, calc(env(safe-area-inset-left, 0px) + 26px)); height: calc(100% - 64px - 150px - env(safe-area-inset-top, 0px)); }
-body.res-collapsed .rail-tick, body.res-collapsed .rail-ghost { opacity: 0; }
-.rail-tick { transition: opacity 300ms; }
-/* The balloon steps right so the chart has the left of the sky to itself. */
-#balloon-rig { transition: left 600ms var(--ease-out); }
-body.res-collapsed #balloon-rig { left: 64%; }
-@media (min-width: 720px) { body.res-collapsed #balloon-rig { left: 56%; } }
-@media (prefers-reduced-motion: reduce) { #rail, #balloon-rig { transition: none; } #replay .rp-bar { animation: none; } }

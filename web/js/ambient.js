@@ -4,14 +4,12 @@
    the world. Each effect belongs to a band of altitude, so the climb feels
    like passing through real places:
 
-     0–6 km     crepuscular rays falling from the sun toward the land
+     0–6 km     god rays from the sun, breathing slowly
      0.3–2.5 km a small flock of birds crossing
      2 km       a soft white flash as you punch through the cloud deck
      20–30 km   nacreous (mother-of-pearl) cloud bands
      45–95 km   sprites: brief red flashes of upper-atmosphere lightning
-     60 km +    meteors burning up and a passing satellite
-     100 km +   aurora curtains hung on the world: green from 100 km, red
-                tops above 130 (seen from below as you near the line)
+     60 km +    aurora curtains, meteors burning up, and a passing satellite
      any        wind streaks while the camera is climbing fast
 
    Everything reads K.scene.km and K.scene.yOf(km), so it scrolls with the
@@ -29,7 +27,7 @@ K.ambient = (() => {
   const streaks = [];
   let birds = [], flockX = -0.2, flockKm = 1.1;
   let sat = null, satNext = 4;
-  let dockTop = 0, dockCheck = 0; // where the card starts: flocks stay in the open sky above it
+  let dockTop = 0, dockCheck = 0; // the aurora sits just above the card, where the sky is visible
   let firstFlock = true;
 
   function resize() {
@@ -39,7 +37,6 @@ K.ambient = (() => {
     cv.width = Math.round(W * dpr);
     cv.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    rays = null;   // re-rendered at the new size on next use
   }
 
   /* mode: 'open' = in the open sky, entering from the left (or mid-sky on first load)
@@ -65,53 +62,27 @@ K.ambient = (() => {
   }
 
   /* ---------------------------------------------------------- effects */
-  /* Crepuscular rays: the sun's light falling in soft shafts down toward
-     the land, the way it breaks under a cloud deck, never sideways. Two
-     sets of shafts are painted once into small offscreen canvases (at a
-     quarter of the pixels; they are soft anyway) and breathe in turn, so a
-     frame costs two drawImage calls. */
-  let rays = null;
-  function paintRays() {
-    const q = 0.5, w = Math.max(1, Math.round(W * q)), h = Math.max(1, Math.round(H * q));
-    const sx = W * 0.8 * q, sy = H * 0.38 * q, r0 = Math.min(W, H) * 0.05 * q;
-    const len = Math.hypot(W, H) * q;
-    const set = [[], []];
-    // A fan pointing down and a little west, toward the meadow; widths and
-    // angles uneven, like shafts through gaps in cloud.
-    const ANG = [1.38, 1.55, 1.68, 1.86, 1.99, 2.17, 2.32, 2.47];
-    ANG.forEach((a, i) => set[i % 2].push([a, 0.022 + 0.018 * ((i * 7) % 5) / 4]));
-    rays = set.map((list) => {
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      const x = c.getContext('2d');
-      for (const [a, hw] of list) {
-        const g = x.createLinearGradient(sx + Math.cos(a) * r0, sy + Math.sin(a) * r0, sx + Math.cos(a) * len * 0.75, sy + Math.sin(a) * len * 0.75);
-        g.addColorStop(0, 'rgba(255,238,206,0)');
-        g.addColorStop(0.12, 'rgba(255,238,206,0.9)');
-        g.addColorStop(0.55, 'rgba(255,232,196,0.35)');
-        g.addColorStop(1, 'rgba(255,232,196,0)');
-        x.fillStyle = g;
-        x.beginPath();
-        x.moveTo(sx + Math.cos(a - hw * 0.35) * r0, sy + Math.sin(a - hw * 0.35) * r0);
-        x.lineTo(sx + Math.cos(a - hw) * len, sy + Math.sin(a - hw) * len);
-        x.lineTo(sx + Math.cos(a + hw) * len, sy + Math.sin(a + hw) * len);
-        x.lineTo(sx + Math.cos(a + hw * 0.35) * r0, sy + Math.sin(a + hw * 0.35) * r0);
-        x.closePath();
-        x.fill();
-      }
-      return c;
-    });
-  }
   function godRays(km, t, still) {
-    const a = band(km, -1, 0, 3, 6) * 0.2;
+    const a = band(km, -1, 0, 3, 6) * 0.22;
     if (a <= 0) return;
-    if (!rays) paintRays();
+    const sx = W * 0.8, sy = H * 0.38;
+    const len = Math.hypot(W, H);
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    for (let i = 0; i < 2; i++) {
-      const breathe = still ? 0.8 : 0.6 + 0.4 * Math.sin(t * 0.3 + i * 2.4);
-      ctx.globalAlpha = a * breathe;
-      ctx.drawImage(rays[i], 0, 0, W, H);
+    for (let i = 0; i < 7; i++) {
+      const ang = 2.2 + i * 0.29 + (still ? 0 : Math.sin(t * 0.07 + i) * 0.03);
+      const w = 0.05 + 0.03 * Math.sin(i * 2.3);
+      const breathe = still ? 1 : 0.65 + 0.35 * Math.sin(t * 0.35 + i * 1.7);
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, len * 0.8);
+      g.addColorStop(0, `rgba(255,236,200,${(a * breathe).toFixed(3)})`);
+      g.addColorStop(1, 'rgba(255,236,200,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + Math.cos(ang - w) * len, sy + Math.sin(ang - w) * len);
+      ctx.lineTo(sx + Math.cos(ang + w) * len, sy + Math.sin(ang + w) * len);
+      ctx.closePath();
+      ctx.fill();
     }
     ctx.restore();
   }
@@ -182,46 +153,24 @@ K.ambient = (() => {
     ctx.restore();
   }
 
-  /* Aurora: curtains hung on the world, their hems at 100 km and their tops
-     reaching past the ceiling, green below and a thin red above (oxygen at
-     two heights). Drawn like a gouache wash in vertical strokes: one
-     pre-rendered column sprite, stamped in narrow strips whose height and
-     strength ripple slowly, the hem folding like cloth. */
-  let auroraSprite = null;
-  function auroraColumn() {
-    const c = document.createElement('canvas');
-    c.width = 1; c.height = 128;
-    const x = c.getContext('2d');
-    const g = x.createLinearGradient(0, 0, 0, 128);   // top → hem
-    g.addColorStop(0, 'rgba(255,90,120,0)');
-    g.addColorStop(0.16, 'rgba(236,96,150,0.32)');
-    g.addColorStop(0.42, 'rgba(120,226,170,0.5)');
-    g.addColorStop(0.86, 'rgba(120,255,180,0.95)');
-    g.addColorStop(0.93, 'rgba(210,255,220,1)');
-    g.addColorStop(1, 'rgba(120,255,180,0)');
-    x.fillStyle = g;
-    x.fillRect(0, 0, 1, 128);
-    return c;
-  }
   function aurora(km, t, still) {
-    const a = clamp((km - 70) / 30, 0, 1);
+    const a = clamp((km - 55) / 35, 0, 1);
     if (a <= 0) return;
-    // The hem hangs at 100 km, or stands just off Earth's limb once the limb rises past it.
-    const hem = Math.min(K.scene.yOf(100), (K.scene.earthTop || Infinity) + 2), crown = Math.min(K.scene.yOf(150), hem - H * 0.2);
-    if (hem < -40 || crown > H + 40) return;
-    if (!auroraSprite) auroraSprite = auroraColumn();
-    const tt = still ? 0 : t;
-    const span = hem - crown;
+    const base = Math.min(H * 0.8, (dockTop || H * 0.55) + 24);
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    for (let x = 0; x < W; x += 4) {
-      const fold = Math.sin(x / 110 + tt * 0.22) * 0.6 + Math.sin(x / 41 - tt * 0.37) * 0.4;
-      const k = clamp(0.35 + 0.65 * Math.sin(x / 170 + 1.3 + tt * 0.13) * (0.75 + 0.25 * Math.sin(x / 23 + tt * 0.9)), 0, 1);
-      if (k < 0.04) continue;
-      const bottom = hem + fold * 10;
-      const h = span * (0.62 + 0.38 * (0.5 + 0.5 * Math.sin(x / 67 + 0.7 - tt * 0.15)));
-      ctx.globalAlpha = 0.55 * a * k;
-      ctx.drawImage(auroraSprite, 0, 0, 1, 128, x, bottom - h, 4, h);
+    for (let x = 0; x < W; x += 5) {
+      const wave = Math.sin(x / 90 + (still ? 0 : t * 0.25)) + Math.sin(x / 37 - (still ? 0 : t * 0.4)) * 0.5;
+      const h = 170 + wave * 55 + Math.sin(x / 210) * 60;
+      const k = 0.5 + 0.5 * Math.sin(x / 160 + (still ? 0 : t * 0.18));
+      const top = base - h - wave * 10;
+      const g = ctx.createLinearGradient(0, top, 0, base);
+      g.addColorStop(0, 'rgba(170,110,255,0)');
+      g.addColorStop(0.35, `rgba(160,110,255,${(0.3 * a * k).toFixed(3)})`);
+      g.addColorStop(0.85, `rgba(90,255,170,${(0.7 * a * k).toFixed(3)})`);
+      g.addColorStop(1, 'rgba(90,255,170,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x, top, 5, base - top);
     }
     ctx.restore();
   }
