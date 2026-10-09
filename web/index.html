@@ -225,13 +225,6 @@
       </div>
     </section>
 
-    <!-- Results: drag the pass down (or press) to see the climb in the sky (js/climb.js) -->
-    <button type="button" class="res-handle" id="res-handle" aria-expanded="false" aria-controls="climb-marks">
-      <i class="rh-grip" aria-hidden="true"></i>
-      <span class="rh-see">See your climb</span>
-      <span class="rh-back">Back to your pass</span>
-    </button>
-
     <!-- CLOSED: before launch, or no flight stocked -->
     <section class="screen" id="screen-closed" hidden>
       <p class="eyebrow">Hangar</p>
@@ -239,6 +232,13 @@
       <p class="home-lede" id="closed-copy"></p>
     </section>
   </main>
+
+  <!-- Results: a tab floating above the pass. Press or drag it down to see the climb in the sky;
+       while the pass is parked it reads "Back to your pass" (js/climb.js). -->
+  <button type="button" class="res-handle" id="res-handle" aria-expanded="false" aria-controls="climb-marks">
+    <i class="rh-grip" aria-hidden="true"></i>
+    <span class="rh-words"><span class="rh-see">See your climb</span><span class="rh-back">Back to your pass</span><i class="rh-chev" aria-hidden="true"></i></span>
+  </button>
 
   <div id="banner" class="banner" aria-live="polite"></div>
   <canvas id="fx" aria-hidden="true"></canvas>

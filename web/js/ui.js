@@ -242,15 +242,17 @@ K.ui = (() => {
   }
 
   /* ------------------------------------------------------------ results: passport row
-     One tappable row instead of a whole page; the book lives in the logbook. */
+     The closed passport itself: a navy cover with a gilt rule and the crest,
+     today's newest stamp peeking out from the pages. The book lives in the logbook. */
+  const CREST = '<svg class="pr-crest" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18"/><circle cx="20" cy="20" r="15" stroke-dasharray="1.2 2.1"/><path d="M20 8.5c5 0 8.4 3.8 8.4 8.2 0 4-3.6 7.2-6 9.6h-4.8c-2.4-2.4-6-5.6-6-9.6 0-4.4 3.4-8.2 8.4-8.2z"/><path d="M20 8.5c-2.4 3.6-2.6 11.6-1.2 17.8M20 8.5c2.4 3.6 2.6 11.6 1.2 17.8"/><path d="M17.6 26.3l.6 2.6M22.4 26.3l-.6 2.6"/><rect x="17.6" y="28.9" width="4.8" height="3" rx=".8"/></svg>';
   function passportRow(record, isFresh) {
     const pp = record.passport || { stamps: [], slam: null, also: [] };
     const counts = K.storage.data.stampCounts || {};
     const newOnes = pp.stamps.filter((s) => s.first || s.tierUp).length;
-    const chip = pp.slam ? ink(pp.slam, S.tierIndex(counts[pp.slam] || 1), { rot: -8, slam: isFresh }) : '';
+    const peek = pp.slam ? `<span class="pr-page" aria-hidden="true">${ink(pp.slam, S.tierIndex(counts[pp.slam] || 1), { rot: -10, slam: isFresh })}</span>` : '';
     const text = !pp.stamps.length ? 'No stamps today · clouds start at 2 km'
       : `${pp.stamps.length} stamp${pp.stamps.length === 1 ? '' : 's'} today${newOnes ? ` · <b>${newOnes} new</b>` : ''}`;
-    return `${chip}<span class="pr-text"><span class="pr-title">Passport</span><span>${text}</span></span><span class="pr-chev" aria-hidden="true">›</span>`;
+    return `<span class="pr-cover" aria-hidden="true">${CREST}</span><span class="pr-text"><span class="pr-title">Passport</span><span class="pr-sub">${text}</span></span>${peek}<span class="pr-chev" aria-hidden="true"></span>`;
   }
 
   /* ------------------------------------------------------------ results: answers
@@ -428,6 +430,7 @@ K.ui = (() => {
     if (mine !== statsTicket) return;           // results were reopened meanwhile; the newer fetch wins
     lastStats = stats;
     renderPercentile(record, stats);
+    if (K.climb) K.climb.setStats(stats);       // the climb view's summary line
   }
 
   /* ------------------------------------------------------------ results */
@@ -440,10 +443,8 @@ K.ui = (() => {
     clearTimeout(nudgeTimer);
     btn.classList.remove('nudge'); tag.classList.remove('in');
     if (!on) return;
-    nudgeTimer = setTimeout(() => {
-      btn.classList.add('nudge');   // the pass never scrolls on its own: the score stays in view
-      nudgeTimer = setTimeout(() => tag.classList.remove('in'), 6000);
-    }, 1800);
+    // the light keeps passing over the ticket (every few seconds) until it is tapped
+    nudgeTimer = setTimeout(() => btn.classList.add('nudge'), 1800);   // the pass never scrolls on its own: the score stays in view
     btn.addEventListener('click', () => { tag.classList.remove('in'); btn.classList.remove('nudge'); }, { once: true });
   }
 

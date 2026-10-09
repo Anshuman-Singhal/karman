@@ -417,3 +417,59 @@ body[data-screen="round"] .cap-sub:has(.cap-fig):not(:has(.cap-note)) { display:
 }
 .sputnik .sight-art svg { width: 34px; }
 .landmark.left .diver { left: 34%; }
+
+/* ================= art · painted sky ================= */
+
+/* ================= v17 · the painted sky ================= */
+/* ==========================================================================
+   KÁRMÁN · scene v17
+   Append to the END of web/css/scene.css, after v16.
+
+   The larger sights are now painted sheets (web/img/*.webp: gouache and
+   dip pen, keyed out to alpha) where inline SVG used to be: the balloon's
+   envelope, the clouds, the landmarks, the aircraft, the meadow. Nothing
+   here animates differently; a sheet is an <img> that rides the same
+   transforms as before. No filters on anything that moves.
+   ========================================================================== */
+
+.paint { display: block; max-width: none; user-select: none; -webkit-user-drag: none; }
+
+/* Clouds: one sheet each, sized by the same --s as before. */
+.cloud .cloud-img { width: 100%; height: auto; }
+
+/* Grounded landmarks: the sheet fills the frame scene.js sizes for it, and a
+   wash of the day's haze rises over its feet (masked to the paint itself). */
+.landmark-art { position: relative; }
+.landmark-art .landmark-img { width: 100%; height: 100%; }
+.landmark-art .haze-wash {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to bottom, transparent 40%, var(--haze) 100%);
+  opacity: 0.6;
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+}
+
+/* Aircraft: painted airframes, nose right; .rtl still mirrors them. */
+.flyer-art .flyer-img { width: 100%; height: auto; }
+.plane .flyer-img { width: 52px; height: auto; position: relative; }
+
+/* Legends: the painted tower and castle stand on their own painted cloud. */
+.legend-art .legend-img { width: 100%; height: auto; }
+.legend.babel { width: 112px; }
+.legend.castle { width: 150px; }
+.castle .legend-art { top: -118px; }
+.castle .stalk { left: 50px; }
+.castle .stalk-foot { left: 14px; }
+
+/* Everest: the painted summit, fading out below in the same vignette. */
+.peak .peak-img { width: 100%; height: auto; -webkit-mask-image: radial-gradient(75% 85% at 50% 4%, #000 60%, transparent 100%); mask-image: radial-gradient(75% 85% at 50% 4%, #000 60%, transparent 100%); }
+
+/* Clouds higher up: stratus and cirrus sheets are wider than a cumulus. */
+.cloud .cloud-img.stratus { width: 190%; }
+.cloud .cloud-img.cirrus { width: 120%; opacity: 0.85; }
+
+/* Sputnik, painted. */
+.sputnik .sight-art .sight-img { width: 36px; height: auto; }
+
+/* The Burj, far off: the painted sheet is paler than the inked one was, so it
+   sits a little deeper in the haze. */
+.grounded.far .landmark-art { opacity: 0.34; }

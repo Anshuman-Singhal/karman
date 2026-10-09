@@ -111,3 +111,10 @@
 @media (max-width: 719px) {
   :root { --gondola-h: clamp(400px, 54vh, 470px); }
 }
+
+/* ---- v18 · the passport's board and gilt (results pass, passport row, the climb tab) ---- */
+:root {
+  --cover: #1E2C5A;                       /* navy board of the passport cover */
+  --gilt: #E2B470;                        /* the gilt rule and crest on it */
+  --gilt-soft: rgba(226, 180, 112, 0.55); /* the same rule where it is only a hairline */
+}

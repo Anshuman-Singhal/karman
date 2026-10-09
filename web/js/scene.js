@@ -156,7 +156,31 @@ K.scene = (() => {
       <g clip-path="url(#${id})"><path d="${lit}" fill="var(--cloud)"/>${dry ? `<path d="${dry}" fill="none" stroke="${INK}" stroke-opacity=".22" stroke-width=".9" stroke-linecap="round"/>` : ''}</g>`;
   }
 
-  function cloudSVG(rand) {
+  /* ========================================================== the paint
+     The larger sights are painted sheets (web/img/*.webp, gouache and pen,
+     keyed out to alpha) rather than code-drawn shapes: the brush texture and
+     the uneven contour are the real thing. Everything that moves still moves
+     as before; a sheet is just an <img> where an inline SVG used to be. The
+     small inked code art stays where it reads better at its size (the
+     beanstalk, the skydiver, the space sights, the tiny festival balloons).
+     Sheets not in view at 0 km load lazily. */
+  const IMG = 'img/';
+  const sheet = (file, w, h, cls = '', lazy = true, alt = '') => `<img class="paint ${cls}" src="${IMG}${file}" width="${w}" height="${h}" alt="${alt}" draggable="false"${lazy ? ' loading="lazy"' : ''} decoding="async">`;
+  /* Six cumulus clumps from two gouache sheets, each lit from the upper right. */
+  const CLOUD_SHEETS = [['cloud-1.webp', 470, 283], ['cloud-2.webp', 432, 276], ['cloud-3.webp', 453, 249], ['cloudb-1.webp', 560, 246], ['cloudb-2.webp', 483, 463], ['cloudb-3.webp', 219, 187]];
+  /* Higher up: a long thin stratus, and two cirrus wisps. */
+  const STRATUS = ['wisp-1.webp', 700, 61];
+  const CIRRUS = [['wisp-2.webp', 700, 159], ['wisp-3.webp', 527, 190]];
+
+  function cloudSVG(rand, km = 1) {
+    let pick = CLOUD_SHEETS, cls = 'cloud-img';
+    if (km > 6) { pick = CIRRUS; cls = 'cloud-img cirrus'; }
+    else if (km > 3.2 && rand() < 0.5) { pick = [STRATUS]; cls = 'cloud-img stratus'; }
+    const [file, w, h] = pick[Math.floor(rand() * pick.length)];
+    return sheet(file, w, h, cls, false);
+  }
+  /* the code-drawn cumulus, kept for the cloud banks under the legends */
+  function cloudSVGInk(rand) {
     const puffs = 5 + Math.floor(rand() * 4);
     const list = [];
     for (let i = 0; i < puffs; i++) {
@@ -264,11 +288,12 @@ K.scene = (() => {
         <path d="${farRidge.d}" fill="url(#g-br-far)"/>
         ${rim(farRidge.pts, '#FFF1DC', 0.22)}${pen(farRidge.pts, 0.35, 1.1, 0.3)}
         <rect x="0" y="48" width="1000" height="30" fill="url(#g-mist)"/>`),
-      mid: sheet(`<defs><linearGradient id="g-mid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#58836F"/><stop offset=".3" stop-color="#3C6458"/><stop offset="1" stop-color="var(--hill-mid)"/></linearGradient>
-          ${brush('g-br-mid', 'rgba(214,232,190,.26)', 'rgba(20,34,40,.2)', 110, 30, 18)}</defs>
-        <path d="${midRidge.d}" fill="url(#g-mid)"/>
-        <path d="${midRidge.d}" fill="url(#g-br-mid)"/>
-        ${rim(midRidge.pts, '#CFE3B4', 0.22)}${pen(midRidge.pts, 0.4, 1.3, 0.42)}`),
+      /* The green ridge and the meadow are painted sheets now (img/hills.webp,
+         img/meadow.webp), laid into the same 1000×300 box: the ridge's crests
+         sit where the inked ridge did (y ≈ 45–85), the meadow's edge dips to
+         the launch line at y 95 in the centre. The river and the windsock stay
+         drawn, between them. */
+      mid: sheet(`<image href="${IMG}hills.webp" x="0" y="0" width="1000" height="289" preserveAspectRatio="none"/>`),
       front: sheet(`<defs>
           <linearGradient id="g-near" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#97AC62"/><stop offset=".06" stop-color="#668549"/><stop offset=".3" stop-color="#3E6141"/><stop offset=".75" stop-color="var(--hill-near)"/></linearGradient>
           <linearGradient id="g-mist2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--haze);stop-opacity:0"/><stop offset=".55" style="stop-color:var(--haze);stop-opacity:.5"/><stop offset="1" style="stop-color:var(--haze);stop-opacity:.1"/></linearGradient>
@@ -277,13 +302,8 @@ K.scene = (() => {
         <rect x="0" y="66" width="1000" height="26" fill="url(#g-mist2)" opacity=".75"/>
         <path d="M0,86 C140,80 220,92 330,85 S520,80 600,86 S800,92 1000,84 L1000,88 C800,96 700,90 600,90 S420,86 330,90 S120,86 0,90Z" fill="url(#g-river)" opacity=".75"/>
         <path d="M60,86.6 Q90,86 120,86.8 M410,84.6 Q450,84 480,84.8 M690,88.2 Q720,87.6 760,88.4" stroke="#FFF8EC" stroke-opacity=".45" stroke-width=".7" stroke-linecap="round" fill="none"/>
-        <path d="${near}" fill="url(#g-near)"/>
-        <path d="${near}" fill="url(#g-br-near)"/>
-        ${rim(nearPts, '#E4EDB0', 0.3)}${pen(nearPts, 0.4, 1.2, 0.45)}
-        ${pen(furrow(104, 12), 0.2, 0.7, 0.14)}${pen(furrow(112, 12), 0.2, 0.8, 0.12)}${pen(furrow(121, 12), 0.25, 0.9, 0.1)}
-        <ellipse cx="500" cy="96.5" rx="38" ry="4.2" fill="#A9BC72" opacity=".38"/>
-        <path d="${blob(500, 96.5, 24, hand, 0.02, 16)}" transform="translate(500 96.5) scale(1 .11) translate(-500 -96.5)" fill="none" stroke="#F3E9D6" stroke-opacity=".45" stroke-width="5"/>
-        ${trees}
+        <image href="${IMG}meadow.webp" x="0" y="15.6" width="1000" height="368" preserveAspectRatio="none"/>
+        <path d="${blob(500, 97, 24, hand, 0.02, 16)}" transform="translate(500 97) scale(1 .11) translate(-500 -97)" fill="none" stroke="#F3E9D6" stroke-opacity=".35" stroke-width="4"/>
         <g transform="translate(548 96)"><path d="M-0.5,0 L-0.3,-20.4 L0.6,-20.4 L0.5,0Z" fill="#C9C2B4" stroke="${INK}" stroke-opacity=".5" stroke-width=".5"/><path class="windsock" d="M0,-20 L13,-18 L13,-14.5 L0,-12.5Z" fill="var(--amber-deep)" stroke="${INK}" stroke-opacity=".55" stroke-width=".6" paint-order="stroke"/><path d="M4.3,-19.4 L4.3,-13.2 M8.6,-18.7 L8.6,-13.8" stroke="#F3E9D6" stroke-width="1.2"/></g>`),
     };
   }
@@ -526,6 +546,14 @@ K.scene = (() => {
       <path d="${eng} M25,23 h7 a1.3,1.3 0 0 1 0,2.6 h-7Z" fill="#9AA6BC"/></svg>`;
   }
 
+  /* Painted airframes (one gouache spotter's sheet, split four ways), nose right. */
+  const FLYER_IMG = {
+    airliner: ['fly-1.webp', 300, 252], concorde: ['fly-2.webp', 300, 172], u2: ['fly-3.webp', 300, 396], sr71: ['fly-4.webp', 300, 193],
+    paraglider: ['fly2-1.webp', 300, 251], geese: ['fly2-2.webp', 300, 309], vulture: ['fly2-3.webp', 300, 226], sonde: ['fly2-4.webp', 254, 399],
+    iss: ['space-1.webp', 300, 255],
+  };
+  /* Anything crossing below 20 km loads with the page, so it never pops in mid-flight. */
+  const flyerImg = (k, km = 0) => sheet(FLYER_IMG[k][0], FLYER_IMG[k][1], FLYER_IMG[k][2], 'flyer-img', km >= 20);
   const FLYER_ART = {
     paraglider: `<svg viewBox="0 0 44 40"><defs><linearGradient id="sk-pg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F3E7D0"/><stop offset=".17" stop-color="#F3E7D0"/><stop offset=".17" stop-color="#E35F3E"/><stop offset=".83" stop-color="#F07A52"/><stop offset=".83" stop-color="#F3E7D0"/><stop offset="1" stop-color="#F3E7D0"/></linearGradient></defs>
       <path d="M5,12.5 L20.4,33 M39,12.5 L23.6,33 M14,8.5 L20.6,33 M30,8.5 L23.4,33" stroke="#F3E7D0" stroke-opacity=".7" stroke-width=".45"/>
@@ -591,22 +619,22 @@ K.scene = (() => {
 
   /* Data. fig and note go into the caption; km places the object. */
   const GROUNDED = [
-    { km: 0.828, cap: { name: 'Burj Khalifa', fig: '828 m' }, cx: 27, ar: 13, plane: 'far', dir: 'r', tip: 50.6, svg: burjSVG },
-    { km: 0.139, cap: { name: 'Great Pyramid', fig: '139 m' }, cx: 15, ar: 100 / 144, plane: 'mid', dir: 'r', tip: 48.6, svg: pyramidSVG },
-    { km: 0.330, cap: { name: 'Eiffel Tower', fig: '330 m' }, cx: 85, ar: 2.64, plane: 'mid', dir: 'l', tip: 50.35, svg: eiffelSVG },
+    { km: 0.828, cap: { name: 'Burj Khalifa', fig: '828 m' }, cx: 27, ar: 500 / 92, plane: 'far', dir: 'r', tip: 48.4, img: ['burj.webp', 92, 500] },
+    { km: 0.139, cap: { name: 'Great Pyramid', fig: '139 m' }, cx: 15, ar: 298 / 500, plane: 'mid', dir: 'r', tip: 46, img: ['pyramid.webp', 500, 298] },
+    { km: 0.330, cap: { name: 'Eiffel Tower', fig: '330 m' }, cx: 85, ar: 500 / 249, plane: 'mid', dir: 'l', tip: 50, img: ['eiffel.webp', 249, 500] },
   ];
   const FLYERS = [
-    { km: 0.6, cap: { name: 'Paraglider', fig: '0.6 km' }, dur: 70, dir: 1, w: 36, vb: [44, 40], art: 'paraglider' },
-    { km: 7.3, cap: { name: 'Bar-headed geese', fig: '7.3 km', note: 'over the Himalaya' }, dur: 46, dir: -1, w: 52, vb: [64, 44], art: 'geese' },
-    { km: 11.3, cap: { name: 'Rüppell’s vulture', fig: '11.3 km', note: 'highest bird' }, dur: 58, dir: 1, w: 44, vb: [48, 18], art: 'vulture' },
+    { km: 0.6, cap: { name: 'Paraglider', fig: '0.6 km' }, dur: 70, dir: 1, w: 40, vb: [300, 251], art: 'paraglider' },
+    { km: 7.3, cap: { name: 'Bar-headed geese', fig: '7.3 km', note: 'over the Himalaya' }, dur: 46, dir: -1, w: 50, vb: [300, 309], art: 'geese' },
+    { km: 11.3, cap: { name: 'Rüppell’s vulture', fig: '11.3 km', note: 'highest bird' }, dur: 58, dir: 1, w: 44, vb: [300, 226], art: 'vulture' },
     { km: 13.5, cap: { name: 'Business jets', fig: '13.5 km' }, dur: 30, dir: -1, w: 38, vb: [46, 26], art: 'bizjet' },
-    { km: 15.5, cap: { name: 'Weather balloon', fig: '15.5 km', note: 'rising' }, dur: 120, dir: 1, w: 16, vb: [20, 44], art: 'sonde' },
-    { km: 18, cap: { name: 'Concorde', fig: '18 km · Mach 2' }, dur: 14, dir: -1, w: 62, vb: [70, 22], art: 'concorde' },
-    { km: 21, cap: { name: 'U-2 spy plane', fig: '21 km' }, dur: 40, dir: 1, w: 34, vb: [44, 64], art: 'u2' },
-    { km: 25.9, cap: { name: 'SR-71 Blackbird', fig: '25.9 km', note: 'fastest jet' }, dur: 9, dir: -1, w: 66, vb: [70, 30], art: 'sr71' },
+    { km: 15.5, cap: { name: 'Weather balloon', fig: '15.5 km', note: 'rising' }, dur: 120, dir: 1, w: 18, vb: [254, 399], art: 'sonde' },
+    { km: 18, cap: { name: 'Concorde', fig: '18 km · Mach 2' }, dur: 14, dir: -1, w: 62, vb: [300, 172], art: 'concorde' },
+    { km: 21, cap: { name: 'U-2 spy plane', fig: '21 km' }, dur: 40, dir: 1, w: 38, vb: [300, 396], art: 'u2' },
+    { km: 25.9, cap: { name: 'SR-71 Blackbird', fig: '25.9 km', note: 'fastest jet' }, dur: 9, dir: -1, w: 66, vb: [300, 193], art: 'sr71' },
     { km: 35, cap: { name: 'Weather balloons burst', fig: '~35 km' }, dur: 140, dir: 1, w: 22, vb: [26, 38], art: 'burst' },
     { km: 53, cap: { name: 'Highest balloon ever', fig: '53 km' }, dur: 160, dir: -1, w: 22, vb: [24, 50], art: 'highballoon' },
-    { km: 102, cap: { name: 'Space station', fig: '~400 km', note: 'in orbit, far above' }, dur: 26, dir: 1, w: 58, vb: [64, 34], art: 'iss' },
+    { km: 102, cap: { name: 'Space station', fig: '~400 km', note: 'in orbit, far above' }, dur: 26, dir: 1, w: 58, vb: [300, 255], art: 'iss' },
   ];
   const BANDS = [
     { km: 70, cap: { name: 'Sprites', fig: '50–90 km', note: 'red lightning' }, cls: 'sprites' },
@@ -634,11 +662,7 @@ K.scene = (() => {
         <path d="M14,9.6 L46,8.6" stroke="#8E9BBE" stroke-opacity=".6" stroke-width=".6"/>
         <rect x="41" y="10.6" width="5" height="2.8" rx=".6" fill="#0A0D1C" stroke="#FFB547" stroke-width=".6"/>
         <circle cx="3.2" cy="12" r="1.6" fill="#3A4566" stroke="${INK}" stroke-opacity=".5" stroke-width=".5"/></svg>` },
-    { km: 215, cap: { name: 'Sputnik 1', fig: '215 km', note: 'the first, 1957' }, cls: 'sputnik', dir: 'l', left: '70%', h: 30, svg: () => `<svg viewBox="0 0 40 40">
-        <path d="M14,20 L2,9 M15,22 L3,30 M16.5,19 L7,4.5 M17,23 L9,36" stroke="#F6EEDD" stroke-opacity=".8" stroke-width=".8" stroke-linecap="round"/>
-        <circle cx="22" cy="20" r="7" fill="#E2DCCB" stroke="${INK}" stroke-opacity=".7" stroke-width="1" paint-order="stroke"/>
-        <path d="M22,13 A7,7 0 0 1 29,20 A7,7 0 0 1 24,26.7 A9,9 0 0 0 22,13Z" fill="${INK}" opacity=".25"/>
-        <path d="M17.6,17.6 A4,4 0 0 1 20.6,15.2" stroke="#FFFFFF" stroke-opacity=".85" stroke-width="1" fill="none" stroke-linecap="round"/></svg>` },
+    { km: 215, cap: { name: 'Sputnik 1', fig: '215 km', note: 'the first, 1957' }, cls: 'sputnik', dir: 'l', left: '70%', h: 30, svg: () => sheet('space-2.webp', 300, 289, 'sight-img') },
   ];
 
   /* Grounded landmarks are sized from the camera so their feet land exactly
@@ -663,7 +687,9 @@ K.scene = (() => {
     const hills = hillsSVG();
     addItem(0, hills.far, 'ground far');
     const stand = (t) => {
-      const it = addItem(t.km, `<div class="grounded-frame"><div class="landmark-art">${t.svg()}</div>${cap(t.cap, t.dir, 16, `left:${t.tip}%;top:-3px`)}</div>`, `sight grounded ${t.plane}`);
+      // a painted sheet gets the day's haze over its feet, masked to the paint itself
+      const art = t.img ? sheet(t.img[0], t.img[1], t.img[2], 'landmark-img', false) + `<span class="haze-wash" style="-webkit-mask-image:url(${IMG}${t.img[0]});mask-image:url(${IMG}${t.img[0]})"></span>` : t.svg();
+      const it = addItem(t.km, `<div class="grounded-frame"><div class="landmark-art">${art}</div>${cap(t.cap, t.dir, 16, `left:${t.tip}%;top:-3px`)}</div>`, `sight grounded ${t.plane}`);
       grounded.push({ t, el: it.el.firstElementChild });
     };
     GROUNDED.filter((t) => t.plane === 'far').forEach(stand);
@@ -676,18 +702,18 @@ K.scene = (() => {
   function buildSights() {
     // Legends stand on clouds: Babel on its own bank, the castle on another,
     // with the beanstalk climbing up to it out of the cloud deck below.
-    addItem(1.25, `<div class="legend babel"><div class="legend-art">${babelSVG()}</div>${cap({ name: 'Tower of Babel', note: 'legend' }, 'l', 14, 'left:50%;top:-2px')}</div>`, 'sight');
+    addItem(1.25, `<div class="legend babel"><div class="legend-art">${sheet('babel.webp', 371, 500, 'legend-img')}</div>${cap({ name: 'Tower of Babel', note: 'legend' }, 'l', 14, 'left:50%;top:-2px')}</div>`, 'sight');
     addItem(2.6, `<div class="legend castle">
         <div class="stalk">${beanstalkSVG()}</div>
         <div class="stalk-foot"><svg viewBox="0 0 90 30">${bank(45, 29, 86, 'stalk')}</svg></div>
-        <div class="legend-art">${castleSVG()}</div>
+        <div class="legend-art">${sheet('castle.webp', 500, 407, 'legend-img')}</div>
         ${cap({ name: 'Castle in the clouds', note: 'fairy tale' }, 'r', 14, 'left:50%;top:-82px')}</div>`, 'sight');
     FLYERS.forEach((f, i) => {
       const delay = -((i * 13.7) % f.dur);
       const h = f.w * f.vb[1] / f.vb[0];
       // The caption trails the flyer, like a towed banner.
       const dir = f.dir < 0 ? 'r' : 'l';
-      addItem(f.km, `<div class="flyer ${f.dir < 0 ? 'rtl' : ''}" style="--dur:${f.dur}s;--delay:${delay.toFixed(1)}s;--rx:${(30 + (i * 23) % 50).toFixed(0)}vw;width:${f.w}px"><span class="flyer-art">${FLYER_ART[f.art]}</span>${cap(f.cap, dir, 10, `left:50%;top:${(-h / 2 - 2).toFixed(1)}px`)}</div>`, 'sight');
+      addItem(f.km, `<div class="flyer ${f.dir < 0 ? 'rtl' : ''}" style="--dur:${f.dur}s;--delay:${delay.toFixed(1)}s;--rx:${(30 + (i * 23) % 50).toFixed(0)}vw;width:${f.w}px"><span class="flyer-art">${FLYER_IMG[f.art] ? flyerImg(f.art, f.km) : FLYER_ART[f.art]}</span>${cap(f.cap, dir, 10, `left:50%;top:${(-h / 2 - 2).toFixed(1)}px`)}</div>`, 'sight');
     });
     BANDS.forEach((b) => addItem(b.km, `<div class="${b.cls}"></div>${b.dir === 'r' ? cap(b.cap, 'r', 0, 'left:var(--cap-edge)') : cap(b.cap, 'l', 0, 'left:calc(100% - var(--cap-edge))')}`, 'band-item'));
     SPACE_SIGHTS.forEach((s) => addItem(s.km, `<div class="space-sight ${s.cls}" style="left:${s.left}"><span class="sight-art">${s.svg()}</span>${cap(s.cap, s.dir, 12, `left:0;top:${-s.h / 2 - 3}px`)}</div>`, 'sight'));
@@ -711,11 +737,11 @@ K.scene = (() => {
       const scale = 0.55 + rand() * 1.1;
       const front = inDeck && rand() < 0.4;
       const dur = 70 + rand() * 90;
-      const html = `<div class="cloud" style="left:${x.toFixed(1)}%;--s:${scale.toFixed(2)};--drift:${dur.toFixed(0)}s;--dir:${rand() < 0.5 ? 1 : -1};opacity:${(0.9 + rand() * 0.1).toFixed(2)}">${cloudSVG(rand)}</div>`;
+      const html = `<div class="cloud" style="left:${x.toFixed(1)}%;--s:${scale.toFixed(2)};--drift:${dur.toFixed(0)}s;--dir:${rand() < 0.5 ? 1 : -1};opacity:${(0.9 + rand() * 0.1).toFixed(2)}">${cloudSVG(rand, km)}</div>`;
       addItem(km, html, 'cloud-item', front ? frontEl : worldEl);
     }
-    addItem(8.849, `<div class="peak">${everestSVG()}${cap({ name: 'Everest', fig: '8,849 m' }, 'l', 16, 'left:50%;top:-2px')}</div>`, 'landmark right');
-    addItem(11, `<div class="plane-lane"><div class="plane"><span class="contrail"></span>${airlinerSVG('sk-air')}</div>
+    addItem(8.849, `<div class="peak">${sheet('everest.webp', 515, 500, 'peak-img')}${cap({ name: 'Everest', fig: '8,849 m' }, 'l', 16, 'left:48.7%;top:-2px')}</div>`, 'landmark right');
+    addItem(11, `<div class="plane-lane"><div class="plane"><span class="contrail"></span>${flyerImg('airliner')}</div>
         ${cap({ name: 'Airliners', fig: '11 km' }, 'l', 0, 'left:calc(100% - var(--cap-edge));top:50%')}</div>`, 'landmark');
     addItem(20, `<div class="ozone"></div>${cap({ name: 'Ozone layer', fig: '20 km' }, 'l', 0, 'left:calc(100% - var(--cap-edge))')}`, 'band-item');
     buildSights();

@@ -65,7 +65,10 @@ K.vehicle = (() => {
   for (let y = 8; y <= 150; y += 3) ENV_YS.push(y);
   if (ENV_YS[ENV_YS.length - 1] !== 150) ENV_YS.push(150);
   const ENV_R = ENV_YS.map(rAt);
-  const xOn = (phi, i) => 100 + ENV_R[i] * Math.sin(phi);
+  /* The gore seams wander a hair from row to row (seeded, never animated), so
+     the stripes read as laid down by a brush rather than ruled. */
+  const ENV_JIT = (() => { const r = K.rng.fromLabel('karman-gore-brush'); return ENV_YS.map(() => (r() - 0.5) * 0.7); })();
+  const xOn = (phi, i) => 100 + ENV_R[i] * Math.sin(phi) + ENV_JIT[i] * Math.cos(phi);
   /* Gores stop a hair short of the silhouette: the last sliver of a gore
      turning out of view is thinner than a pixel and used to flicker. */
   const EDGE = Math.PI / 2 - 0.07;
@@ -155,6 +158,28 @@ K.vehicle = (() => {
       ${inked(CAP_OUTLINE, 0.6, 1.2)}`;
   }
 
+  /* ---------------------------------------------------------- the paint
+     The envelope's sheet. Shown from its path at once; then fetched and
+     inlined as a data URL, so the share image (which serialises this SVG
+     into an <img>, where external files never load) carries the paint. */
+  const ENV_SRC = 'img/env.webp';
+  const HELIUM_SRC = 'img/helium.webp';
+  /* The gores are drawn in multiply over the cream paint: this red lands on
+     the poster's vermilion (#D9452B) once the sheet shows through it. */
+  const GORE_RED = '#F0563A';
+  function inlinePaint() {
+    if (!window.fetch || !window.FileReader) return;
+    svg.querySelectorAll('.v-paint').forEach((im) => {
+      const src = im.getAttribute('href');
+      fetch(src).then((r) => (r.ok ? r.blob() : Promise.reject())).then((b) => new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result);
+        fr.onerror = rej;
+        fr.readAsDataURL(b);
+      })).then((url) => im.setAttribute('href', url)).catch(() => {});
+    });
+  }
+
   /* ---------------------------------------------------------- state */
   let svg = null;
   let el = {};
@@ -163,6 +188,7 @@ K.vehicle = (() => {
   const queue = [];
   const gores = { n: 12, phase: 0.35, spin: 0.26 };
   let tapePhase = 0;
+  let lastBubble = '';
   let lastKm = 0;
   let kickT0 = 0, kickAmp = 0;   // take-off: the basket trails the envelope, then settles
 
@@ -185,19 +211,7 @@ K.vehicle = (() => {
         <clipPath id="v-env"><path d="${env}"/></clipPath>
         <clipPath id="v-cl"><rect x="0" y="0" width="100" height="250"/></clipPath>
         <clipPath id="v-cr"><rect x="100" y="0" width="100" height="250"/></clipPath>
-        ${paperTile(K.rng.fromLabel('karman-envelope-paper'))}
         ${HATCH}
-        <linearGradient id="v-shade" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stop-color="${C.amber}" stop-opacity=".18"/>
-          <stop offset=".38" stop-color="${C.amber}" stop-opacity="0"/>
-          <stop offset=".6" stop-color="${C.night}" stop-opacity="0"/>
-          <stop offset="1" stop-color="${C.night}" stop-opacity=".45"/>
-        </linearGradient>
-        <linearGradient id="v-vert" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#fff" stop-opacity=".1"/>
-          <stop offset=".7" stop-color="#000" stop-opacity="0"/>
-          <stop offset="1" stop-color="${C.night}" stop-opacity=".3"/>
-        </linearGradient>
         <linearGradient id="v-flame" x1="0" y1="1" x2="0" y2="0">
           <stop offset="0" stop-color="${C.cream}"/>
           <stop offset=".4" stop-color="${C.amber}"/>
@@ -229,17 +243,17 @@ K.vehicle = (() => {
         <g class="v-glowwrap"><circle class="v-burnglow" cx="100" cy="162" r="30" fill="url(#v-glow)"/></g>
         <g clip-path="url(#v-env)">
           <path d="${env}" fill="${C.paper}"/>
-          <g class="v-gores"></g>
-          <g class="v-pins" fill="none" stroke="${C.amber}" stroke-width=".8"></g>
-          <g class="v-teeth" fill="${C.navy}"></g>
-          <rect x="0" y="0" width="200" height="160" fill="url(#v-paper)" opacity=".55"/>
-          <path d="${env}" fill="url(#v-vert)"/>
-          <path d="${env}" fill="url(#v-shade)"/>
-          ${hatch(gorePath(0.86, Math.PI / 2), 0.32)}
-          ${hatch(gorePath(1.18, Math.PI / 2), 0.3)}
+          <!-- the painted envelope: a gouache sheet (img/env.webp) warped onto this
+               silhouette; it carries the light, the shade, the hatching and the
+               paper's tooth. The gores spin over it in multiply, so the paint
+               shows through the vermilion and the width chips still turn the stripes. -->
+          <image class="v-paint" href="${ENV_SRC}" x="0" y="0" width="200" height="160" preserveAspectRatio="none"/>
+          <g class="v-gores" style="mix-blend-mode:multiply"></g>
+          <g class="v-pins" fill="none" stroke="${C.amber}" stroke-width=".8" opacity=".85"></g>
+          <g class="v-teeth" fill="${C.navy}" style="mix-blend-mode:multiply"></g>
         </g>
         <!-- the same hand-inked contour as the sights in the sky, in a dip pen -->
-        <path d="${envRing()}" fill="${C.ink}" fill-opacity=".55" fill-rule="evenodd"/>
+        <path d="${envRing()}" fill="${C.ink}" fill-opacity=".5" fill-rule="evenodd"/>
         <g class="v-medal">
           <circle r="8" fill="${C.paper}" stroke="${C.navy}" stroke-width="1.4"/>
           <path d="M-3.6,1.8 L0,-2.2 L3.6,1.8" fill="none" stroke="${C.navy}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -298,7 +312,10 @@ K.vehicle = (() => {
 
       <!-- STAGE 2: stratospheric helium balloon on a long flight line -->
       <g class="v-helium" style="transform-origin:100px 9px;opacity:0">
-        <path class="v-bubble" fill="#DCE6F5" fill-opacity=".22" stroke="${C.paper}" stroke-opacity=".9" stroke-width="1.2"/>
+        <!-- the painted film (img/helium.webp), stretched to the bubble as it fills and clipped to it -->
+        <clipPath id="v-hel"><path class="v-bubble-clip"/></clipPath>
+        <image class="v-paint v-hpaint" href="${HELIUM_SRC}" clip-path="url(#v-hel)" preserveAspectRatio="none" opacity=".9"/>
+        <path class="v-bubble" fill="#DCE6F5" fill-opacity=".08" stroke="${C.paper}" stroke-opacity=".6" stroke-width="1"/>
         <g class="v-tapes" fill="none" stroke="${C.paper}" stroke-opacity=".4" stroke-width=".8"></g>
         <g class="v-pleats" fill="none" stroke="${C.paper}" stroke-opacity=".5" stroke-width=".7"></g>
         <ellipse class="v-valve" cx="100" cy="10" rx="6" ry="2" fill="${C.amber}"/>
@@ -372,7 +389,7 @@ K.vehicle = (() => {
       frost: q('.v-frost'), flame: q('.v-flame'), glow: q('.v-glowwrap'),
       basket: q('.v-basket'), swing: q('.v-swing'), gondola: q('.v-gondola'), swing2: q('.v-swing2'), gfrost: q('.v-gfrost'),
       grig: q('.v-grig'), gshl: q('.v-gshl'), gshr: q('.v-gshr'), gseam: q('.v-gseam'), gwin: q('.v-gwin'),
-      helium: q('.v-helium'), bubble: q('.v-bubble'), tapes: q('.v-tapes'), pleats: q('.v-pleats'), valve: q('.v-valve'),
+      helium: q('.v-helium'), bubble: q('.v-bubble'), bubbleClip: q('.v-bubble-clip'), hpaint: q('.v-hpaint'), tapes: q('.v-tapes'), pleats: q('.v-pleats'), valve: q('.v-valve'),
       payload: q('.v-payload'), tilt: q('.v-tilt'), plume: q('.v-plumewrap'), booster: q('.v-booster'), rcap: q('.v-rcap'),
       finl: q('.v-finl'), finr: q('.v-finr'),
       po: q('.v-plume-o'), pm: q('.v-plume-m'), pc: q('.v-plume-c'), flash: q('.v-flash'),
@@ -384,6 +401,7 @@ K.vehicle = (() => {
     el.teethPool = pool(el.teeth, 30);
     el.tapePool = pool(el.tapes, 10);
     el.pleatPool = pool(el.pleats, 3);
+    inlinePaint();
   }
 
   function pool(parent, n) {
@@ -628,10 +646,11 @@ K.vehicle = (() => {
       // Clip to the visible half, a hair inside the silhouette.
       const lo = Math.max(a0, -EDGE), hi = Math.min(b, EDGE);
       const isEmber = k % 3 !== 2;
-      if (hi > lo && g < el.gorePool.length) {
+      // The cream gores are the painted sheet itself; only the ember ones are drawn.
+      if (hi > lo && isEmber && g < el.gorePool.length) {
         const path = el.gorePool[g++];
         path.setAttribute('d', gorePath(lo, hi));
-        path.setAttribute('fill', isEmber ? C.ember : C.paper);
+        path.setAttribute('fill', GORE_RED);
       }
       // Seam pinline between the two ember gores of each pair.
       if (k % 3 === 0) {
@@ -662,9 +681,16 @@ K.vehicle = (() => {
     const cy = lerp(34, 58, f);
     const top = cy - w * 0.95, tail = 118;
     const ty = (k) => cy + (tail - cy) * k;
-    el.bubble.setAttribute('d', `M97,${tail} C97,${ty(0.45).toFixed(1)} ${(100 - w).toFixed(1)},${ty(0.22).toFixed(1)} ${(100 - w).toFixed(1)},${cy.toFixed(1)} `
+    const d = `M97,${tail} C97,${ty(0.45).toFixed(1)} ${(100 - w).toFixed(1)},${ty(0.22).toFixed(1)} ${(100 - w).toFixed(1)},${cy.toFixed(1)} `
       + `A${w.toFixed(1)},${(w * 0.95).toFixed(1)} 0 0 1 ${(100 + w).toFixed(1)},${cy.toFixed(1)} `
-      + `C${(100 + w).toFixed(1)},${ty(0.22).toFixed(1)} 103,${ty(0.45).toFixed(1)} 103,${tail}Z`);
+      + `C${(100 + w).toFixed(1)},${ty(0.22).toFixed(1)} 103,${ty(0.45).toFixed(1)} 103,${tail}Z`;
+    if (d !== lastBubble) {
+      lastBubble = d;
+      el.bubble.setAttribute('d', d);
+      el.bubbleClip.setAttribute('d', d);
+      el.hpaint.setAttribute('x', (100 - w - 0.5).toFixed(1)); el.hpaint.setAttribute('y', (top - 0.5).toFixed(1));
+      el.hpaint.setAttribute('width', (2 * w + 1).toFixed(1)); el.hpaint.setAttribute('height', (tail - top + 1).toFixed(1));
+    }
     el.valve.setAttribute('cy', top.toFixed(1));
     // Load tapes: meridians from the apex to the tail, turning slowly.
     let u = 0;

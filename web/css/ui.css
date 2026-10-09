@@ -3668,3 +3668,363 @@ body.climb-open #rail .rail-tick:last-child span, body.climb-open #rail .rail-ti
 /* The clue tag floats beside the question: it must sit above the question's box so taps reach it */
 #screen-round .clue-tag { position: relative; z-index: 3; }
 #screen-round .question { position: relative; z-index: 1; }
+
+/* ================= v18 · climb replay, passport cover, letterpress tickets (keep last) ================= */
+
+/* ================= v18 · the climb replay, a floating tab, passport cover, letterpress tickets (keep last) ================= */
+/* ==========================================================================
+   KÁRMÁN · v18
+   Append to the END of web/css/ui.css (after the v17 block).
+
+   1  Round card on phones: two fifths of the screen (≈ 346 px at 390×844),
+      keys 42 px, nothing scrolls.
+   2  The climb tab: a cream tab floating above the pass on desktop, the
+      grip on phones; both bob gently, and read "Back to your pass" (up
+      chevron) while the pass is parked.
+   3  The climb view: the rail is the scrollbar (a thumb you drag, the wheel
+      and arrow keys move it), each leg gets a paper stub on the rail, and a
+      slip under the altimeter sums the climb up.
+   4  Passport: the closed book itself, navy with a gilt rule and the crest,
+      the newest stamp peeking out of the pages.
+   5  Share ticket: the light keeps passing over it until it is tapped.
+   6  The pass: an open passport on desktop (navy cover all round, pages
+      inside); on phones the cover's top edge shows above the page stack.
+   7  Apricot tickets: plain stock with a letterpress double rule, no print.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- 1 · round card: two fifths of a phone */
+@media (max-width: 719.98px) {
+  :root {
+    --kh: 42px; --kg: 5px;
+    --pad-b: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    --round-h: clamp(340px, 41svh, 356px);
+    --perf-b: calc(var(--pad-b) + 3 * var(--kh) + 2 * var(--kg) + 8px + 42px + 8px);
+  }
+  #screen-round.round { padding: 13px 18px var(--pad-b); }
+  #screen-round .q-wrap { margin-bottom: 3px; }
+  #screen-round .q-wrap .clue-tag { margin-top: 0; }
+  #screen-round .question { font-size: 17.5px; line-height: 1.22; }
+  #screen-round .hint { margin-bottom: 6px; font-size: 15px; }
+  #screen-round .hint.is-clue .hint-scale { font-size: 15px; }
+  #screen-round .readout { min-height: 44px; gap: 8px; }
+  #screen-round .guess { font-size: clamp(32px, 9.6vw, 37px); }
+  #screen-round .r-edge { font-size: clamp(19px, 5.8vw, 22px); }
+  #screen-round.empty .guess::after { font-size: 20px; }
+  #screen-round .leg-body > .wbtns { margin-top: 10px; }
+  #screen-round .wbtns, #screen-round .wbtn { height: 42px; }
+  #screen-round .wbtn { gap: 2px; padding-bottom: 4px; }
+  #screen-round .wbtn b { font-size: 15.5px; }
+  #screen-round .wbtn span { font-size: 11px; }
+  #screen-round .wbtn::after { bottom: 5px; }
+  #screen-round .controls { padding-top: 8px; }
+  #screen-round .key { font-size: 18px; }
+  #screen-round .clue-tag { height: 28px; }
+  #screen-round .next-ticket { height: 48px; min-height: 48px; }
+  #screen-round.is-revealed .scale { padding-top: 54px; }
+  #screen-round .result-fact { margin-top: 8px; padding-top: 12px; }
+}
+@media (max-width: 719.98px) and (max-height: 700px) {
+  :root { --round-h: 340px; }
+  #screen-round.round { padding-top: 12px; }
+  #screen-round .question { font-size: 17px; }
+  #screen-round .guess { font-size: 34px; }
+  #screen-round .readout { min-height: 42px; }
+}
+
+/* ---------------------------------------------------------------- 2 · the climb tab */
+/* The tab lives outside the pass now, so it can float above it. climb.js
+   gives it --dock-h (the pass's height) and --pass-travel (how far the pass
+   drops when it parks), and it moves with the pass, same curve, same time. */
+.res-handle {
+  position: absolute; z-index: 5; left: 50%; right: auto; top: auto;
+  bottom: calc(var(--dock-h, 420px) - 50px);
+  transform: translateX(-50%); translate: 0 0;
+  display: none; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px;
+  height: 50px; padding: 20px 18px 0; margin: 0; border: 0; background: none; cursor: pointer;
+  font: 600 11.5px/1 var(--f-ui); letter-spacing: 0.02em; color: var(--ink-3);
+  transition: translate 420ms var(--ease-out), color 160ms;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+}
+body[data-screen="results"] .res-handle { display: flex; }
+body.climb-open .res-handle { translate: 0 var(--pass-travel, 0px); height: 50px; padding-top: 12px; gap: 6px; color: var(--ink); font-size: 12px; }
+.res-handle .rh-grip { flex: none; width: 36px; height: 4px; }
+.res-handle .rh-words { display: inline-flex; align-items: center; gap: 7px; }
+.res-handle .rh-see::after, .res-handle .rh-back::after { display: none; }
+.res-handle .rh-chev {
+  display: block; width: 7px; height: 7px; margin: -4px 0 0;
+  border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg);
+}
+body.climb-open .res-handle .rh-chev { transform: rotate(-135deg); margin: 2px 0 0; }
+/* the grip, the words and the chevron all breathe down together (up, when parked) */
+.res-handle .rh-grip, .res-handle .rh-words, .res-handle .rh-chev { animation: tabBob 2000ms ease-in-out infinite; }
+.res-handle .rh-chev { animation-name: tabBobChev; }
+body.climb-open .res-handle .rh-grip, body.climb-open .res-handle .rh-words { animation-name: tabBobUp; }
+body.climb-open .res-handle .rh-chev { animation-name: tabBobChevUp; }
+@keyframes tabBob { 0%, 100% { translate: 0 0; } 50% { translate: 0 3px; } }
+@keyframes tabBobChev { 0%, 100% { translate: 0 0; } 50% { translate: 0 5px; } }
+@keyframes tabBobUp { 0%, 100% { translate: 0 0; } 50% { translate: 0 -3px; } }
+@keyframes tabBobChevUp { 0%, 100% { translate: 0 0; } 50% { translate: 0 -5px; } }
+.res-handle:hover { color: var(--ink); }
+.res-handle:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; border-radius: 6px; }
+/* Desktop: a cream tab standing proud of the cover, centred, with the chevron beside the words. */
+@media (min-width: 720px) {
+  .res-handle {
+    left: 50%; right: auto; top: auto; bottom: calc(var(--dock-h, 464px) + 20px + 14px);
+    transform: translateX(-50%); justify-content: center; height: 32px; padding: 0 14px 0 16px;
+    border-radius: 7px; background: var(--stock, #F6EEDD); color: var(--ink);
+    font-size: 12.5px; letter-spacing: 0.01em;
+    box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.22), 0 1px 0 rgba(150, 118, 66, 0.45), 0 6px 16px rgba(2, 4, 14, 0.35);
+  }
+  .res-handle .rh-grip { display: none; }
+  .res-handle .rh-words { gap: 8px; }
+  .res-handle .rh-chev { margin: -3px 0 0; width: 7px; height: 7px; }
+  .res-handle .rh-words, .res-handle .rh-chev { animation: none; }
+  body.climb-open .res-handle .rh-words, body.climb-open .res-handle .rh-chev { animation: none; }
+  .res-handle:hover { background: #FFFDF8; box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.4), 0 1px 0 rgba(150, 118, 66, 0.45), 0 8px 20px rgba(2, 4, 14, 0.4); }
+  /* the whole tab bobs, like any swipe-down cue */
+  .res-handle { animation: tabFloat 2000ms ease-in-out infinite; }
+  @keyframes tabFloat { 0%, 100% { margin-bottom: 0; } 50% { margin-bottom: -4px; } }
+  body.climb-open .res-handle { height: 32px; padding: 0 14px 0 16px; gap: 0; font-size: 12.5px; animation-name: tabFloatUp; }
+  @keyframes tabFloatUp { 0%, 100% { margin-bottom: 0; } 50% { margin-bottom: 4px; } }
+  body.climb-open .res-handle .rh-chev { transform: rotate(-135deg); margin: 3px 0 0; }
+}
+@media (min-width: 1024px) {
+  .res-handle, body.climb-open .res-handle { left: 50%; right: auto; top: auto; transform: translateX(-50%); }
+  body[data-screen="results"] .results .res-main, body[data-screen="results"] .results .res-side { padding-top: 26px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .res-handle, .res-handle .rh-grip, .res-handle .rh-words, .res-handle .rh-chev { animation: none !important; }
+  .res-handle { transition: none; }
+}
+
+/* ---------------------------------------------------------------- 3 · the climb view */
+/* The rail sits above the pad while the pass is down, so its thumb, marks
+   and stubs can be touched; its own plane bug gives way to the thumb. */
+body.climb-open #rail { z-index: 4; }
+body.climb-open #rail .rail-bug { opacity: 0; }
+#rail .rail-bug { transition: opacity 200ms; }
+#climb-pad { cursor: default; }
+
+/* The thumb: a slide-rule cursor on the rail, with a hairline through it. */
+.climb-thumb {
+  position: absolute; z-index: 4; left: -9px; width: 26px; height: 14px; border-radius: 3px;
+  transform: translateY(-50%); display: none; pointer-events: auto; cursor: grab; touch-action: none;
+  background: var(--stock);
+  box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.92), 0 1px 0 rgba(150, 118, 66, 0.5), 0 3px 8px rgba(2, 4, 14, 0.45);
+}
+.climb-thumb::before { content: ""; position: absolute; left: 4px; right: 4px; top: 50%; height: 1px; margin-top: -0.5px; background: var(--ember-ink, #CC4218); }
+.climb-thumb::after { content: ""; position: absolute; inset: -9px -10px; }      /* a fatter target */
+.climb-thumb:hover, .climb-thumb.held { background: #FFFDF8; }
+.climb-thumb.held { cursor: grabbing; }
+.climb-thumb:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+body.climb-open .climb-thumb { display: block; }
+/* The track: the rail line itself takes a click or a drag start. */
+.climb-track { position: absolute; top: 0; bottom: 0; left: -9px; width: 26px; display: none; pointer-events: auto; cursor: pointer; touch-action: none; }
+body.climb-open .climb-track { display: block; }
+
+/* The marks: one short line each, as before; lit once their stub is out. */
+.climb-mark { transition: opacity 240ms ease, width 160ms var(--ease-out), background 160ms; }
+.climb-mark.hit:not(.lit) { opacity: 0.55; }
+body.climb-open .climb-mark.lit { opacity: 1; width: 20px; }
+body.climb-open .climb-mark.miss.lit { width: 11px; }
+
+/* The stubs: a paper slip per leg beside its mark, the width's colour down its
+   left edge. "+10 km", what it asked, your guess and the answer, and any
+   milestone that leg carried you past. Tap one to fly the camera there. */
+.climb-stub {
+  position: absolute; z-index: 3; left: 22px; width: max-content; max-width: 216px; box-sizing: border-box;
+  padding: 5px 9px 6px 11px; border-radius: 3px;
+  background: var(--stock); color: var(--ink);
+  font: 500 11px/1.25 var(--f-ui);
+  box-shadow: inset 3px 0 0 var(--c), inset 0 0 0 0.5px rgba(20, 33, 61, 0.25), 0 1px 0 rgba(150, 118, 66, 0.45), 0 4px 10px rgba(2, 4, 14, 0.32);
+  opacity: 0; transform: translateX(-8px); pointer-events: none; cursor: pointer;
+  transition: opacity 220ms ease, transform 300ms var(--ease-out);
+}
+.climb-stub.in { opacity: 1; transform: none; pointer-events: auto; }
+.climb-stub:hover { background: #FFFDF8; }
+.climb-stub.hit { box-shadow: inset 3px 0 0 var(--c), inset 4px 0 0 rgba(20, 33, 61, 0.45), inset 0 0 0 0.5px rgba(20, 33, 61, 0.25), 0 1px 0 rgba(150, 118, 66, 0.45), 0 4px 10px rgba(2, 4, 14, 0.32); }
+.cs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.cs-km { font: 800 15px/1 var(--f-display); letter-spacing: 0.02em; color: var(--ink); white-space: nowrap; }
+.climb-stub.miss .cs-km, .climb-stub.none .cs-km { font: italic 400 13.5px/1 var(--f-serif); color: var(--ink-2); }
+.cs-head small { font: 600 9px/1 var(--f-ui); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.cs-q { display: block; margin-top: 3px; font: 600 11.5px/1.25 var(--f-ui); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-va { display: block; margin-top: 2px; font: 500 10.5px/1.3 var(--f-ui); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-va .cs-v { white-space: nowrap; }
+.cs-va i { font: 600 8.5px/1 var(--f-ui); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.cs-x { display: block; margin-top: 3px; font: italic 400 12px/1.2 var(--f-serif); color: var(--amber-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-x::before { content: "✦ "; font-style: normal; font-size: 9px; vertical-align: 1px; }
+@media (max-width: 719.98px) {
+  .climb-stub { left: 20px; width: 142px; max-width: 142px; padding: 4px 7px 5px 9px; }
+  .cs-km { font-size: 14px; }
+  .cs-head { gap: 8px; }
+  .cs-va { white-space: normal; }
+}
+@media (max-width: 719.98px) and (max-height: 700px) {
+  .cs-va { white-space: nowrap; }
+  .cs-x { display: none; }
+}
+
+/* The slip under the altimeter: "Skip" while the climb replays, then the sum of it. */
+#climb-sum {
+  position: absolute; z-index: 5;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  top: calc(env(safe-area-inset-top, 0px) + 134px);
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  padding: 6px 10px 7px; border-radius: 3px;
+  background: var(--stock); color: var(--ink); text-align: right;
+  font: 500 11.5px/1.3 var(--f-ui); font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 0 0 0.5px rgba(20, 33, 61, 0.25), 0 1px 0 rgba(150, 118, 66, 0.45), 0 4px 10px rgba(2, 4, 14, 0.32);
+  opacity: 0; visibility: hidden; transform: translateY(-4px);
+  transition: opacity 240ms ease, transform 300ms var(--ease-out), visibility 0s linear 240ms;
+}
+body.climb-open #climb-sum.in { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+#climb-sum .cs-line { display: block; white-space: nowrap; }
+#climb-sum .cs-line b { font: 800 12px/1 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); }
+#climb-sum .cs-ctx { font: italic 400 12.5px/1.3 var(--f-serif); color: var(--ink-2); }
+#climb-sum .cs-link {
+  margin: 3px 0 0; padding: 0; border: 0; background: none; cursor: pointer;
+  font: 600 11.5px/1 var(--f-ui); color: var(--ember-ink); text-decoration: underline; text-decoration-color: rgba(204, 66, 24, 0.4); text-underline-offset: 3px;
+}
+#climb-sum .cs-link:hover { text-decoration-color: currentColor; }
+#climb-sum .cs-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 2px; }
+@media (max-width: 719.98px) {
+  #climb-sum { top: calc(env(safe-area-inset-top, 0px) + 128px); max-width: 150px; font-size: 11px; }
+  #climb-sum .cs-line { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .climb-stub, #climb-sum, .climb-mark { transition: none !important; }
+}
+
+/* ---------------------------------------------------------------- 4 · the passport, closed */
+#screen-results .passport-row {
+  position: relative; overflow: visible; display: flex; align-items: center; gap: 12px;
+  min-height: 66px; margin-top: 34px; padding: 0 16px 0 0; border: 0; border-radius: 5px 9px 9px 5px;
+  background: linear-gradient(100deg, #1A2650 0%, #22325F 52%, var(--cover) 100%);
+  color: #F6EEDD; text-align: left; cursor: pointer;
+  box-shadow: 0 1px 0 rgba(20, 33, 61, 0.3), 0 10px 22px -6px rgba(20, 33, 61, 0.45);
+  transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
+}
+/* the board: a gilt rule just inside the edge, and the spine's crease at the left */
+#screen-results .passport-row::before {
+  content: ""; position: absolute; z-index: 1; inset: 0; border-radius: inherit; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0) 10px),
+    linear-gradient(100deg, #1A2650 0%, #22325F 52%, var(--cover) 100%);
+  box-shadow: inset 0 0 0 4px #1F2D59, inset 0 0 0 5px rgba(226, 180, 112, 0.6), inset 0 0 0 6px rgba(226, 180, 112, 0.14), inset 0 1px 0 6px rgba(255, 255, 255, 0.06);
+}
+#screen-results .passport-row > * { position: relative; z-index: 2; }
+#screen-results .passport-row:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(20, 33, 61, 0.3), 0 16px 28px -8px rgba(20, 33, 61, 0.55); }
+#screen-results .passport-row:active { transform: translateY(0); transition-duration: 80ms; }
+#screen-results .passport-row:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+#screen-results .pr-cover { display: grid; place-items: center; width: 64px; height: 66px; flex: none; }
+#screen-results .pr-crest { width: 36px; height: 36px; fill: none; stroke: var(--gilt); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+#screen-results .pr-text { gap: 3px; }
+#screen-results .pr-title { font: 800 17px/1 var(--f-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--gilt); }
+#screen-results .pr-sub { font: 500 12.5px/1.3 var(--f-ui); color: rgba(246, 238, 221, 0.82); }
+#screen-results .pr-sub b { color: #FFD08A; font-weight: 600; }
+#screen-results .pr-chev { margin-left: auto; width: 9px; height: 9px; flex: none; border: solid var(--gilt); border-width: 1.5px 1.5px 0 0; transform: rotate(45deg); font-size: 0; }
+/* the newest stamp, on a page that peeks out from inside the cover */
+#screen-results .pr-page {
+  position: absolute; z-index: -1; right: 50px; top: -27px; width: 54px; height: 74px; border-radius: 2px;
+  background: #FBF4E6; transform: rotate(8deg); transform-origin: 50% 100%;
+  box-shadow: 0 0 0 0.5px rgba(150, 118, 66, 0.5), 0 -1px 3px rgba(2, 4, 14, 0.25);
+}
+#screen-results .pr-page .ink { position: absolute; left: 50%; top: 2px; width: 42px; height: 42px; margin-left: -21px; border-width: 1.5px; background: transparent; opacity: 0.9; }
+#screen-results .pr-page .ink svg { width: 17px; height: 17px; }
+#screen-results .pr-page .ink b { display: none; }
+#screen-results .pr-page .ink.slammed { animation: slam 520ms var(--ease-spring) 700ms both; }
+@media (max-width: 719.98px) { #screen-results .pr-page { right: 42px; } }
+@media (prefers-reduced-motion: reduce) { #screen-results .passport-row, #screen-results .passport-row:hover { transform: none; transition: none; } }
+
+/* ---------------------------------------------------------------- 5 · the share ticket keeps catching the light */
+#screen-results .ticket-btn#btn-share.nudge { animation: shareShineLoop 4200ms cubic-bezier(.45, 0, .25, 1) infinite; }
+@keyframes shareShineLoop {
+  0% { background-position: 100% 0, 0 0; }
+  34%, 100% { background-position: 0% 0, 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #screen-results .ticket-btn#btn-share.nudge { animation: none; box-shadow: inset 0 0 0 1.5px rgba(204, 66, 24, 0.55); }
+}
+
+/* ---------------------------------------------------------------- 6 · the pass as an object */
+/* Phone: the cover's top edge shows above the page stack, a gilt hairline on it. */
+body[data-screen="results"] #dock {
+  box-shadow:
+    0 -1px 0 0 rgba(150, 118, 66, 0.45),
+    0 -4px 0 -2px #E9DDC5,
+    0 -5px 0 -2px rgba(150, 118, 66, 0.4),
+    0 -8px 0 -4px #DFD0B3,
+    0 -9px 0 -4px rgba(150, 118, 66, 0.35),
+    0 -14px 0 0 var(--cover),
+    0 -15px 0 0 var(--gilt-soft),
+    0 -24px 50px rgba(2, 4, 14, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+/* Desktop: an open passport. The navy board runs all the way round the two
+   pages, a gilt rule on its edge, the page stack showing at the foot. */
+@media (min-width: 1024px) {
+  body[data-screen="results"] #dock {
+    border-radius: 14px; border-color: transparent;
+    box-shadow:
+      0 1px 0 0 rgba(150, 118, 66, 0.5),
+      0 3px 0 -1px #EADFC8,
+      0 4px 0 -1px rgba(150, 118, 66, 0.45),
+      0 6px 0 -2px #E1D3B7,
+      0 7px 0 -2px rgba(150, 118, 66, 0.4),
+      0 3px 0 8px var(--cover),
+      0 3px 0 9px var(--gilt-soft),
+      0 3px 0 10px rgba(226, 180, 112, 0.12),
+      0 36px 80px rgba(2, 4, 14, 0.55),
+      0 4px 12px rgba(2, 4, 14, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+  /* the printed rails follow the tighter page corners */
+  body[data-screen="results"] #dock::before, body[data-screen="results"] #dock::after { border-image-width: 16px; border-width: 16px; }
+}
+
+/* ---------------------------------------------------------------- 7 · apricot tickets: letterpress, no print */
+/* One treatment for Take off, Lock it in, Next leg, Got it, Resume, Keep
+   flying and Unlock: plain apricot stock, a 1.5 px ink edge, and a hairline
+   rule set 4 px inside it, the way a letterpress ticket is ruled. The
+   perforation crosses the rule; the stub is a shade deeper. */
+:root {
+  --apricot-stock: linear-gradient(180deg, #F8CC9C 0%, #F4B877 52%, #F0AB67 100%);
+  --apricot-rule: rgba(20, 33, 61, 0.42);
+  --apricot-rules:
+    linear-gradient(var(--apricot-rule), var(--apricot-rule)) 4px 4px / calc(100% - 8px) 1px no-repeat,
+    linear-gradient(var(--apricot-rule), var(--apricot-rule)) 4px calc(100% - 5px) / calc(100% - 8px) 1px no-repeat,
+    linear-gradient(var(--apricot-rule), var(--apricot-rule)) 4px 4px / 1px calc(100% - 8px) no-repeat,
+    linear-gradient(var(--apricot-rule), var(--apricot-rule)) calc(100% - 5px) 4px / 1px calc(100% - 8px) no-repeat;
+}
+#screen-home .launch-ticket,
+#screen-round .key-lock, #screen-round .next-ticket,
+.sheet.help .ready-ticket,
+#sheet-menu .menu-resume,
+#screen-results .keep-ticket,
+#sheet-paywall .buy-ticket {
+  background:
+    linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)),
+    var(--apricot-rules),
+    var(--apricot-stock);
+  box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.9), inset 0 2.5px 0 1.5px rgba(255, 244, 226, 0.28), inset 0 -3px 0 1.5px rgba(150, 72, 16, 0.14);
+}
+#screen-home .launch-ticket.holding { box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.9); }
+/* the Lock ticket's two other states keep their own stock */
+#screen-round.empty .key-lock {
+  background:
+    linear-gradient(90deg, transparent var(--cut), rgba(150, 72, 16, 0.05) var(--cut)),
+    linear-gradient(180deg, rgba(245, 184, 120, 0.3), rgba(240, 168, 98, 0.24));
+  box-shadow: inset 0 0 0 1.5px rgba(160, 82, 22, 0.28);
+}
+#screen-round.t-low .key-lock {
+  --apricot-rule: rgba(255, 244, 226, 0.45);
+  --apricot-rules:
+    linear-gradient(var(--apricot-rule), var(--apricot-rule)) 4px 4px / calc(100% - 8px) 1px no-repeat,
+    linear-gradient(var(--apricot-rule), var(--apricot-rule)) 4px calc(100% - 5px) / calc(100% - 8px) 1px no-repeat,
+    linear-gradient(var(--apricot-rule), var(--apricot-rule)) 4px 4px / 1px calc(100% - 8px) no-repeat,
+    linear-gradient(var(--apricot-rule), var(--apricot-rule)) calc(100% - 5px) 4px / 1px calc(100% - 8px) no-repeat;
+  background: linear-gradient(90deg, transparent var(--cut), rgba(0, 0, 0, 0.14) var(--cut)), var(--apricot-rules), linear-gradient(180deg, #E4612F 0%, #CC4218 100%);
+}
+#screen-home .launch-ticket:focus-visible, #screen-round .key-lock:focus-visible, #screen-round .next-ticket:focus-visible,
+.sheet.help .ready-ticket:focus-visible, #sheet-menu .menu-resume:focus-visible, #screen-results .keep-ticket:focus-visible,
+#sheet-paywall .buy-ticket:focus-visible { box-shadow: inset 0 0 0 3px #14213D, inset 0 0 0 5px #FFF4E2; }
