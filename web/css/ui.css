@@ -4028,3 +4028,75 @@ body[data-screen="results"] #dock {
 #screen-home .launch-ticket:focus-visible, #screen-round .key-lock:focus-visible, #screen-round .next-ticket:focus-visible,
 .sheet.help .ready-ticket:focus-visible, #sheet-menu .menu-resume:focus-visible, #screen-results .keep-ticket:focus-visible,
 #sheet-paywall .buy-ticket:focus-visible { box-shadow: inset 0 0 0 3px #14213D, inset 0 0 0 5px #FFF4E2; }
+
+/* v19 · Google sign-in on the paywall. The page runs color-scheme: dark, which
+   makes the browser paint Google's button frame as an opaque white box and
+   grey out its face; the frame is scoped back to light so only Google's own
+   white pill shows, centred under a one-line reason to sign in. */
+.gsi:not([hidden]) { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
+.gsi, .gsi iframe { color-scheme: light; }
+.gsi iframe { background: transparent !important; border-radius: 999px; }
+.gsi .gsi-btn { min-height: 44px; display: flex; justify-content: center; }
+.gsi-lead { margin: 0; max-width: 300px; text-align: center; font: 500 13px/1.45 var(--f-ui); color: rgba(243, 233, 214, 0.78); }
+
+/* v19 · Account. The menu opens on the pilot: a slim card above the tiles.
+   The sheet is status only: a cream pilot record (the licence's paper),
+   one sign-in prompt when there's no backup, and a door into the logbook. */
+.menu-acct {
+  display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 12px; padding: 10px 12px 10px 10px;
+  border: 1px solid rgba(226, 232, 255, 0.09); border-radius: 14px; cursor: pointer; text-align: left; color: var(--text);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: background var(--d-press), border-color var(--d-state);
+}
+.menu-acct:hover { border-color: rgba(255, 181, 71, 0.35); background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035)); }
+.ma-badge {
+  flex: 0 0 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--grain, var(--paper)); color: var(--ink); font: 800 18px/1 var(--f-display);
+  box-shadow: inset 0 0 0 1.5px rgba(30, 42, 85, 0.18);
+}
+.ma-badge svg { width: 22px; height: 22px; fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: round; }
+.ma-badge.on { box-shadow: inset 0 0 0 2px var(--amber), 0 0 0 3px rgba(255, 181, 71, 0.16); }
+.ma-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ma-text b { font: 800 16px/1 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; }
+.ma-text small { font: 500 12.5px/1.2 var(--f-ui); color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ma-chev { width: 18px; height: 18px; fill: none; stroke: var(--text-dim); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.ac-card {
+  position: relative; padding: 16px 16px 6px; border-radius: 14px; background: var(--grain, var(--paper)); color: var(--ink);
+  transform: rotate(-0.4deg); box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3); animation: licIn 420ms cubic-bezier(.2, .8, .2, 1) both;
+}
+.ac-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 12px 0; border-bottom: 1px dashed rgba(30, 42, 85, 0.2); }
+.ac-row:last-child { border-bottom: 0; }
+.ac-k { flex: 0 0 auto; font: 500 10px/1 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
+.ac-v { min-width: 0; text-align: right; font: 600 14px/1.3 var(--f-ui); overflow-wrap: anywhere; }
+.ac-row.on .ac-v::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: #2F9E62; vertical-align: 1px; }
+.ac-row.wait .ac-v::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--amber); vertical-align: 1px; }
+.ac-cta { margin: 22px 0 4px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.ac-lead { margin: 0; max-width: 320px; text-align: center; font: 500 13.5px/1.45 var(--f-ui); color: var(--text-dim); }
+.ac-log {
+  display: flex; flex-direction: column; gap: 12px; width: 100%; margin: 20px 0 0; padding: 14px 16px; cursor: pointer; text-align: left; color: var(--text);
+  border: 1px solid rgba(226, 232, 255, 0.09); border-radius: 14px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.025));
+}
+.ac-log:hover { border-color: rgba(255, 181, 71, 0.35); }
+.ac-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.ac-stats span { display: flex; flex-direction: column; gap: 5px; font: 500 9px/1 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
+.ac-stats b { font: 700 24px/1 var(--f-display); letter-spacing: 0.02em; color: var(--text); font-variant-numeric: tabular-nums; }
+.ac-go { display: flex; align-items: center; gap: 4px; font: 800 14px/1 var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber); }
+.ac-go svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.ac-buy { margin: 18px auto 0; }
+.ac-links { display: flex; flex-direction: column; align-items: center; margin-top: 10px; }
+.ac-links .link-btn { margin-top: 6px; }
+#sheet-account .pay-fine { margin-top: 18px; }
+@media (prefers-reduced-motion: reduce) { .ac-card { animation: none; } }
+/* Account and menu sheets are paper: ink-toned edges and text there. */
+#sheet-account .gsi-lead, #sheet-account .ac-lead { color: rgba(30, 42, 85, 0.72); }
+.ac-log, .menu-acct { border-color: rgba(30, 42, 85, 0.16); background: rgba(30, 42, 85, 0.035); box-shadow: none; color: var(--ink); }
+.ac-log:hover, .menu-acct:hover { border-color: rgba(214, 120, 40, 0.55); background: rgba(30, 42, 85, 0.06); }
+.ac-stats span { color: rgba(30, 42, 85, 0.62); }
+.ac-stats b { color: var(--ink); }
+.ac-go { color: var(--amber-deep, #C46A1E); }
+.ma-text small { color: rgba(30, 42, 85, 0.66); }
+.ma-chev { stroke: rgba(30, 42, 85, 0.5); }
+.ma-badge { box-shadow: inset 0 0 0 1.5px rgba(30, 42, 85, 0.3); }
+#ac-gsi:empty, #ac-gsi .gsi-btn:empty { min-height: 44px; }

@@ -47,3 +47,30 @@ CREATE TABLE IF NOT EXISTS plays (
   sub      TEXT NOT NULL,
   at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Every Stripe Checkout session opened for an account. If the webhook is ever
+-- late or lost, the Worker asks Stripe about these directly, so a payment can
+-- never go unrecognised.
+CREATE TABLE IF NOT EXISTS checkouts (
+  id       TEXT PRIMARY KEY,           -- Stripe Checkout session id (cs_...)
+  sub      TEXT NOT NULL,
+  created  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS checkouts_by_sub ON checkouts (sub, created);
+
+-- Accounts whose payment was refunded. The only thing that ever takes a
+-- purchase away from a device.
+CREATE TABLE IF NOT EXISTS refunds (
+  sub      TEXT PRIMARY KEY,
+  at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Cloud copy of a signed-in pilot's progress (web/js/sync.js). The browser
+-- merges before it writes; ver refuses a write based on a stale copy.
+CREATE TABLE IF NOT EXISTS saves (
+  sub      TEXT PRIMARY KEY,
+  data     TEXT NOT NULL,
+  ver      INTEGER NOT NULL DEFAULT 1,
+  updated  TEXT NOT NULL DEFAULT (datetime('now'))
+);

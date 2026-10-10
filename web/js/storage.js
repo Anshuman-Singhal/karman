@@ -17,7 +17,8 @@
      runs:   [FlightRecord],                     // Unlimited runs (latest 50)
      seen:   [factId],                           // Unlimited questions already dealt
      freeRunUsed: boolean,                       // the one free Unlimited run
-     access: { unlimited, via: 'stripe'|'code'|null, code, session, checkedAt },
+     access: { unlimited, via: 'stripe'|'code'|null, code, session, checkedAt, pending, email },
+     sync:   { ver, at }                           // cloud copy version (sync.js)
      reported: { [factId]: true }
    }
    Changing the shape later? Add a field to fresh() and, if older saves need
@@ -41,6 +42,7 @@ K.storage = (() => {
       stampCounts: {},
       prefs: {},            // { units: 'metric' | 'imperial', sound: true | false }
       device: null,         // random id for anonymous comparison stats
+      pilot: null,          // seed for the Pilot Nº; follows the Google account across devices
       seenHelp: false,
       runs: [],
       seen: [],
@@ -90,6 +92,7 @@ K.storage = (() => {
     if (!saved.runsDone) out.runsDone = (out.runs || []).map((r) => r.run).filter((k) => Number.isInteger(k) && k >= 1 && k < (out.runNext || 1)).concat(out.freeRunUsed ? [1] : []).filter((k, i, a) => a.indexOf(k) === i);
     if (saved.unlimitedCount == null) out.unlimitedCount = (out.runs || []).length;
     if (!out.device) out.device = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
+    if (!out.pilot) out.pilot = out.device;      // existing pilots keep the number they already have
     return out;
   }
 
@@ -103,12 +106,15 @@ K.storage = (() => {
     return data;
   }
 
-  function save() {
+  /** Write to this browser; signed-in pilots also get a cloud copy shortly after.
+      quiet = true for writes that came from the cloud itself. */
+  function save(quiet) {
     try {
       localStorage.setItem(KEY, JSON.stringify(data));
     } catch (e) {
       /* storage unavailable: keep playing from memory */
     }
+    if (!quiet && K.sync) K.sync.soon();
   }
 
   function wipe() {
@@ -117,5 +123,5 @@ K.storage = (() => {
     return data;
   }
 
-  return { load, save, wipe, get data() { return data; } };
+  return { load, save, wipe, migrate, get data() { return data; } };
 })();

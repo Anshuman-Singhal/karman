@@ -248,6 +248,12 @@
     <div class="sheet menu" role="dialog" aria-modal="true" aria-labelledby="menu-h">
       <div class="menu-head"><h2 id="menu-h">Menu</h2><button type="button" class="icon-btn sheet-x" data-close="menu" aria-label="Close menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
 
+      <button type="button" class="menu-acct" id="menu-acct" aria-haspopup="dialog">
+        <span class="ma-badge" id="ma-badge" aria-hidden="true"></span>
+        <span class="ma-text"><b id="ma-title">Pilot</b><small id="ma-sub">Your account</small></span>
+        <svg class="ma-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+      </button>
+
       <button type="button" class="menu-resume" id="menu-resume" hidden>
         <span class="mr-dial" aria-hidden="true"><b id="mr-sec">30</b></span>
         <span class="mr-text"><b id="mr-title">Flight #1 in progress</b><small id="mr-sub">Leg 1 of 7 · 30 s left</small></span>
@@ -286,6 +292,14 @@
         <div class="pref"><span id="pref-units-l">Units</span><button type="button" class="seg" id="btn-units" role="switch" aria-checked="true" aria-labelledby="pref-units-l"><i>Metric</i><i>Imperial</i></button></div>
       </div>
       <p class="menu-foot"><a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>
+    </div>
+  </div>
+
+  <!-- ACCOUNT sheet: who you are, what you own, where your progress is kept -->
+  <div class="sheet-wrap" id="sheet-account" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="account-h">
+      <div class="sheet-head"><div><h2 id="account-h">Account</h2><p class="sheet-sub" id="account-sub"></p></div><button type="button" class="icon-btn sheet-x" data-close="account" aria-label="Close account"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <div id="account-body"></div>
     </div>
   </div>
 
@@ -370,6 +384,7 @@
 <script src="js/daily.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/access.js"></script>
+<script src="js/sync.js"></script>
 <script src="js/fx.js"></script>
 <script src="js/vehicle.js"></script>
 <script src="js/scene.js"></script>

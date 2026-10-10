@@ -9,7 +9,9 @@
      GET  /api/unlock/:code                                  → { valid }   unlock links
      POST /api/checkout    { idToken, returnTo }             → { url, session } or { unlimited, session }
      POST /api/stripe      (Stripe webhook)                  → 200   marks the purchase
-     GET  /api/me          Authorization: Bearer <session>   → { unlimited, email }
+     GET  /api/save        Authorization: Bearer <session>   → { data, ver }   cloud copy of progress
+     PUT  /api/save        { data, base }                    → { ver } or 409 + current copy
+     GET  /api/me          Authorization: Bearer <session>   → { unlimited, refunded } (asks Stripe if our record says unpaid)
      POST /api/play        Authorization: Bearer <session>   → 204   for the refund rule
 
    Secrets (wrangler secret put …): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
@@ -138,7 +140,43 @@ async function verifyGoogle(idToken, env) {
   return { sub: t.sub, email: t.email };
 }
 
-/* ------------------------------------------------------------ purchase */
+/* ------------------------------------------------------------ purchase
+   Integrity rule: once someone has paid, they have Unlimited, whatever
+   happens to the webhook. Three independent paths mark an account paid:
+     1. the Stripe webhook (normally within a second or two),
+     2. confirmPaid(): asks Stripe directly about this account's checkout
+        sessions whenever our own record says "not paid" (/api/me, checkout,
+        restore), so a lost or late webhook heals itself,
+     3. the browser keeps asking after the player returns from Stripe.
+   Only a confirmed refund ever takes access away. */
+const stripeGet = async (env, path) => {
+  const r = await fetch(`https://api.stripe.com/v1/${path}`, { headers: { authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } });
+  if (!r.ok) throw new Error(`stripe ${r.status}`);
+  return r.json();
+};
+const markPaid = (env, sub, sessionId) => env.DB.batch([
+  env.DB.prepare("UPDATE users SET unlimited = 1, paid_at = COALESCE(paid_at, datetime('now')), stripe_session = ? WHERE sub = ?").bind(sessionId, sub),
+  env.DB.prepare('DELETE FROM refunds WHERE sub = ?').bind(sub),
+]);
+
+/** { unlimited, refunded } for an account. Throws if Stripe can't be reached
+    (callers answer 503, and the browser keeps what it has). */
+async function confirmPaid(env, sub) {
+  const u = await env.DB.prepare('SELECT unlimited FROM users WHERE sub = ?').bind(sub).first();
+  if (u && u.unlimited) return { unlimited: true, refunded: false };
+  const rows = (await env.DB.prepare('SELECT id FROM checkouts WHERE sub = ? ORDER BY created DESC LIMIT 5').bind(sub).all()).results || [];
+  let refunded = Boolean(await env.DB.prepare('SELECT 1 AS x FROM refunds WHERE sub = ?').bind(sub).first());
+  for (const { id } of rows) {
+    const cs = await stripeGet(env, `checkout/sessions/${encodeURIComponent(id)}?expand[]=payment_intent.latest_charge`);
+    if (cs.payment_status !== 'paid') continue;
+    const ch = cs.payment_intent && cs.payment_intent.latest_charge;
+    if (ch && ch.refunded) { refunded = true; continue; }
+    await markPaid(env, sub, cs.id);
+    return { unlimited: true, refunded: false };
+  }
+  return { unlimited: false, refunded };
+}
+
 async function postCheckout(request, env) {
   let b;
   try { b = await request.json(); } catch { return json({ error: 'bad json' }, { status: 400 }); }
@@ -146,8 +184,11 @@ async function postCheckout(request, env) {
   if (!who) return json({ error: 'sign-in failed' }, { status: 401 });
   await env.DB.prepare('INSERT INTO users (sub, email) VALUES (?, ?) ON CONFLICT(sub) DO UPDATE SET email = excluded.email').bind(who.sub, who.email || '').run();
   const session = await makeSession(env, who.sub);
-  const user = await env.DB.prepare('SELECT unlimited FROM users WHERE sub = ?').bind(who.sub).first();
-  if (user && user.unlimited) return json({ unlimited: true, session });   // restore
+  // Already paid (even if the webhook never arrived)? Restore, never charge twice.
+  let state;
+  try { state = await confirmPaid(env, who.sub); } catch { return json({ error: 'stripe unavailable' }, { status: 503 }); }
+  if (state.unlimited) return json({ unlimited: true, session, email: who.email || null });
+  if (b.restore) return json({ unlimited: false, session, email: who.email || null });          // "Restore purchase" never opens a payment
 
   const origin = /^https:\/\/([\w-]+\.)*karman\.day$/.test(b.returnTo || '') ? b.returnTo : 'https://karman.day';
   const form = new URLSearchParams({
@@ -157,10 +198,10 @@ async function postCheckout(request, env) {
     'line_items[0][price_data][product_data][name]': 'KÁRMÁN Unlimited',
     'line_items[0][quantity]': '1',
     client_reference_id: who.sub,
-    customer_email: who.email || '',
     success_url: `${origin}/?paid=1`,
     cancel_url: `${origin}/`,
   });
+  if (who.email) form.set('customer_email', who.email);
   const r = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
     headers: { authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, 'content-type': 'application/x-www-form-urlencoded' },
@@ -168,27 +209,39 @@ async function postCheckout(request, env) {
   });
   const cs = await r.json();
   if (!r.ok) return json({ error: 'checkout failed' }, { status: 502 });
-  return json({ url: cs.url, session });
+  await env.DB.prepare('INSERT OR IGNORE INTO checkouts (id, sub) VALUES (?, ?)').bind(cs.id, who.sub).run();
+  return json({ url: cs.url, session, email: who.email || null });
 }
 
-/** Stripe calls this when a payment succeeds. We verify the signature, then mark the account. */
+/** Stripe calls this when a payment succeeds (or is refunded). Signature first. */
 async function postStripe(request, env) {
   const body = await request.text();
   const header = request.headers.get('stripe-signature') || '';
-  const parts = Object.fromEntries(header.split(',').map((kv) => kv.split('=')));
-  const expected = await hmac(env.STRIPE_WEBHOOK_SECRET, `${parts.t}.${body}`);
-  if (!parts.t || parts.v1 !== expected || Math.abs(Date.now() / 1000 - Number(parts.t)) > 600) return new Response('bad signature', { status: 400 });
-  const evt = JSON.parse(body);
-  if (evt.type === 'checkout.session.completed' && evt.data.object.payment_status === 'paid') {
-    const o = evt.data.object;
-    await env.DB.prepare("UPDATE users SET unlimited = 1, paid_at = datetime('now'), stripe_session = ? WHERE sub = ?").bind(o.id, o.client_reference_id).run();
+  let t = '';
+  const sigs = [];
+  for (const kv of header.split(',')) {
+    const i = kv.indexOf('=');
+    const k = kv.slice(0, i).trim(), v = kv.slice(i + 1).trim();
+    if (k === 't') t = v; else if (k === 'v1') sigs.push(v);    // several v1s while a secret is being rolled
   }
-  if (evt.type === 'charge.refunded') {
-    // A refund (issued from the Stripe dashboard) removes access again.
-    const pi = evt.data.object.payment_intent;
-    const s = await fetch(`https://api.stripe.com/v1/checkout/sessions?payment_intent=${pi}`, { headers: { authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }).then((r) => r.json());
+  const expected = t ? await hmac(env.STRIPE_WEBHOOK_SECRET, `${t}.${body}`) : '';
+  if (!t || !sigs.includes(expected) || Math.abs(Date.now() / 1000 - Number(t)) > 600) return new Response('bad signature', { status: 400 });
+  const evt = JSON.parse(body);
+  const o = evt.data && evt.data.object;
+  const paidEvent = evt.type === 'checkout.session.completed' || evt.type === 'checkout.session.async_payment_succeeded';
+  if (paidEvent && o.payment_status === 'paid' && o.client_reference_id) {
+    await env.DB.prepare('INSERT OR IGNORE INTO checkouts (id, sub) VALUES (?, ?)').bind(o.id, o.client_reference_id).run();
+    await env.DB.prepare('INSERT INTO users (sub) VALUES (?) ON CONFLICT(sub) DO NOTHING').bind(o.client_reference_id).run();
+    await markPaid(env, o.client_reference_id, o.id);
+  }
+  if (evt.type === 'charge.refunded' && o.refunded) {
+    // A full refund (issued from the Stripe dashboard) removes access again.
+    const s = await stripeGet(env, `checkout/sessions?payment_intent=${encodeURIComponent(o.payment_intent)}`);
     const sub = s.data && s.data[0] && s.data[0].client_reference_id;
-    if (sub) await env.DB.prepare('UPDATE users SET unlimited = 0 WHERE sub = ?').bind(sub).run();
+    if (sub) await env.DB.batch([
+      env.DB.prepare('UPDATE users SET unlimited = 0 WHERE sub = ?').bind(sub),
+      env.DB.prepare('INSERT OR REPLACE INTO refunds (sub) VALUES (?)').bind(sub),
+    ]);
   }
   return new Response('ok');
 }
@@ -196,8 +249,41 @@ async function postStripe(request, env) {
 async function getMe(request, env) {
   const sub = await readSession(request, env);
   if (!sub) return json({ error: 'signed out' }, { status: 401 });
-  const u = await env.DB.prepare('SELECT unlimited, email FROM users WHERE sub = ?').bind(sub).first();
-  return json({ unlimited: Boolean(u && u.unlimited), email: u ? u.email : null }, { headers: { 'cache-control': 'no-store' } });
+  let state;
+  try { state = await confirmPaid(env, sub); } catch { return json({ error: 'stripe unavailable' }, { status: 503 }); }
+  const u = await env.DB.prepare('SELECT email, paid_at FROM users WHERE sub = ?').bind(sub).first();
+  return json({ ...state, email: u ? u.email : null, paidAt: u ? u.paid_at : null }, { headers: { 'cache-control': 'no-store' } });
+}
+
+/* ------------------------------------------------------------ cloud save
+   One row per Google account. GET returns { data, ver } (data null if none).
+   PUT { data, base } stores only if base matches the current ver, else 409
+   with the current copy so the browser can merge it in and try again. */
+const SAVE_MAX = 400_000;
+async function getSave(request, env) {
+  const sub = await readSession(request, env);
+  if (!sub) return json({ error: 'signed out' }, { status: 401 });
+  const row = await env.DB.prepare('SELECT data, ver FROM saves WHERE sub = ?').bind(sub).first();
+  return json({ data: row ? JSON.parse(row.data) : null, ver: row ? row.ver : 0 }, { headers: { 'cache-control': 'no-store' } });
+}
+async function putSave(request, env) {
+  const sub = await readSession(request, env);
+  if (!sub) return json({ error: 'signed out' }, { status: 401 });
+  const text = await request.text();
+  if (text.length > SAVE_MAX) return json({ error: 'too large' }, { status: 413 });
+  let b;
+  try { b = JSON.parse(text); } catch { return json({ error: 'bad json' }, { status: 400 }); }
+  if (!b || typeof b.data !== 'object' || b.data === null || !Number.isInteger(b.base)) return json({ error: 'bad save' }, { status: 400 });
+  const data = JSON.stringify(b.data);
+  const r = b.base === 0
+    ? await env.DB.prepare("INSERT INTO saves (sub, data, ver) VALUES (?, ?, 1) ON CONFLICT(sub) DO NOTHING").bind(sub, data).run()
+    : await env.DB.prepare("UPDATE saves SET data = ?, ver = ver + 1, updated = datetime('now') WHERE sub = ? AND ver = ?").bind(data, sub, b.base).run();
+  const changes = r && r.meta ? r.meta.changes : r && r.changes;
+  if (!changes) {
+    const row = await env.DB.prepare('SELECT data, ver FROM saves WHERE sub = ?').bind(sub).first();
+    return json({ data: row ? JSON.parse(row.data) : null, ver: row ? row.ver : 0 }, { status: 409 });
+  }
+  return json({ ver: b.base + 1 });
 }
 
 /** Paid player started an Unlimited/archive flight: logged so refunds follow the rule. */
@@ -230,6 +316,8 @@ export default {
     const u = url.pathname.match(/^\/api\/unlock\/([\w-]{3,40})$/);
     if (u && request.method === 'GET') return getUnlock(u[1], env);
     if (url.pathname === '/api/checkout' && request.method === 'POST') return postCheckout(request, env);
+    if (url.pathname === '/api/save' && request.method === 'GET') return getSave(request, env);
+    if (url.pathname === '/api/save' && request.method === 'PUT') return putSave(request, env);
     if (url.pathname === '/api/stripe' && request.method === 'POST') return postStripe(request, env);
     if (url.pathname === '/api/me' && request.method === 'GET') return getMe(request, env);
     if (url.pathname === '/api/play' && request.method === 'POST') return postPlay(request, env);

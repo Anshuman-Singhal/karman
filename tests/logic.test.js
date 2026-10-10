@@ -12,10 +12,10 @@ const path = require('path');
 const vm = require('vm');
 
 const web = path.join(__dirname, '..', 'web', 'js');
-const ctx = { window: {}, console, Math, Date, Number, String, Map, Set, Array, Object, JSON, Intl };
+const ctx = { window: {}, console, Math, Date, Number, String, Map, Set, Array, Object, JSON, Intl, crypto: globalThis.crypto, Boolean, setTimeout, clearTimeout };
 ctx.window = ctx;
 vm.createContext(ctx);
-for (const f of ['config.js', 'prng.js', 'date.js', 'data/content.js', 'scoring.js', 'daily.js', 'units.js']) {
+for (const f of ['config.js', 'prng.js', 'date.js', 'data/content.js', 'scoring.js', 'daily.js', 'units.js', 'storage.js', 'sync.js']) {
   vm.runInContext(fs.readFileSync(path.join(web, f), 'utf8'), ctx, { filename: f });
 }
 const K = ctx.K;
@@ -101,6 +101,7 @@ console.log(`  perfect flight = ${S.MAX_PTS} pts (${S.kmOf(S.MAX_PTS)} km); ${S.
 /* ---- units ---- */
 section('Units');
 ctx.navigator = { language: 'en-GB' };
+const realStorage = K.storage;
 K.storage = { data: { prefs: { units: 'imperial' } }, save() {} };
 const vi = K.units.view(eiffel);
 check(vi.unit === 'feet' && Math.round(vi.toDisp(330)) === 1083, 'metres → feet');
@@ -141,6 +142,49 @@ const ms = K.date.msToNextFlight(new Date(Date.UTC(L.y, L.m - 1, L.d, 22, 0)));
 check(ms === 6 * 3600e3, `18:00 Eastern is 6 h from the next flight (got ${ms / 3600e3} h)`);
 const dst = K.date.msToNextFlight(new Date(Date.UTC(2026, 10, 1, 4, 30)));   // 00:30 EDT on the day clocks fall back
 check(dst === 24.5 * 3600e3, `DST day is 25 h long (got ${dst / 3600e3} h)`);
+
+/* ---- cloud save merge: nothing a pilot earned is ever lost ---- */
+section('Cloud save merge');
+{
+  K.storage = realStorage;
+  const M = K.storage.migrate;
+  const flight = (n, pts, mode = 'daily') => ({ n, mode, pts, alt: S.kmOf(pts), maxAlt: S.kmOf(pts), done: true, at: 1e12 + n * 864e5, rounds: Array.from({ length: 7 }, (_, i) => ({ chip: 2, hit: i < pts / 50 })) });
+  // Phone: flights 1–5 unsigned (a five-day streak), then buys on day 6 and signs in.
+  const phone = M({ v: 1, launch: '2026-10-7' });
+  [1, 2, 3, 4, 5].forEach((n) => { phone.days[n] = flight(n, 100 + n * 50); });
+  phone.streak = { cur: 5, best: 5, lastDay: 5, thermals: 0 };
+  phone.stats.flights = 5; phone.stampCounts = { clouds: 5 }; phone.stamps = { clouds: 1 };
+  phone.runs = [{ ...flight(0, 300, 'unlimited'), run: 1, at: 2e12 }]; phone.freeRunUsed = true; phone.unlimitedCount = 1;
+  // First sign-in: the cloud is empty → the merge keeps everything as is.
+  const first = K.sync.merge(phone, null);
+  check(Object.keys(first.days).length === 5 && first.streak.cur === 5, 'first sign-in with an empty cloud keeps all five days and the streak');
+  // Laptop: restores on day 7, having flown day 6 there (unsigned) plus its own run.
+  const laptop = M({ v: 1, launch: '2026-10-7' });
+  laptop.days[6] = flight(6, 400);
+  laptop.streak = { cur: 1, best: 1, lastDay: 6, thermals: 0 };
+  laptop.runs = [{ ...flight(0, 200, 'unlimited'), run: 4, at: 3e12 }]; laptop.unlimitedCount = 1;
+  const merged = K.sync.merge(laptop, K.sync.portable(phone));
+  check([1, 2, 3, 4, 5, 6].every((n) => merged.days[n] && merged.days[n].done), 'restore on another device: days 1–6 all present');
+  check(merged.streak.cur === 6 && merged.streak.best === 6 && merged.streak.lastDay === 6, `streak replays to 6 days (got ${merged.streak.cur}/${merged.streak.best})`);
+  check(merged.runs.length === 2 && merged.unlimitedCount === 2, 'both Unlimited runs kept, Unlimited flight count 2');
+  check(merged.freeRunUsed === true && merged.stats.flights === 8, `free run stays used; 8 flights in all (got ${merged.stats.flights})`);
+  check(merged.stats.bestAlt === S.kmOf(400), 'best altitude is the best of both');
+  check(merged.stampCounts.clouds >= 5 && merged.stamps.clouds === 1, 'stamps never go down');
+  // Merging again changes nothing (idempotent), and order doesn't matter for flights.
+  const again = K.sync.merge(merged, K.sync.portable(merged));
+  check(JSON.stringify(K.sync.portable(again)) === JSON.stringify(K.sync.portable(merged)), 'merging the same copy twice changes nothing');
+  const other = K.sync.merge(phone, K.sync.portable(laptop));
+  check(JSON.stringify(Object.keys(other.days).sort()) === JSON.stringify(Object.keys(merged.days).sort()) && other.streak.cur === 6, 'either direction gives the same flights and streak');
+  // This device keeps its own unlock and in-progress flight.
+  laptop.access = { unlimited: true, via: 'stripe', session: 'x', checkedAt: 1 };
+  laptop.live = { n: 7 };
+  const kept = K.sync.merge(laptop, { ...K.sync.portable(phone), access: { unlimited: false }, live: null });
+  check(kept.access.unlimited === true && kept.live && kept.live.n === 7, 'merge never touches this device\'s unlock or flight in progress');
+  // A day flown on both devices keeps the finished, higher one.
+  const a = M({ v: 1, launch: '2026-10-7' }); a.days[3] = flight(3, 150);
+  const b = M({ v: 1, launch: '2026-10-7' }); b.days[3] = flight(3, 350);
+  check(K.sync.merge(a, b).days[3].pts === 350, 'same day on two devices: the better flight is kept');
+}
 
 console.log(failures ? `\n${failures} check(s) failed.` : '\nAll checks passed.');
 process.exit(failures ? 1 : 0);

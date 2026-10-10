@@ -72,38 +72,44 @@ K.access = (() => {
       return;
     }
     const a = st();
-    // Back from Stripe Checkout: the webhook marks the account on the server,
-    // usually within a second or two, so ask until it says yes.
-    if (paid && !a.unlimited && a.session && C.PAYMENTS) {
-      K.fx.toast('Payment received. Unlocking…');
-      for (let i = 0; i < 12; i++) {
+    if (!backend()) return;
+    // A purchase that hasn't shown up yet: just back from Stripe (?paid=1), or
+    // still pending from an earlier visit. The server checks with Stripe
+    // directly, so this resolves even if Stripe's webhook was lost.
+    if (!a.unlimited && a.session && C.PAYMENTS && (paid || a.pending)) {
+      if (paid) { a.pending = Date.now(); save(); K.fx.toast('Payment received. Unlocking…'); }
+      const tries = paid ? 12 : 1;
+      for (let i = 0; i < tries; i++) {
         try {
           const me = await api('/api/me', { headers: { authorization: `Bearer ${a.session}` } });
           if (me.unlimited) {
-            grant('stripe', { session: a.session });
+            grant('stripe', { session: a.session, pending: null, email: me.email || a.email || null, paidAt: me.paidAt || null });
             K.fx.toast('Unlimited is yours. Keep flying.');
             K.ui.refreshAccess();
+            afterSignIn();
             return;
           }
-        } catch (e) { /* not yet */ }
-        await new Promise((r) => setTimeout(r, 1500));
+        } catch (e) { /* not yet, or offline */ }
+        if (i < tries - 1) await new Promise((r) => setTimeout(r, 1500));
       }
-      K.fx.toast('Still confirming your payment. Reopen KÁRMÁN in a minute, or use Restore purchase.');
+      if (paid) K.fx.toast('Still confirming with Stripe. It will unlock on its own; no need to pay again.');
       return;
     }
-    if (!a.unlimited || !backend()) return;
-    if (!paid && Date.now() - a.checkedAt < RECHECK_MS) return;
+    if (!a.unlimited) return;
+    if (Date.now() - a.checkedAt < RECHECK_MS) return;
     try {
       if (a.via === 'code') {
         const res = await api(`/api/unlock/${encodeURIComponent(a.code)}`);
         if (!res.valid) { revoke(); K.fx.toast('Your unlock code has ended. The daily flight is still free.'); K.ui.refreshAccess(); }
         else { a.checkedAt = Date.now(); save(); }
-      } else if (a.via === 'stripe' && a.session) {
+      } else if (a.via === 'stripe' && a.session && a.session !== 'dev') {
+        // A paid device only ever loses access to a confirmed refund. Anything
+        // else (an outage, a server bug, a lost record) keeps the player flying.
         const me = await api('/api/me', { headers: { authorization: `Bearer ${a.session}` } });
-        if (!me.unlimited) { revoke(); K.ui.refreshAccess(); }
+        if (!me.unlimited && me.refunded === true) { revoke(); K.ui.refreshAccess(); }
         else { a.checkedAt = Date.now(); save(); }
       }
-    } catch (e) { /* offline: keep what we have */ }
+    } catch (e) { /* offline or server trouble: keep what we have */ }
   }
 
   /* ---------------------------------------------------------- Google + Stripe */
@@ -126,21 +132,42 @@ K.access = (() => {
     await loadGoogle();
     return new Promise((resolve) => {
       google.accounts.id.initialize({ client_id: C.GOOGLE_CLIENT_ID, callback: (r) => resolve(r.credential) });
-      google.accounts.id.renderButton(el, { theme: 'filled_black', size: 'large', shape: 'pill', text: 'continue_with', width: 280 });
+      google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', logo_alignment: 'left', width: 280 });
     });
   }
 
-  /** After sign-in: either restore an earlier purchase or open Stripe Checkout. */
-  async function buyWith(idToken) {
+  /** After sign-in: restore an earlier purchase, or (buying) open Stripe Checkout.
+      Restore never opens a payment page; it answers 'none' if nothing is found. */
+  async function buyWith(idToken, restore) {
     const res = await api('/api/checkout', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ idToken, returnTo: location.origin }),
+      body: JSON.stringify({ idToken, returnTo: location.origin, restore: Boolean(restore) }),
     });
-    if (res.session) Object.assign(st(), { session: res.session });
-    if (res.unlimited) { grant('stripe', { session: res.session }); return 'restored'; }
+    if (res.session) Object.assign(st(), { session: res.session, email: res.email || st().email || null });
+    if (res.unlimited) { grant('stripe', { session: res.session, pending: null }); afterSignIn(); return 'restored'; }
+    // Signed in either way: back this device's progress up before leaving for Stripe.
+    await Promise.race([afterSignIn(), new Promise((r) => setTimeout(r, 3000))]);
     save();
+    if (restore || !res.url) return 'none';
     location.href = res.url;                      // Stripe Checkout; returns to /?paid=1
     return 'redirect';
+  }
+
+  /** Signed in: merge this device's progress with the cloud copy, then redraw
+      the home screen if anything came down (never mid-flight). */
+  function afterSignIn() {
+    if (!K.sync) return Promise.resolve(false);
+    return K.sync.now().then((changed) => {
+      if (changed && K.ui.current === 'home' && !K.storage.data.live) K.game.boot({ mode: K.game.mode === 'unlimited' ? 'unlimited' : 'daily' });
+      return changed;
+    });
+  }
+
+  /** Sign out on this device: forget the session (progress and any unlock stay). */
+  function signOut() {
+    Object.assign(st(), { session: null, email: null });
+    if (st().via === 'stripe') st().checkedAt = Date.now();
+    save();
   }
 
   /** Dev only: pretend a purchase went through. */
@@ -153,5 +180,5 @@ K.access = (() => {
     fetch(`${C.API_BASE}/api/play`, { method: 'POST', headers: { authorization: `Bearer ${a.session}`, 'content-type': 'application/json' }, body: JSON.stringify({ kind }), keepalive: true }).catch(() => {});
   }
 
-  return { unlimited, canArchive, canKeepFlying, freeRunLeft, redeem, refresh, googleButton, buyWith, simulatePurchase, notePlay, backend, revoke };
+  return { unlimited, canArchive, canKeepFlying, freeRunLeft, redeem, refresh, googleButton, buyWith, simulatePurchase, notePlay, backend, revoke, afterSignIn, signOut };
 })();

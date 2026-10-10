@@ -51,6 +51,7 @@
   $('contact-link').addEventListener('click', (e) => contact(e, e.currentTarget));
   $('btn-menu').addEventListener('click', () => K.ui.openSheet('menu'));
   $('menu-resume').addEventListener('click', () => K.ui.closeSheet('menu'));
+  $('menu-acct').addEventListener('click', fromMenu(() => K.ui.openSheet('account')));
   $('btn-units').addEventListener('click', () => {
     const sys = K.units.system() === 'imperial' ? 'metric' : 'imperial';
     if (K.ui.current === 'round') K.round.setUnits(sys); else K.units.setSystem(sys);
@@ -196,6 +197,8 @@
   });
 
   K.game.boot();
-  K.access.refresh();
+  // Access first (a purchase coming back from Stripe), then the cloud copy.
+  K.access.refresh().finally(() => K.access.afterSignIn());
+  document.addEventListener('visibilitychange', () => { if (document.hidden && K.sync) K.sync.now(); });
   paintSound();
 })();

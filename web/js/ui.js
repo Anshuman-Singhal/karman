@@ -516,6 +516,8 @@ K.ui = (() => {
     paintKeep();
     if (!$('sheet-archive').hidden) renderArchive();
     if (!$('sheet-paywall').hidden && K.access.unlimited()) { closeSheet('paywall'); K.fx.toast('Unlimited unlocked. Keep flying.'); }
+    if (!$('sheet-account').hidden) renderAccount();
+    renderMenuAcct();
   }
 
   /* ------------------------------------------------------------ archive calendar */
@@ -573,13 +575,15 @@ K.ui = (() => {
     $('btn-buy').hidden = true;
     const slot = $('gsi-slot');
     slot.hidden = false;
-    slot.innerHTML = '';
+    slot.innerHTML = `<p class="gsi-lead">${kind === 'restore' ? 'Sign in with the Google account you bought with.' : 'Sign in with Google to pay. Your unlock and your logbook follow that account to any device.'}</p><div class="gsi-btn"></div>`;
     try {
-      const token = await K.access.googleButton(slot);
-      const res = await K.access.buyWith(token);
+      const token = await K.access.googleButton(slot.querySelector('.gsi-btn'));
+      slot.querySelector('.gsi-lead').textContent = kind === 'restore' ? 'Looking for your purchase…' : 'Opening secure checkout…';
+      const res = await K.access.buyWith(token, kind === 'restore');
       if (res === 'restored') { K.fx.toast('Purchase restored. Welcome back.'); refreshAccess(); }
+      else if (res === 'none') { K.fx.toast('No purchase on that Google account. Your logbook is backed up to it now.'); renderPaywall(); renderAccount(); }
     } catch (e) {
-      K.fx.toast('Couldn’t reach checkout. Try again in a moment.');
+      K.fx.toast(e && e.status === 503 ? 'Stripe is busy. Try again in a moment; you won’t be charged twice.' : 'Couldn’t reach checkout. Try again in a moment.');
       renderPaywall();
     }
   }
@@ -616,6 +620,7 @@ K.ui = (() => {
     $('btn-units').setAttribute('aria-checked', String(K.units.system() !== 'imperial'));
     $('btn-sound').setAttribute('aria-checked', String(K.audio.enabled()));
     renderResume();
+    renderMenuAcct();
   }
   /** "Flight #4 in progress · Leg 3 of 7 · 18 s left", ticking while the menu is open. */
   function renderResume() {
@@ -640,6 +645,7 @@ K.ui = (() => {
   function openSheet(name) {
     const el = $(`sheet-${name}`);
     if (name === 'logbook') renderLogbook();
+    if (name === 'account') renderAccount();
     if (name === 'help') renderHelp();
     if (name === 'archive') { calY = 0; renderArchive(); }
     if (name === 'paywall') renderPaywall();
@@ -692,13 +698,102 @@ K.ui = (() => {
     </svg>`;
   }
 
+  /* ------------------------------------------------------------ account
+     Status, not history: who you are, what you own, where your progress is
+     kept. History lives in the logbook, one tap away. */
+  const ago = (t) => {
+    if (!t) return '';
+    const s = Math.max(0, (Date.now() - t) / 1000);
+    if (s < 50) return 'just now';
+    if (s < 3600) return `${Math.round(s / 60)} min ago`;
+    if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+    return new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  function accountState() {
+    const d = K.storage.data, a = d.access || {};
+    const signed = Boolean(a.session && a.session !== 'dev');
+    const owned = K.access.unlimited();
+    const plan = owned
+      ? (a.via === 'code' ? { k: 'Unlimited', v: 'Unlocked by link', tone: 'on' } : { k: 'Unlimited', v: a.paidAt ? `Owned · since ${new Date(a.paidAt.replace(' ', 'T') + 'Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : 'Owned · one-time purchase', tone: 'on' })
+      : a.pending ? { k: 'Unlimited', v: 'Payment confirming…', tone: 'wait' }
+      : { k: 'Free pilot', v: K.access.freeRunLeft() ? 'Daily flight · 1 free Unlimited run left' : 'Daily flight, every day', tone: 'off' };
+    const sync = d.sync && d.sync.at;
+    const backup = signed ? (sync ? `Saved to your Google account · ${ago(sync)}` : 'Saving to your Google account…') : 'On this device only';
+    return { d, a, signed, owned, plan, backup };
+  }
+  function renderMenuAcct() {
+    const { a, signed, owned } = accountState();
+    $('ma-badge').innerHTML = signed && a.email ? esc(a.email[0].toUpperCase()) : '<svg viewBox="0 0 24 24"><path d="M12 3.5c-4 0-6.5 2.9-6.5 6.4 0 2.7 2.2 5 3.9 6.3h5.2c1.7-1.3 3.9-3.6 3.9-6.3 0-3.5-2.5-6.4-6.5-6.4z"/><rect x="10" y="18.5" width="4" height="2.6" rx=".6"/></svg>';
+    $('ma-badge').classList.toggle('on', owned);
+    $('ma-title').textContent = `Pilot Nº ${K.ui.pilotNo()}`;
+    $('ma-sub').textContent = [owned ? 'Unlimited' : 'Free', signed ? 'Backed up' : 'Not backed up'].join(' · ');
+  }
+  function renderAccount() {
+    if (!$('account-body')) return;
+    const { d, a, signed, owned, plan, backup } = accountState();
+    const st = K.game.streakNow();
+    const flown = Object.values(d.days).filter((x) => x.done).length + (d.runs || []).length;
+    const stamps = S.MILESTONES.filter((m) => (d.stampCounts || {})[m.id]).length;
+    const best = d.stats.bestAlt || 0;
+    $('account-sub').textContent = `PILOT Nº ${K.ui.pilotNo()}`;
+    const row = (k, v, tone = '') => `<div class="ac-row ${tone}"><span class="ac-k">${k}</span><span class="ac-v">${v}</span></div>`;
+    const payments = K.CONFIG.PAYMENTS;
+    $('account-body').innerHTML = `
+      <div class="ac-card">
+        <div class="lic-strip">PILOT RECORD · KÁRMÁN AIR</div>
+        ${row('Google', signed ? esc(a.email || 'Signed in') : 'Not signed in')}
+        ${row(plan.k, esc(plan.v), plan.tone)}
+        ${row('Progress', esc(backup), signed ? 'on' : '')}
+      </div>
+      ${signed ? '' : `<div class="ac-cta">
+        <p class="ac-lead">Back up your flights, streak and stamps to Google and pick them up on any device. Free, no purchase needed.</p>
+        ${payments ? '<div class="gsi" id="ac-gsi"><div class="gsi-btn"></div></div>' : '<p class="ac-lead">Backups arrive with sign-in soon.</p>'}
+      </div>`}
+      <button type="button" class="ac-log" id="ac-logbook">
+        <span class="ac-stats"><span><b>${flown}</b>Flights</span><span><b>${st.cur}</b>Streak</span><span><b>${best ? best.toFixed(best < 10 ? 1 : 0) : 0}</b>Best km</span><span><b>${stamps}/${S.MILESTONES.length}</b>Stamps</span></span>
+        <span class="ac-go">Open logbook <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
+      </button>
+      ${owned ? '' : `<button type="button" class="buy-ticket ac-buy" id="ac-buy"><span class="bt-main">Unlock Unlimited</span><span class="bt-stub"><b>${esc(K.CONFIG.PRICE)}</b><small>ONE-TIME</small></span></button>`}
+      <div class="ac-links">
+        ${signed ? '<button type="button" class="link-btn" id="ac-sync">Back up now</button>' : ''}
+        ${!owned && payments ? '<button type="button" class="link-btn" id="ac-restore">Bought on another account or device? Restore</button>' : ''}
+        ${signed ? '<button type="button" class="link-btn" id="ac-signout">Sign out on this device</button>' : ''}
+      </div>
+      <p class="pay-fine">${owned && a.via === 'stripe' ? 'Refunds: refundable if you haven’t flown an Unlimited or archive flight since buying. ' : ''}Questions or a refund? <a href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}">${esc(K.CONFIG.CONTACT_EMAIL)}</a><br>Signing out keeps everything on this device. <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>`;
+    $('ac-logbook').onclick = () => { closeSheet('account'); setTimeout(() => openSheet('logbook'), K.fx.reduced() ? 0 : 200); };
+    if ($('ac-buy')) $('ac-buy').onclick = () => { closeSheet('account'); setTimeout(() => openSheet('paywall'), K.fx.reduced() ? 0 : 200); };
+    if ($('ac-restore')) $('ac-restore').onclick = () => { closeSheet('account'); setTimeout(() => { openSheet('paywall'); startGoogle('restore'); }, K.fx.reduced() ? 0 : 200); };
+    if ($('ac-sync')) $('ac-sync').onclick = async (e) => {
+      e.currentTarget.textContent = 'Backing up…';
+      await K.access.afterSignIn();
+      K.fx.toast(K.storage.data.sync && Date.now() - K.storage.data.sync.at < 15000 ? 'Backed up to your Google account.' : 'Couldn’t reach the cloud. Your progress is safe on this device.');
+      renderAccount();
+    };
+    if ($('ac-signout')) $('ac-signout').onclick = () => {
+      K.access.signOut();
+      K.fx.toast('Signed out on this device. Your progress and unlock stay here.');
+      renderAccount(); renderMenuAcct();
+    };
+    if ($('ac-gsi')) {
+      K.access.googleButton($('ac-gsi').querySelector('.gsi-btn')).then(async (token) => {
+        $('ac-gsi').innerHTML = '<p class="gsi-lead">Signing in and backing up…</p>';
+        try {
+          const res = await K.access.buyWith(token, true);
+          K.fx.toast(res === 'restored' ? 'Signed in. Your Unlimited purchase is restored.' : 'Signed in. Your progress is backed up.');
+          refreshAccess();
+        } catch (err) { K.fx.toast('Couldn’t sign in just now. Try again in a moment.'); }
+        renderAccount(); renderMenuAcct();
+      }).catch(() => { if ($('ac-gsi')) $('ac-gsi').innerHTML = '<p class="gsi-lead">Google sign-in couldn’t load. Check your connection.</p>'; });
+    }
+  }
+
   function renderLogbook() {
     const data = K.storage.data;
     const st = K.game.streakNow();
     const counts = data.stampCounts || {};
     const days = Object.values(data.days).filter((d) => d.done).sort((a, b) => a.n - b.n);
     const since = days.length ? K.date.dateOfFlight(days[0].n).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).toUpperCase() : 'TODAY';
-    const pilotNo = String(Math.abs(seeded(data.device || 'x')) % 10000).padStart(4, '0');
+    const pilotNo = K.ui.pilotNo();
     $('logbook-sub').textContent = `PILOT Nº ${pilotNo} · SINCE ${since}`;
 
     // Licence
@@ -827,11 +922,11 @@ K.ui = (() => {
   }
 
   return {
-    init, show, topbar, setAltitude, home, results, closed, prepareLaunch, dockReady, dockIn, refreshAccess, startGoogle,
+    init, show, topbar, setAltitude, home, results, closed, prepareLaunch, dockReady, dockIn, refreshAccess, startGoogle, renderAccount,
     calStep(d) { calM += d; if (calM < 0) { calM = 11; calY -= 1; } if (calM > 11) { calM = 0; calY += 1; } renderArchive(); },
     openSheet, closeSheet, dev, anchorBalloon, renderMenu, refreshUnits,
     get lastRecord() { return lastRecord; },
-    ICONS, pilotNo: () => String(Math.abs(seeded(K.storage.data.device || 'x')) % 10000).padStart(4, '0'), get lastStats() { return lastStats; },
+    ICONS, pilotNo: () => String(Math.abs(seeded(K.storage.data.pilot || K.storage.data.device || 'x')) % 10000).padStart(4, '0'), get lastStats() { return lastStats; },
     get current() { return current; },
   };
 })();

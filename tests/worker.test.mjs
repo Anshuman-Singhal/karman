@@ -57,6 +57,45 @@ check((await call('/api/stripe', { method: 'POST', headers: { 'stripe-signature'
 const sig77 = [...new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode('g-77')))].map((x) => x.toString(16).padStart(2, '0')).join('');
 check((await (await call('/api/me', { headers: { authorization: `Bearer g-77.${sig77}` } })).json()).unlimited === true, 'buyer is Unlimited after the webhook');
 
+// Lost webhook: our record says unpaid, Stripe says paid → /api/me heals it.
+// A refunded payment never comes back.
+env.STRIPE_SECRET_KEY = 'sk_test_x';
+const stripeSessions = {
+  cs_lost: { id: 'cs_lost', payment_status: 'paid', payment_intent: { latest_charge: { refunded: false } } },
+  cs_refunded: { id: 'cs_refunded', payment_status: 'paid', payment_intent: { latest_charge: { refunded: true } } },
+  cs_open: { id: 'cs_open', payment_status: 'unpaid', payment_intent: null },
+};
+const realFetch = globalThis.fetch;
+globalThis.fetch = async (url, init) => {
+  const m = String(url).match(/checkout\/sessions\/([\w]+)/);
+  if (m) return new Response(JSON.stringify(stripeSessions[m[1]] || {}), { status: 200 });
+  if (String(url).includes('api.stripe.com/v1/checkout/sessions') && init && init.method === 'POST') return new Response(JSON.stringify({ id: 'cs_new', url: 'https://checkout.stripe.com/x' }), { status: 200 });
+  return realFetch(url, init);
+};
+const sess = async (sub) => `${sub}.${[...new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(sub)))].map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+db.exec("INSERT INTO users (sub, email) VALUES ('g-lost', 'l@b.c'), ('g-ref', 'r@b.c'), ('g-open', 'o@b.c')");
+db.exec("INSERT INTO checkouts (id, sub) VALUES ('cs_open', 'g-lost'), ('cs_lost', 'g-lost'), ('cs_refunded', 'g-ref'), ('cs_open', 'g-open')".replace("('cs_open', 'g-open')", "('cs_open2', 'g-open')"));
+stripeSessions.cs_open2 = stripeSessions.cs_open;
+const meOf = async (sub) => (await call('/api/me', { headers: { authorization: `Bearer ${await sess(sub)}` } })).json();
+const lost = await meOf('g-lost');
+check(lost.unlimited === true, 'paid but webhook lost: /api/me asks Stripe and unlocks');
+check(db.prepare("SELECT unlimited FROM users WHERE sub = 'g-lost'").get().unlimited === 1, '...and records it');
+const ref = await meOf('g-ref');
+check(ref.unlimited === false && ref.refunded === true, 'refunded payment stays locked and says refunded');
+const open = await meOf('g-open');
+check(open.unlimited === false && open.refunded === false, 'abandoned checkout: locked, not refunded (device keeps nothing it never had)');
+globalThis.fetch = realFetch;
+
+// Cloud save: create, conflicting write refused with the current copy, retry on it
+const sv = async (sub, method, body) => call('/api/save', { method, headers: { authorization: `Bearer ${await sess(sub)}`, 'content-type': 'application/json' }, body: body && JSON.stringify(body) });
+check((await (await sv('g-lost', 'GET')).json()).ver === 0, 'no cloud save yet → ver 0');
+check((await (await sv('g-lost', 'PUT', { data: { days: { 1: { n: 1 } } }, base: 0 })).json()).ver === 1, 'first save → ver 1');
+const stale = await sv('g-lost', 'PUT', { data: { days: {} }, base: 0 });
+const staleBody = await stale.json();
+check(stale.status === 409 && staleBody.ver === 1 && staleBody.data.days[1], 'stale write refused with the current copy');
+check((await (await sv('g-lost', 'PUT', { data: { days: { 1: { n: 1 }, 2: { n: 2 } } }, base: 1 })).json()).ver === 2, 'write on the current copy → ver 2');
+check((await call('/api/save', { headers: { authorization: 'Bearer g-lost.forged' } })).status === 401, 'cloud save needs a real session');
+
 // results validation (7 legs)
 const res = (legs) => call('/api/result', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ n: 1, device: 'device-abc-123', pts: 300, legs, chips: '2222222'.slice(0, legs.length) }) });
 check((await res('1101011')).status === 204, '7-leg result accepted');
