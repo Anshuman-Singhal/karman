@@ -312,9 +312,8 @@ K.game = (() => {
     const hit = guess != null && S.isHit(fact, r);
 
     // Points: the width's value on a hit, 0 on a miss or no answer.
-    let delta = hit ? S.legPoints(live.chip) : 0;
     const clued = live.clueLeg === i;
-    if (clued) delta = Math.round(delta * S.CLUE_FACTOR);   // the clue halves this leg
+    const delta = hit ? S.legPointsFor(live.chip, clued) : 0;   // the clue halves this leg, in whole km
     const before = live.pts;
     live.pts = Math.max(0, before + delta);
     live.alt = S.kmOf(live.pts);
@@ -348,7 +347,7 @@ K.game = (() => {
         await K.fx.hitstop(pin ? 240 : 110);
         const col = CHIP_HEX[result.chip];
         K.fx.embers(bp.x, bp.y, { count: pin ? 48 : 26, color: col, speed: pin ? 300 : 220 });
-        K.fx.floatText(bp.x, bp.y - 26, K.units.climbText(S.kmOf(result.delta)), col);
+        K.fx.floatText(bp.x, bp.y - 26, K.units.legText(S.kmOf(result.ptsAfter - result.delta), S.kmOf(result.ptsAfter)), col);
         if (pin) { K.fx.ringBurst(bp.x, bp.y); K.fx.sparks(bp.x, bp.y); K.fx.nudge(); }
         K.audio.hit(result.chip);
         const pt = K.scene.point('burner');
@@ -366,7 +365,7 @@ K.game = (() => {
     await K.fx.sleep(replay ? 0 : 380);
     const i = live.round;
     K.round.showResult({
-      hit: result.hit, chipIdx: result.chip, delta: result.delta, clue: result.clue,
+      hit: result.hit, chipIdx: result.chip, delta: result.delta, ptsAfter: result.ptsAfter, clue: result.clue,
       timedOut: result.timedOut, guess: result.guess, lo: result.lo, hi: result.hi,
       nextLabel: i < C.LEGS - 1 ? 'Next leg' : 'See your flight',
       nextStub: i < C.LEGS - 1 ? `Leg ${i + 2}` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,

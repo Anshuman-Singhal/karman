@@ -388,7 +388,7 @@ K.round = (() => {
     }
     els.lock.disabled = guess == null;
     els.lockMain.textContent = guess == null ? 'Type a guess' : 'Lock it in';
-    const bet = ctx.clueHere ? Math.round(S.legPoints(state.chip) * S.CLUE_FACTOR) : S.legPoints(state.chip);
+    const bet = S.legPointsFor(state.chip, Boolean(ctx.clueHere));
     els.lockStub.innerHTML = `<i class="kl-pip"></i>${K.units.climbText(S.kmOf(bet))}`;
     els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `Lock it in for ${K.units.climbText(S.kmOf(bet))}`);
 
@@ -397,7 +397,7 @@ K.round = (() => {
       const full = S.legPoints(i);
       b.classList.toggle('on', i === state.chip);
       b.setAttribute('aria-checked', String(i === state.chip));
-      b.querySelector('b').textContent = K.units.climbText(S.kmOf(ctx.clueHere ? Math.round(full * S.CLUE_FACTOR) : full));
+      b.querySelector('b').textContent = K.units.climbText(S.kmOf(S.legPointsFor(i, Boolean(ctx.clueHere))));
     });
   }
 
@@ -467,7 +467,7 @@ K.round = (() => {
     return S.offBy({ ...fact, answer: view.toDisp(fact.answer) }, view.toDisp(metricGuess), false);
   }
 
-  function showResult({ hit, chipIdx, delta, timedOut, guess, lo, hi, clue, nextLabel, nextStub }) {
+  function showResult({ hit, chipIdx, delta, ptsAfter, timedOut, guess, lo, hi, clue, nextLabel, nextStub }) {
     const chip = S.CHIPS[chipIdx];
     const unit = view.unit ? ` ${view.unit}` : '';
     const verdict = els.result.querySelector('.verdict');
@@ -476,7 +476,8 @@ K.round = (() => {
     verdict.style.setProperty('--c', hit ? `var(--c-${chip.key})` : 'var(--c-miss)');
 
     let d;
-    if (hit) d = `${K.units.climbText(S.kmOf(delta))}${clue ? ' (clue: half)' : ''}`;
+    const climb = ptsAfter != null ? K.units.legText(S.kmOf(ptsAfter - delta), S.kmOf(ptsAfter)) : K.units.climbText(S.kmOf(delta));
+    if (hit) d = `${climb}${clue ? ' (clue: half)' : ''}`;
     else d = guess == null ? (timedOut ? 'No climb' : 'No climb') : `No climb · ${offByText(guess)}`;
     els.result.querySelector('.verdict-delta').textContent = d;
 

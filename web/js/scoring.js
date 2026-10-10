@@ -156,7 +156,17 @@ K.scoring = (() => {
     if (hi < fact.answer) hi = tidy(fact.answer * 1.2);
     return { lo, hi };
   }
-  const CLUE_FACTOR = 0.5;   // a clued leg scores half
+  const CLUE_FACTOR = 0.5;   // a clued leg scores half…
+  /** …in whole kilometres, rounded up: Wide 1 · Fair 3 · Snug 5 · Tight 8 · Pinpoint 10.
+      (Halving 5 or 15 km used to leave 2.6 / 7.6 km fractions on the board.) */
+  /** [fromKm, toKm] for leg i of a flight record (older saves: deltas added up). */
+  function legSpan(rounds, i) {
+    let pts = 0;
+    for (let k = 0; k < i; k++) pts = rounds[k].ptsAfter != null ? rounds[k].ptsAfter : pts + (rounds[k].delta || 0);
+    const after = rounds[i].ptsAfter != null ? rounds[i].ptsAfter : pts + (rounds[i].delta || 0);
+    return [pts / PTS_PER_KM, after / PTS_PER_KM];
+  }
+  const legPointsFor = (chipIdx, clued) => (clued ? Math.ceil(CHIPS[chipIdx].km * CLUE_FACTOR) : CHIPS[chipIdx].km) * PTS_PER_KM;
 
   /** How far a guess was from the answer, in words. Empty string on a hit. */
   function offBy(fact, guess, hit) {
@@ -184,7 +194,7 @@ K.scoring = (() => {
   return {
     CHIPS, MISS_GLYPH, DEFAULT_CHIP, MILESTONES, STAMP_TIERS, METRES_PER_POINT, MAX_PTS, MAX_KM, PTS_PER_KM, legKm,
     valueAt, tAt, roundGuess, range, isHit, useRules, rulesFor,
-    legPoints, kmOf, ptsOf, clueWindow, CLUE_FACTOR,
+    legPoints, legPointsFor, legSpan, kmOf, ptsOf, clueWindow, CLUE_FACTOR,
     format, formatExact, offBy, tierName, tierIndex, nextTier, round2,
   };
 })();

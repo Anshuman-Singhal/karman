@@ -194,5 +194,37 @@ section('Cloud save merge');
   check(K.sync.merge(a, b).days[3].pts === 350, 'same day on two devices: the better flight is kept');
 }
 
+/* ---- per-leg climbs always add up to the total shown ---- */
+section('Legs add up');
+{
+  check([0, 1, 2, 3, 4].map((c) => S.kmOf(S.legPointsFor(c, true))).join() === '1,3,5,8,10', 'a clue halves the climb in whole km: 1, 3, 5, 8, 10');
+  check([0, 1, 2, 3, 4].every((c) => S.legPointsFor(c, false) === S.legPoints(c)), 'unclued legs unchanged');
+  const store = realStorage;
+  K.storage = { data: { prefs: {} }, save() {} };
+  const rand = K.rng.fromLabel('legs-add-up');
+  let bad = 0;
+  for (const sys of ['metric', 'imperial']) {
+    K.storage.data.prefs.units = sys;
+    for (let t = 0; t < 500; t++) {
+      let pts = 0;
+      const clueLeg = Math.floor(rand() * 8);            // 7 = no clue this flight
+      const rounds = Array.from({ length: 7 }, (_, i) => {
+        const chip = Math.floor(rand() * 5), hit = rand() < 0.6;
+        const delta = hit ? S.legPointsFor(chip, i === clueLeg) : 0;
+        pts += delta;
+        return { chip, hit, delta, ptsAfter: pts };
+      });
+      const sum = rounds.reduce((a, r, i) => a + (r.delta > 0 ? parseFloat(K.units.legText(...S.legSpan(rounds, i)).slice(1)) : 0), 0);
+      const shown = parseFloat(K.units.altText(S.kmOf(pts)));
+      if (Math.abs(sum - shown) > 1e-9) bad++;
+      if (sys === 'metric' && !Number.isInteger(S.kmOf(pts))) bad++;
+    }
+  }
+  check(bad === 0, `1,000 random flights: the legs add up to the total shown, in km and in miles (${bad} mismatches)`);
+  K.storage.data.prefs.units = 'metric';
+  check(K.units.climbText(100 - 57.6) === '+42.4 km', 'no float noise in climb text');
+  K.storage = store;
+}
+
 console.log(failures ? `\n${failures} check(s) failed.` : '\nAll checks passed.');
 process.exit(failures ? 1 : 0);

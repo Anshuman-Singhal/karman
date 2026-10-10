@@ -33,11 +33,25 @@ K.units = (() => {
   /** "54 km" / "34 mi", whole numbers unless small. */
   function altText(km, opts = {}) {
     const v = altVal(km);
-    const d = opts.decimals != null ? opts.decimals : (v < 10 && v !== Math.round(v) ? 1 : 0);
+    // Miles are always whole (climbs in km are whole, so km never need a decimal
+    // either, except in older saves under 10 km).
+    const d = opts.decimals != null ? opts.decimals : (system() === 'imperial' ? 0 : v < 10 && v !== Math.round(v) ? 1 : 0);
     return `${v.toFixed(d)} ${altUnit()}`;
   }
-  /** A per-leg climb like "+10 km" / "+6 mi" (miles rounded to whole). */
-  const climbText = (km) => (system() === 'imperial' ? `+${Math.round(km * KM_TO_MI)} mi` : `+${km} km`);
+  /** An altitude rounded exactly as altText shows it (so legs can add up to it). */
+  function altShown(km) {
+    const v = altVal(km);
+    const d = system() === 'imperial' ? 0 : v < 10 && v !== Math.round(v) ? 1 : 0;
+    return Number(v.toFixed(d));
+  }
+  /** What one leg added, as the change in the altitude the player SEES, so the
+      legs of a flight always add up to the total shown: "+10 km", "+6 mi". */
+  function legText(fromKm, toKm) {
+    const d = Math.round((altShown(toKm) - altShown(fromKm)) * 10) / 10;
+    return `+${d % 1 ? d.toFixed(1) : d} ${altUnit()}`;
+  }
+  /** A width's nominal climb (before a leg is flown): "+10 km" / "+6 mi". */
+  const climbText = (km) => (system() === 'imperial' ? `+${Math.round(km * KM_TO_MI)} mi` : `+${Math.round(km * 10) / 10} km`);
 
   /** Default: imperial for US English, metric for everyone else. */
   function defaultSystem() {
@@ -86,5 +100,5 @@ K.units = (() => {
     });
   }
 
-  return { altUnit, altVal, altNum, altText, climbText, view, system, setSystem, convertible, defaultSystem, hint };
+  return { altUnit, altVal, altNum, altText, altShown, legText, climbText, view, system, setSystem, convertible, defaultSystem, hint };
 })();

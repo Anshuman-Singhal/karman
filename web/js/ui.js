@@ -311,7 +311,7 @@ K.ui = (() => {
     const state = none ? 'none' : r.hit ? 'hit' : 'miss';
     const color = `var(--c-${S.CHIPS[r.chip].key})`;
     const L = lineLayout(fact, v, r);
-    const pts = none ? '—' : r.delta > 0 ? K.units.climbText(S.kmOf(r.delta)) : '0';
+    const pts = none ? '—' : r.delta > 0 ? K.units.legText(...S.legSpan(record.rounds, i)) : '0';
     const ansTxt = isYear ? yearTxt(fact.answer) : v.fmt(fact.answer, true);
     const unit = !isYear && v.unit ? `<small>${esc(v.unit)}</small>` : '';
     const side = (p) => (p < 18 ? 'l' : p > 82 ? 'r' : 'c');
@@ -352,7 +352,7 @@ K.ui = (() => {
     strip.innerHTML = record.rounds.map((r, i) => {
       const c = r.hit ? `var(--c-${S.CHIPS[r.chip].key})` : 'var(--c-miss)';
       const state = r.guess == null ? 'none' : r.hit ? 'hit' : 'miss';
-      const pts = r.guess == null ? '—' : r.delta > 0 ? K.units.climbText(S.kmOf(r.delta)).replace(/ (km|mi)$/, '') : '0';
+      const pts = r.guess == null ? '—' : r.delta > 0 ? K.units.legText(...S.legSpan(record.rounds, i)).replace(/ (km|mi)$/, '') : '0';
       return `<button type="button" class="leg-tile ${state}" role="tab" aria-selected="false" data-i="${i}" style="--c:${c};--i:${i}">
         <span class="lt-no">${i + 1}</span><span class="lt-glyph"></span><span class="lt-pts">${pts}</span></button>`;
     }).join('');

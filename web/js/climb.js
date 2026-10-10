@@ -73,7 +73,7 @@ K.climb = (() => {
     const v = K.units.view(f);
     return f.scale === 'year' ? (x < 0 ? `${Math.abs(Math.round(x))} BC` : String(Math.round(x))) : `${v.fmt(x, true)}${v.short ? ` ${v.short}` : ''}`;
   }
-  const climbWord = (l) => (l.none ? 'no guess' : l.hit ? K.units.climbText(S.kmOf(l.delta)) : 'miss');
+  const climbWord = (l) => (l.none ? 'no guess' : l.hit ? K.units.legText(l.from, l.km) : 'miss');
 
   function stubHTML(l) {
     const you = l.none ? '' : `<span class="cs-v"><i>You</i> ${esc(valText(l, l.guess))}</span> · `;
