@@ -72,6 +72,25 @@ K.access = (() => {
       return;
     }
     const a = st();
+    // Back from Stripe Checkout: the webhook marks the account on the server,
+    // usually within a second or two, so ask until it says yes.
+    if (paid && !a.unlimited && a.session && C.PAYMENTS) {
+      K.fx.toast('Payment received. Unlocking…');
+      for (let i = 0; i < 12; i++) {
+        try {
+          const me = await api('/api/me', { headers: { authorization: `Bearer ${a.session}` } });
+          if (me.unlimited) {
+            grant('stripe', { session: a.session });
+            K.fx.toast('Unlimited is yours. Keep flying.');
+            K.ui.refreshAccess();
+            return;
+          }
+        } catch (e) { /* not yet */ }
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+      K.fx.toast('Still confirming your payment. Reopen KÁRMÁN in a minute, or use Restore purchase.');
+      return;
+    }
     if (!a.unlimited || !backend()) return;
     if (!paid && Date.now() - a.checkedAt < RECHECK_MS) return;
     try {

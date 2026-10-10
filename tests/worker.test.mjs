@@ -44,6 +44,19 @@ check(me.unlimited === true, '/api/me sees the purchase');
 check((await call('/api/me', { headers: { authorization: 'Bearer g-42.forged' } })).status === 401, 'forged session rejected');
 check((await call('/api/play', { method: 'POST', headers: { authorization: `Bearer g-42.${sig}` } })).status === 204, 'play logged');
 
+// Stripe webhook: a signed checkout.session.completed unlocks the buyer; a bad signature is refused
+env.STRIPE_WEBHOOK_SECRET = 'whsec_test123';
+db.exec("INSERT INTO users (sub, email) VALUES ('g-77', 'buyer@b.c')");
+const evt = JSON.stringify({ type: 'checkout.session.completed', data: { object: { id: 'cs_test_1', payment_status: 'paid', client_reference_id: 'g-77' } } });
+const t = Math.floor(Date.now() / 1000);
+const wkey = await crypto.subtle.importKey('raw', enc.encode('whsec_test123'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+const v1 = [...new Uint8Array(await crypto.subtle.sign('HMAC', wkey, enc.encode(`${t}.${evt}`)))].map((x) => x.toString(16).padStart(2, '0')).join('');
+check((await call('/api/stripe', { method: 'POST', headers: { 'stripe-signature': `t=${t},v1=deadbeef` }, body: evt })).status === 400, 'webhook with a bad signature refused');
+check(db.prepare("SELECT unlimited FROM users WHERE sub = 'g-77'").get().unlimited === 0, 'bad webhook changes nothing');
+check((await call('/api/stripe', { method: 'POST', headers: { 'stripe-signature': `t=${t},v1=${v1}` }, body: evt })).status === 200, 'signed webhook accepted');
+const sig77 = [...new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode('g-77')))].map((x) => x.toString(16).padStart(2, '0')).join('');
+check((await (await call('/api/me', { headers: { authorization: `Bearer g-77.${sig77}` } })).json()).unlimited === true, 'buyer is Unlimited after the webhook');
+
 // results validation (7 legs)
 const res = (legs) => call('/api/result', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ n: 1, device: 'device-abc-123', pts: 300, legs, chips: '2222222'.slice(0, legs.length) }) });
 check((await res('1101011')).status === 204, '7-leg result accepted');
