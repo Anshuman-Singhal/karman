@@ -286,6 +286,42 @@ async function putSave(request, env) {
   return json({ ver: b.base + 1 });
 }
 
+/* ------------------------------------------------------------ health
+   GET /api/health: is payment set up right? Yes/no answers only (never a key).
+   A POST with no parameters is refused as "missing param" (400) when the key
+   may create Checkout sessions, and as a permission error (401/403) when not,
+   so nothing is created. Cached for a minute so it can't hammer Stripe. */
+async function getHealth(env, ctx) {
+  const cacheKey = new Request('https://karman.day/api/health');
+  const hit = await caches.default.match(cacheKey);
+  if (hit) return hit;
+  const k = env.STRIPE_SECRET_KEY || '';
+  const call = async (path, method = 'GET') => {
+    try {
+      const r = await fetch(`https://api.stripe.com/v1/${path}`, { method, headers: { authorization: `Bearer ${k}` } });
+      return r.status;
+    } catch { return 0; }
+  };
+  const [csWrite, csRead, piRead, chRead] = k ? await Promise.all([
+    call('checkout/sessions', 'POST'), call('checkout/sessions?limit=1'), call('payment_intents?limit=1'), call('charges?limit=1'),
+  ]) : [0, 0, 0, 0];
+  const body = {
+    stripe_key: k ? { mode: /_live_/.test(k) ? 'live' : /_test_/.test(k) ? 'test' : 'unknown', type: k.startsWith('rk_') ? 'restricted' : k.startsWith('sk_') ? 'secret' : 'unknown' } : 'missing',
+    can_create_checkout: csWrite === 400 || csWrite === 200,
+    can_read_checkout: csRead === 200,
+    can_read_payment_intents: piRead === 200,
+    can_read_charges: chRead === 200,
+    webhook_secret: env.STRIPE_WEBHOOK_SECRET ? (env.STRIPE_WEBHOOK_SECRET.startsWith('whsec_') ? 'set' : 'set (unexpected format)') : 'missing',
+    session_secret: env.SESSION_SECRET ? (env.SESSION_SECRET.length >= 20 ? 'set' : 'too short') : 'missing',
+    google_client_id: env.GOOGLE_CLIENT_ID ? 'set' : 'missing',
+    raw: { csWrite, csRead, piRead, chRead },
+  };
+  body.ok = Boolean(k && body.can_create_checkout && body.can_read_checkout && body.can_read_payment_intents && body.can_read_charges && env.STRIPE_WEBHOOK_SECRET && env.SESSION_SECRET && env.GOOGLE_CLIENT_ID);
+  const res = json(body, { headers: { 'cache-control': 'public, max-age=60' } });
+  ctx.waitUntil(caches.default.put(cacheKey, res.clone()));
+  return res;
+}
+
 /** Paid player started an Unlimited/archive flight: logged so refunds follow the rule. */
 async function postPlay(request, env) {
   const sub = await readSession(request, env);
@@ -316,6 +352,7 @@ export default {
     const u = url.pathname.match(/^\/api\/unlock\/([\w-]{3,40})$/);
     if (u && request.method === 'GET') return getUnlock(u[1], env);
     if (url.pathname === '/api/checkout' && request.method === 'POST') return postCheckout(request, env);
+    if (url.pathname === '/api/health' && request.method === 'GET') return getHealth(env, ctx);
     if (url.pathname === '/api/save' && request.method === 'GET') return getSave(request, env);
     if (url.pathname === '/api/save' && request.method === 'PUT') return putSave(request, env);
     if (url.pathname === '/api/stripe' && request.method === 'POST') return postStripe(request, env);
