@@ -57,7 +57,7 @@ K.ui = (() => {
     });
     current = name;
     document.body.dataset.screen = name;
-    if (name !== 'results' && K.climb) K.climb.close({ instant: true });
+    if (name !== 'results' && K.climb) K.climb.close({ instant: true, restore: false });
     setTimeout(anchorBalloon, 360); // after any dock resize (desktop results)
     requestAnimationFrame(anchorBalloon);
   }

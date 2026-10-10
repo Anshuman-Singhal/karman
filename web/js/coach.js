@@ -4,9 +4,10 @@
    A spotlight tutorial with three short slips. The veil covers everything
    EXCEPT the control the slip is about, so the player just does the thing:
 
-     1 · "Type your best guess."     → typing a digit advances
+     1 · "Type your best guess."     → the first digit advances (the guess stays live)
      2 · "Pick how sure you are."    → tapping any width advances (an arrow points at Wide)
      3 · "Lock it in."               → locking ends the guide
+   The lit area only ever grows, so a player can keep typing through 2 and 3.
 
    No Next button. "Skip guide" on each slip ends it and starts the clock.
    The veil is four panels around a hole, so the lit control is live.
@@ -16,35 +17,43 @@ K.coach = (() => {
   const $ = (id) => document.getElementById(id);
   const coarse = () => matchMedia('(pointer: coarse)').matches;
   let step = 0;
-  let veil = null, panels = [], ring = null, slip = null, arrow = null, lit = null;
+  let veil = null, panels = [], ring = null, slip = null, arrow = null, lit = null, focus = null;
   let onDone = null;
 
+  // The lit area grows rather than moves: the guess stays live (keep typing,
+  // fix a digit) while the width row, then Lock, join it. The ring marks the
+  // control the slip is about.
+  const entry = () => (coarse() ? [$('readout'), $('keypad')] : [$('readout')]);
   const STEPS = {
-    1: { at: () => (coarse() ? $('keypad') : $('readout')), title: 'Type your best guess.', body: 'No clock on this first one.' },
-    2: { at: () => $('wbtns'), title: 'Pick how sure you are.', body: 'Wider is safer. Narrower climbs more.', arrowAt: () => document.querySelector('#wbtns .wbtn') },
-    3: { at: () => $('btn-lock'), title: 'Lock it in.', body: 'From the next leg: 30 seconds a question.' },
+    1: { at: () => entry(), focus: () => (coarse() ? $('keypad') : $('readout')), title: 'Type your best guess.', body: 'No clock on this first one.' },
+    2: { at: () => [...entry(), $('wbtns')], focus: () => $('wbtns'), title: 'Pick how sure you are.', body: 'Wider is safer. Narrower climbs more.', arrowAt: () => document.querySelector('#wbtns .wbtn') },
+    3: { at: () => [...entry(), $('wbtns'), $('btn-lock')], focus: () => $('btn-lock'), title: 'Lock it in.', body: 'From the next leg: 30 seconds a question.' },
   };
 
   /* ---------------------------------------------------------- layout */
   const R = (el) => el.getBoundingClientRect();
 
   function place() {
-    if (!slip || !lit) return;
-    const r = R(lit), pad = 6, W = window.innerWidth, H = window.innerHeight;
+    if (!slip || !lit || !lit.length) return;
+    const rs = lit.map(R), pad = 6, W = window.innerWidth, H = window.innerHeight;
+    const r = { left: Math.min(...rs.map((q) => q.left)), top: Math.min(...rs.map((q) => q.top)), right: Math.max(...rs.map((q) => q.right)), bottom: Math.max(...rs.map((q) => q.bottom)) };
+    r.width = r.right - r.left;
     const hole = { l: r.left - pad, t: r.top - pad, r: r.right + pad, b: r.bottom + pad };
+    const f = focus ? R(focus) : r;
+    const ringBox = { l: f.left - pad, t: f.top - pad, r: f.right + pad, b: f.bottom + pad };
     // four blocking panels around the hole
     const [top, left, right, bottom] = panels;
     Object.assign(top.style, { left: 0, top: 0, width: `${W}px`, height: `${Math.max(0, hole.t)}px` });
     Object.assign(bottom.style, { left: 0, top: `${hole.b}px`, width: `${W}px`, height: `${Math.max(0, H - hole.b)}px` });
     Object.assign(left.style, { left: 0, top: `${hole.t}px`, width: `${Math.max(0, hole.l)}px`, height: `${hole.b - hole.t}px` });
     Object.assign(right.style, { left: `${hole.r}px`, top: `${hole.t}px`, width: `${Math.max(0, W - hole.r)}px`, height: `${hole.b - hole.t}px` });
-    Object.assign(ring.style, { left: `${hole.l}px`, top: `${hole.t}px`, width: `${hole.r - hole.l}px`, height: `${hole.b - hole.t}px` });
+    Object.assign(ring.style, { left: `${ringBox.l}px`, top: `${ringBox.t}px`, width: `${ringBox.r - ringBox.l}px`, height: `${ringBox.b - ringBox.t}px` });
     // the slip sits above the card (over the sky), never on the keys
     const dock = $('dock');
     const dockTop = dock ? R(dock).top : H * 0.55;
     const w = Math.min(320, W - 32);
     slip.style.width = `${w}px`;
-    const cx = r.left + r.width / 2;
+    const cx = f.left + (f.right - f.left) / 2;
     const x = Math.max(16, Math.min(W - w - 16, cx - w / 2));
     const h = slip.offsetHeight;
     let y = dockTop - h - 16;
@@ -87,9 +96,10 @@ K.coach = (() => {
     ensureDom();
     step = n;
     const s = STEPS[n];
-    if (lit) lit.classList.remove('coach-lit');
-    lit = s.at();
-    if (lit) lit.classList.add('coach-lit');
+    if (lit) lit.forEach((e) => e && e.classList.remove('coach-lit'));
+    lit = s.at().filter(Boolean);
+    focus = s.focus ? s.focus() : null;
+    lit.forEach((e) => e.classList.add('coach-lit'));
     slip.innerHTML = `<span class="coach-step">${n} / 3</span><p class="coach-title">${s.title}</p><p class="coach-body">${s.body}</p><button type="button" class="coach-skip">Skip guide</button>`;
     slip.querySelector('.coach-skip').addEventListener('click', skip);
     veil.classList.add('on');
@@ -101,19 +111,24 @@ K.coach = (() => {
   function start() { show(1); }
 
   /** round.js reports keypad / width changes through game.js. */
+  // Step 1 waits for a pause in the typing (not the first digit), so a full
+  // number goes in before the slip changes; the keypad stays live either way.
+  let typeT = 0;
   function input(entry, chip, kind) {
     if (!step) return;
-    if (step === 1 && entry) show(2);
-    else if (step === 2 && kind === 'chip') show(3);
+    clearTimeout(typeT);
+    if (step === 1 && entry) typeT = setTimeout(() => { if (step === 1) show(2); }, 1100);
+    else if (step <= 2 && kind === 'chip') show(3);
     else requestAnimationFrame(place);
   }
 
   function skip() { stop(); if (onDone) onDone('skipped'); }
 
   function stop() {
+    clearTimeout(typeT);
     step = 0;
-    if (lit) lit.classList.remove('coach-lit');
-    lit = null;
+    if (lit) lit.forEach((e) => e && e.classList.remove('coach-lit'));
+    lit = null; focus = null;
     if (veil) { window.removeEventListener('resize', place); const v = veil; veil = null; panels = []; ring = slip = arrow = null; v.classList.remove('on'); setTimeout(() => v.remove(), 220); }
   }
 

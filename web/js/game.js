@@ -148,6 +148,7 @@ K.game = (() => {
     const startPts = done ? done.pts : live ? live.pts : 0;
     const startKm = S.kmOf(startPts);
 
+    if (K.climb) K.climb.close({ instant: true, restore: false });   // a replay left open never carries into the next flight
     K.scene.reset({
       weather: flight ? flight.weather : K.daily.weatherFor(Math.max(1, n)),
       km: startKm,
@@ -546,7 +547,7 @@ K.game = (() => {
     get flightNo() { return n; },
     get phase() { return live ? live.phase : null; },
     get leg() { return live ? live.round : null; },
-    get pts() { return live ? live.pts : (store && store.days[n] && store.days[n].done ? store.days[n].pts : 0); },
+    get pts() { return live ? live.pts : (mode !== 'unlimited' && store && store.days[n] && store.days[n].done ? store.days[n].pts : 0); },
     /** Seconds left on the running leg (null outside a round). Keeps counting while the menu is open. */
     remaining: () => (live && live.phase === 'round' && !live.untimed ? Math.max(0, C.ROUND_SECONDS - (Date.now() - live.startedAt) / 1000) : null),
   };

@@ -255,7 +255,9 @@ K.round = (() => {
   }
 
   function selectChip(i) {
-    if (!fact || locked || i === state.chip) return;
+    if (!fact || locked) return;
+    // Re-tapping the lit width still counts as a choice for the guide.
+    if (i === state.chip) { if (K.coach && K.coach.active) onChange(state.entry, state.chip, 'chip'); return; }
     state.chip = i;
     K.scene.setChip(i);
     K.fx.haptic(8);

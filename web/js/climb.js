@@ -320,6 +320,9 @@ K.climb = (() => {
     hideStubs();
     if (sum) sum.classList.remove('in');
     setOpen(false, Boolean(opts.instant) || K.fx.reduced());
+    // Leaving results for a new flight: the sky already belongs to that flight,
+    // so nothing of this one is put back.
+    if (opts.restore === false) { if (raf) { cancelAnimationFrame(raf); raf = 0; } return; }
     // A cut, not a climb: the rising pass covers it, and the craft is set to its
     // final stage first so no staging effect (or sound) replays on the way up.
     K.vehicle.set(finalKm);

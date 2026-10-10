@@ -473,3 +473,12 @@ body[data-screen="round"] .cap-sub:has(.cap-fig):not(:has(.cap-note)) { display:
 /* The Burj, far off: the painted sheet is paler than the inked one was, so it
    sits a little deeper in the haze. */
 .grounded.far .landmark-art { opacity: 0.34; }
+
+/* v19 · Distance by tint, never by transparency: a far sight is solid paint
+   under a wash of the day's haze (masked to the sheet), so a ridge or hill
+   can never show through it. */
+.grounded.far .landmark-art { opacity: 1; }
+.grounded.far .landmark-art .haze-wash {
+  background: linear-gradient(to bottom, var(--haze) 0%, var(--haze) 100%);
+  opacity: 0.52;
+}

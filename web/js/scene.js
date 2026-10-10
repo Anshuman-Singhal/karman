@@ -250,7 +250,7 @@ K.scene = (() => {
     clump(395, 7, 60); clump(615, 6, 50); clump(250, 9, 120); clump(780, 8, 110); clump(120, 6, 80); clump(905, 6, 80);
 
     // Distant festival balloons over the far ridges, inked like the big one.
-    const tiny = (x, y, s, c) => `<g transform="translate(${x} ${y}) scale(${s})" opacity=".85">
+    const tiny = (x, y, s, c) => `<g transform="translate(${x} ${y}) scale(${s})">
         <path d="M0,-9 C6,-9 7,-3 4,1 L1.5,4 L-1.5,4 L-4,1 C-7,-3 -6,-9 0,-9Z" fill="${c}" stroke="${INK}" stroke-opacity=".55" stroke-width=".7" paint-order="stroke"/>
         <path d="M0,-9 C2,-9 2.4,-3 1.3,1 L0.5,4 L-0.5,4 L-1.3,1 C-2.4,-3 -2,-9 0,-9Z" fill="#F3E9D6" opacity=".7"/>
         <rect x="-1.2" y="5" width="2.4" height="2" fill="#5A3720"/></g>`;
@@ -280,7 +280,7 @@ K.scene = (() => {
     const furrow = (y0, sag) => { const p = []; for (let x = 0; x <= 1000; x += 25) p.push([x, y0 - sag * Math.sin((x / 1000) * Math.PI) + (hand() - 0.5) * 0.6]); return p; };
     return {
       far: sheet(`<defs>
-          <linearGradient id="g-far" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7A90BC"/><stop offset=".5" style="stop-color:var(--horizon)" stop-opacity=".5"/><stop offset="1" stop-color="#7189B6"/></linearGradient>
+          <linearGradient id="g-far" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7A90BC"/><stop offset=".5" style="stop-color:var(--horizon)"/><stop offset="1" stop-color="#7189B6"/></linearGradient>
           <linearGradient id="g-mist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--haze);stop-opacity:0"/><stop offset=".5" style="stop-color:var(--haze);stop-opacity:.45"/><stop offset="1" style="stop-color:var(--haze);stop-opacity:0"/></linearGradient>
           ${brush('g-br-far', 'rgba(255,248,236,.26)', 'rgba(34,48,90,.14)')}</defs>
         ${tiny(560, 26, 1.1, '#E2574C')}${tiny(612, 38, 0.8, '#3E78C2')}${tiny(300, 22, 1, '#F2B33D')}${tiny(720, 30, 0.9, '#6CB38E')}
