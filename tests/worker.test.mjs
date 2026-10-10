@@ -33,6 +33,9 @@ const rep = (qid) => call('/api/report', { method: 'POST', headers: { 'content-t
 check((await rep('s1-st-01')).status === 204, 'report accepted');
 await rep('s1-st-01');
 check(db.prepare('SELECT COUNT(*) c FROM reports').get().c === 1, 'duplicate report from same device ignored');
+await call('/api/report', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ qid: 's1-st-01', n: 3, device: 'device-xyz-999' }) });
+const top = await (await call('/api/reports')).json();
+check(top.questions.length === 1 && top.questions[0].qid === 's1-st-01' && top.questions[0].reports === 2 && !('device' in top.questions[0]), '/api/reports lists ids and counts only');
 
 // sessions + /api/me
 db.exec("INSERT INTO users (sub, email, unlimited) VALUES ('g-42', 'a@b.c', 1)");

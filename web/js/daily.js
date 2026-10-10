@@ -31,9 +31,33 @@ K.daily = (() => {
 
   /** Flight n, or null if it doesn't exist (before launch / not yet stocked). */
   function get(n) {
-    const ids = flights[n];
+    const ids = flights[n] || reserve(n);
     if (!ids) return null;
-    return { n, facts: ids.map((id) => byId.get(id)), weather: weatherFor(n) };
+    return { n, facts: ids.map((id) => byId.get(id)), weather: weatherFor(n), reserve: !flights[n] };
+  }
+
+  /* Reserve flights: if the weekly restock ever fails and the schedule runs
+     out, the game never goes dark. A day past the last scheduled flight gets
+     seven questions dealt from the bank and from dailies at least 60 days old,
+     seeded by the flight number so every player gets the same seven (and the
+     crowd chart still compares like with like). At most two per category. */
+  function reserve(n) {
+    const last = lastFlightNumber();
+    if (!(n > last) || !K.FACTS.length) return null;
+    const pool = K.FACTS.filter((f) => f.pool === 'bank');
+    Object.keys(flights).forEach((k) => { if (Number(k) <= n - 60) flights[k].forEach((id) => pool.push(byId.get(id))); });
+    if (pool.length < 7) return null;
+    const rand = K.rng.fromLabel(`karman-reserve-${n}`);
+    const order = pool.map((f) => [rand(), f]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+    const picked = [], perCat = {};
+    for (const f of order) {
+      if (picked.length === 7) break;
+      if ((perCat[f.cat] || 0) >= 2 || picked.includes(f.id)) continue;
+      perCat[f.cat] = (perCat[f.cat] || 0) + 1;
+      picked.push(f.id);
+    }
+    for (const f of order) { if (picked.length === 7) break; if (!picked.includes(f.id)) picked.push(f.id); }
+    return picked.length === 7 ? picked : null;
   }
 
   function lastFlightNumber() {

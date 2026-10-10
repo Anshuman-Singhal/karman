@@ -11,8 +11,7 @@ Add **70 new questions**: the tool puts 49 into the next 7 daily flights and 21 
 ## Steps
 1. Clone or pull the repo. Run `node tools/content.mjs status` and note the count.
 2. Read `content/questions.json` so you know every question already asked. Never ask the same thing twice, even reworded (the tool also blocks near-duplicates).
-3. Check for reported answers: read the contact inbox and, if the Cloudflare API is available, run
-   `npx wrangler d1 execute karman --remote --command "SELECT qid, COUNT(*) n FROM reports WHERE created > datetime('now','-8 days') GROUP BY qid ORDER BY n DESC"`.
+3. Check for reported answers: fetch `https://karman.day/api/reports` (most-reported question ids with counts, last 60 days; use the web-fetch tool if the shell can't reach the site).
    For each reported id, re-check the fact against a reliable source. If it's wrong, correct `answer`, `card` or `hint` **under the same id** in `content/questions.json`. Never change ids or the schedule.
 4. Write 70 candidates into `content/batches/YYYY-MM-DD.json`, a JSON array of objects shaped like:
    ```json
@@ -39,4 +38,7 @@ Add **70 new questions**: the tool puts 49 into the next 7 daily flights and 21 
 6. Run `node tools/content.mjs add content/batches/YYYY-MM-DD.json`. If it prints ✗ lines, fix those entries and run it again until it passes. It writes nothing until the whole batch is clean.
 7. Run `node tests/logic.test.js` and `node tests/worker.test.mjs`. Both must pass.
 8. Commit with the message `Weekly questions YYYY-MM-DD: flights #A–#B + 21 bank`, and push. The deploy happens automatically.
-9. Finish with a short summary: flights added, days ahead now, how many reports were fixed. If anything failed, say exactly what, and do not push a broken state.
+9. Health check, after pushing: fetch `https://karman.day/api/health` and `https://karman.day/` (wait ~2 minutes for the deploy first).
+   - `/api/health` should say `"ok": true`. If not, name each field that is false or missing.
+   - The home page should load (HTTP 200).
+10. Finish with a short summary: flights added, days ahead now, how many reports were fixed, health ok or not. If anything failed or health is not ok, start the summary with **ACTION NEEDED:** and say exactly what, in plain words for a non-engineer, and do not push a broken state.

@@ -322,6 +322,13 @@ async function getHealth(env, ctx) {
   return res;
 }
 
+/** GET /api/reports: the most-reported questions (ids and counts only), for
+    the weekly restock to re-check. No devices or anything personal. */
+async function getReports(env) {
+  const r = await env.DB.prepare("SELECT qid, COUNT(*) AS reports FROM reports WHERE created > datetime('now', '-60 days') GROUP BY qid HAVING reports >= 2 ORDER BY reports DESC LIMIT 30").all();
+  return json({ questions: r.results || [] }, { headers: { 'cache-control': 'public, max-age=300' } });
+}
+
 /** Paid player started an Unlimited/archive flight: logged so refunds follow the rule. */
 async function postPlay(request, env) {
   const sub = await readSession(request, env);
@@ -353,6 +360,7 @@ export default {
     if (u && request.method === 'GET') return getUnlock(u[1], env);
     if (url.pathname === '/api/checkout' && request.method === 'POST') return postCheckout(request, env);
     if (url.pathname === '/api/health' && request.method === 'GET') return getHealth(env, ctx);
+    if (url.pathname === '/api/reports' && request.method === 'GET') return getReports(env);
     if (url.pathname === '/api/save' && request.method === 'GET') return getSave(request, env);
     if (url.pathname === '/api/save' && request.method === 'PUT') return putSave(request, env);
     if (url.pathname === '/api/stripe' && request.method === 'POST') return postStripe(request, env);

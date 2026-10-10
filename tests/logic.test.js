@@ -56,7 +56,15 @@ for (let n = 1; n <= last; n++) {
 check(K.daily.get(0) === null, 'flight 0 should not exist');
 const pool = K.daily.unlimitedPool(3);
 check(pool.length >= 70 && !pool.some((f) => K.daily.get(3).facts.includes(f) || K.daily.get(4).facts.includes(f)), 'Unlimited pool excludes today and future dailies');
-check(K.daily.get(last + 1) === null, 'flight after the bank runs out should not exist');
+{
+  // If the weekly restock ever fails, the game never goes dark: reserve flights.
+  const r1 = K.daily.get(last + 1), r1b = K.daily.get(last + 1), r2 = K.daily.get(last + 30);
+  check(r1 && r1.reserve && r1.facts.length === 7 && r1.facts.every(Boolean), 'past the schedule: a reserve flight of 7 questions');
+  check(r1.facts.map((f) => f.id).join() === r1b.facts.map((f) => f.id).join(), 'reserve flights are the same for every player');
+  check(r2 && r2.facts.map((f) => f.id).join() !== r1.facts.map((f) => f.id).join(), 'each reserve day gets different questions');
+  check(new Set(r1.facts.map((f) => f.id)).size === 7, 'no repeats within a reserve flight');
+  check(!K.daily.get(3).reserve, 'scheduled flights are untouched');
+}
 
 console.log(`  ${last} flights, ${seen.size} daily facts, ${K.FACTS.length - seen.size} in the Unlimited bank`);
 

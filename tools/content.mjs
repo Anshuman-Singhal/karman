@@ -236,7 +236,9 @@ function add(file, bankOnly) {
   rest.forEach((q) => { q.pool = 'bank'; });
   const nextQs = questions.concat(batch);
   const next = { ...schedule, flights: { ...schedule.flights } };
-  let n = Math.max(0, ...Object.keys(schedule.flights).map(Number));
+  // After the last scheduled flight, but never on a day that has already
+  // started: if the game ran on reserve flights for a while, new ones begin tomorrow.
+  let n = Math.max(0, flightNumberToday(schedule.launch), ...Object.keys(schedule.flights).map(Number));
   flights.forEach((f) => { next.flights[++n] = f.map((q) => q.id); });
   const r = appendRuns(nextQs, next);
   next.runs = r.runs;
