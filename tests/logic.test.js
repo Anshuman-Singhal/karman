@@ -69,6 +69,26 @@ check(S.isHit(eiffel, S.range(eiffel, 320, 4)), 'Pinpoint at 320 should hit 330'
 const titanic = K.FACTS.find((f) => f.id === 's1-hi-01'); // 1912
 check(S.isHit(titanic, S.range(titanic, 1910, 4)), 'Pinpoint ±2 at 1910 should hit 1912');
 check(!S.isHit(titanic, S.range(titanic, 1909, 4)), 'Pinpoint ±2 at 1909 should miss 1912');
+// Rules v2 (the default): Wide 100× · Fair 3× · Snug 1.5× · Tight 15% · Pinpoint 4%
+check(!S.isHit(eiffel, S.range(eiffel, 315, 4)), 'v2 Pinpoint (4%) at 315 should miss 330');
+check(S.isHit(eiffel, S.range(eiffel, 290, 3)) && !S.isHit(eiffel, S.range(eiffel, 280, 3)), 'v2 Tight (15%): 290 hits, 280 misses 330');
+check(S.isHit(eiffel, S.range(eiffel, 230, 2)) && !S.isHit(eiffel, S.range(eiffel, 210, 2)), 'v2 Snug (1.5×): 230 hits, 210 misses');
+check(S.isHit(eiffel, S.range(eiffel, 120, 1)) && !S.isHit(eiffel, S.range(eiffel, 100, 1)), 'v2 Fair (3×): 120 hits, 100 misses');
+check(S.isHit(eiffel, S.range(eiffel, 4, 0)) && !S.isHit(eiffel, S.range(eiffel, 3, 0)), 'v2 Wide (100×): 4 hits, 3 misses');
+const moons = K.FACTS.find((f) => f.int && f.answer === 2 && /Mars/.test(f.q));
+const span = (g, c) => { const r = S.range(moons, g, c); return `${r.lo}-${r.hi}`; };
+check(span(2, 4) === '2-2' && span(2, 3) === '1-3' && span(2, 2) === '0-4' && span(2, 1) === '0-6', `counts: minimum steps keep widths distinct (got ${span(2, 4)}, ${span(2, 3)}, ${span(2, 2)}, ${span(2, 1)})`);
+// every width strictly contains the next narrower one, for every number question
+const nested = K.FACTS.filter((f) => f.scale !== 'year').every((f) => [0.5, 1, 2].every((m) => {
+  const g = S.roundGuess(f, f.answer * m);
+  const rs = [0, 1, 2, 3, 4].map((c) => S.range(f, g, c));
+  return rs.every((r, i) => i === 0 || (r.lo >= rs[i - 1].lo && r.hi <= rs[i - 1].hi));
+}));
+check(nested, 'v2: each width sits inside the one wider than it');
+check(S.rulesFor('daily', 3) === 1 && S.rulesFor('archive', 2) === 1 && S.rulesFor('daily', 4) === 2 && S.rulesFor('unlimited', 1) === 2, 'rules v1 for flights #1-3 only');
+S.useRules(1);
+check(S.isHit(eiffel, S.range(eiffel, 320, 4)) && S.isHit(eiffel, S.range(eiffel, 310, 4)) === S.isHit(eiffel, { lo: 310 / Math.sqrt(1.15), hi: 310 * Math.sqrt(1.15) }), 'v1 ranges unchanged for old flights');
+S.useRules(2);
 check([0, 1, 2, 3, 4].map(S.legKm).join() === '2,5,10,15,20', 'leg climb: Wide 2 km … Pinpoint 20 km');
 check([0, 1, 2, 3, 4].map(S.legPoints).join() === '10,25,50,75,100', 'stored points = km × 5');
 check(S.MAX_PTS === K.CONFIG.LEGS * 100, 'max points = legs × Pinpoint');

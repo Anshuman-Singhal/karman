@@ -148,6 +148,7 @@ K.game = (() => {
     const startPts = done ? done.pts : live ? live.pts : 0;
     const startKm = S.kmOf(startPts);
 
+    S.useRules(S.rulesFor(mode, n));   // flights before RULES2_FROM keep the ranges they were flown with
     if (K.climb) K.climb.close({ instant: true, restore: false });   // a replay left open never carries into the next flight
     K.scene.reset({
       weather: flight ? flight.weather : K.daily.weatherFor(Math.max(1, n)),

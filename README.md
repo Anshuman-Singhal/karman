@@ -60,13 +60,15 @@ Scripts load in order from `index.html` and share one namespace, `window.K`. Eac
 
 ## Scoring at a glance
 
-| Width | Number questions (hi/lo) | Year questions | Climb on a hit |
-| --- | --- | --- | --- |
-| Wide | ×10,000 (÷100 … ×100) | ±1,000 years | 2 km |
-| Fair | ×25 | ±200 | 5 km |
-| Snug | ×3.24 | ±45 | 10 km |
-| Tight | ×1.56 | ±10 | 15 km |
-| Pinpoint | ×1.15 | ±2 | 20 km |
+| Width | Number questions | Counts (whole numbers) | Year questions | Climb on a hit |
+| --- | --- | --- | --- | --- |
+| Wide | within 100× (÷100 … ×100) | and at least ±10 | ±1,000 years | 2 km |
+| Fair | within 3× | and at least ±4 | ±200 | 5 km |
+| Snug | within 1.5× | and at least ±2 | ±45 | 10 km |
+| Tight | within 15% | and at least ±1 | ±10 | 15 km |
+| Pinpoint | within 4% | exact for small counts | ±2 | 20 km |
+
+Each width is the best bet for one kind of knowing (Pinpoint: you know it; Tight: close; Snug: ballpark; Fair: right order of magnitude; Wide: could be off ten times or more). These are rules v2, from daily Flight #4 (`RULES2_FROM` in `config.js`) and for every Unlimited run; Flights #1–3 keep the v1 ratios in `scoring.js` so their archive replays and crowd charts stay comparable.
 
 Seven legs, so 140 km is the ceiling and the Kármán line (space) is 100 km. One clue per flight (a closer benchmark) halves that leg's climb. Internally the score is stored as points at 5 per km, which is what saves and the stats API hold.
 

@@ -23,6 +23,10 @@ K.CONFIG = {
      Kármán line exactly, so each point is worth KARMAN_KM / (LEGS × 100). */
   LEGS: 7,
 
+  /* Range rules v2 (see scoring.js range()) start with this daily flight;
+     earlier flights, already flown and charted, keep v1. Unlimited is v2. */
+  RULES2_FROM: 4,
+
   /* The finish line. */
   KARMAN_KM: 100,
 

@@ -18,9 +18,8 @@ K.scoring = (() => {
      pts:   points for a hit */
   const PTS_PER_KM = 5;
   const CHIPS = [
-    // Widths: Wide is huge (÷100 to ×100, ±1,000 years) so a nervous guess still
-    // scores; the rest step down geometrically to Pinpoint (×1.15, ±2 years).
-    // ratio = hi/lo for log questions, years = ± for dates, km = the climb on a hit.
+    // ratio = hi/lo for number questions under rules v1 (flights before
+    // RULES2_FROM; v2 is in range() below), years = ± for dates, km = the climb.
     { key: 'wide',     name: 'Wide',     ratio: 10000,  years: 1000, km: 2,  glyph: '☁️' },
     { key: 'fair',     name: 'Fair',     ratio: 25,     years: 200,  km: 5,  glyph: '🎈' },
     { key: 'snug',     name: 'Snug',     ratio: 3.24,   years: 45,   km: 10, glyph: '✈️' },
@@ -77,11 +76,43 @@ K.scoring = (() => {
     return Number(v.toPrecision(3)); // 3 significant figures: 384,000 · 42.2 · 7.35
   }
 
+  /* ---- the range a width covers ----
+     Rules v2 (daily flights from #RULES2_FROM on, and every Unlimited run).
+     Number questions: a log-symmetric band, guess ÷f … guess ×f, where f is
+       Wide 100× · Fair 3× · Snug 1.5× · Tight 15% · Pinpoint 4%.
+     Each width is the right call for one kind of knowing (modelled on a
+     guess that is off by a log-normal factor): Pinpoint if you know it,
+     Tight if you're close, Snug for a ballpark, Fair if you have the order of
+     magnitude, Wide if it could be off by ten times or more.
+     Counts (whole-number answers) also get a minimum step, so the narrower
+     widths stay narrower on tiny numbers: Pinpoint exact · Tight ±1 ·
+     Snug ±2 · Fair ±4 · Wide ±10, and the band snaps to whole numbers.
+     Rules v1 (flights #1 to #RULES2_FROM-1, kept so their archive and crowd
+     charts stay comparable): the CHIPS ratios above, no minimum step. */
+  const V2 = {
+    factor: [100, 3, 1.5, 1.15, 1.04],
+    step:   [10, 4, 2, 1, 0],
+  };
+  let rules = 2;
+  /** game.js sets the rules for the flight being shown. */
+  function useRules(v) { rules = v === 1 ? 1 : 2; }
+  const rulesFor = (mode, n) => (mode !== 'unlimited' && n < (K.CONFIG.RULES2_FROM || 1) ? 1 : 2);
+
   function range(fact, guess, chipIdx) {
     const chip = CHIPS[chipIdx];
     if (fact.scale === 'year') return { lo: guess - chip.years, hi: guess + chip.years };
-    const k = Math.sqrt(chip.ratio);
-    return { lo: guess / k, hi: guess * k };
+    if (rules === 1) {
+      const k = Math.sqrt(chip.ratio);
+      return { lo: guess / k, hi: guess * k };
+    }
+    const f = V2.factor[chipIdx];
+    let lo = guess / f, hi = guess * f;
+    if (fact.int) {
+      const step = V2.step[chipIdx];
+      lo = Math.max(0, Math.ceil(Math.min(lo, guess - step) - 1e-9));
+      hi = Math.floor(Math.max(hi, guess + step) + 1e-9);
+    }
+    return { lo, hi };
   }
 
   const isHit = (fact, r) => fact.answer >= r.lo && fact.answer <= r.hi;
@@ -152,7 +183,7 @@ K.scoring = (() => {
 
   return {
     CHIPS, MISS_GLYPH, DEFAULT_CHIP, MILESTONES, STAMP_TIERS, METRES_PER_POINT, MAX_PTS, MAX_KM, PTS_PER_KM, legKm,
-    valueAt, tAt, roundGuess, range, isHit,
+    valueAt, tAt, roundGuess, range, isHit, useRules, rulesFor,
     legPoints, kmOf, ptsOf, clueWindow, CLUE_FACTOR,
     format, formatExact, offBy, tierName, tierIndex, nextTier, round2,
   };
