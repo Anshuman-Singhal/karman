@@ -49,7 +49,7 @@ K.CONFIG = {
   PRICE: '$5.99',
   CONTACT_EMAIL: 'hello@karman.day',   // "Found a bug? Contact us" (set up this inbox)
   PAYMENTS: false,
-  GOOGLE_CLIENT_ID: '',
+  GOOGLE_CLIENT_ID: '356308228840-6jim0vk3hpq8c3abg07hajgmt3lb9ege.apps.googleusercontent.com',
 
   /* Shown on the last line of every share card. */
   SHARE_URL: 'karman.day',

@@ -14,6 +14,9 @@
     "run_worker_first": ["/api/*"],
     "not_found_handling": "single-page-application"
   },
+  // Public values (the Google Client ID is not a secret). Stripe keys and
+  // SESSION_SECRET are set as secrets in the Cloudflare dashboard, never here.
+  "vars": { "GOOGLE_CLIENT_ID": "356308228840-6jim0vk3hpq8c3abg07hajgmt3lb9ege.apps.googleusercontent.com", "PRICE_CENTS": 599 },
   "d1_databases": [
     { "binding": "DB", "database_name": "karman" }
   ],
