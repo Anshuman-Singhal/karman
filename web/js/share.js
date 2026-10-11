@@ -18,12 +18,16 @@ K.share = (() => {
 
   /* Each guess becomes how high it would carry you:
        ☁️ Wide · 🎈 Fair · ✈️ Snug · 🛰️ Tight · 🚀 Pinpoint · 💨 miss */
-  function text(record) {
+  /** The flight log. With { dare: true } it ends on a challenge (the results stamp). */
+  function text(record, _streak, opts = {}) {
     const legs = record.rounds.map((r) => (r.hit ? S.CHIPS[r.chip].glyph : S.MISS_GLYPH)).join('');
     const pts = record.pts != null ? record.pts : S.ptsOf(record.alt);
     const title = record.mode === 'unlimited' ? 'KÁRMÁN Unlimited' : `KÁRMÁN #${record.n}`;
     const km = S.kmOf(pts);
-    return [`${title} 🚀`, `${Number.isInteger(km) ? km : km.toFixed(1)} km up`, '', legs, '', K.CONFIG.SHARE_URL].join('\n');
+    const lines = [`${title} 🚀`, `${Number.isInteger(km) ? km : km.toFixed(1)} km up`, '', legs, ''];
+    if (opts.dare) lines.push('Think you can fly higher? 🎈');
+    lines.push(K.CONFIG.SHARE_URL);
+    return lines.join('\n');
   }
 
   /** Try the system share sheet (with the image when given), then the clipboard. Returns what happened. */

@@ -173,6 +173,17 @@
         <div class="res-top">
           <div class="crowd-chart" id="crowd-chart"></div>
           <div class="res-lockup">
+            <!-- The dare: a postage stamp. Tap copies the flight log with a challenge line (main.js). -->
+            <button type="button" class="dare-stamp" id="dare-stamp" aria-label="Copy your flight log to dare a friend">
+              <span class="ds-paper">
+                <span class="ds-top">Airmail</span>
+                <svg class="ds-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2c-4.1 0-6.6 3-6.6 6.6 0 2.8 2.2 5 4 6.4h5.2c1.8-1.4 4-3.6 4-6.4 0-3.6-2.5-6.6-6.6-6.6z"/><path d="M12 3.2c-1.6 1.7-2.3 4.1-2.3 6.6 0 2.6.5 4.9 1 6.4M12 3.2c1.6 1.7 2.3 4.1 2.3 6.6 0 2.6-.5 4.9-1 6.4"/><rect x="10" y="18.3" width="4" height="2.7" rx=".6"/></svg>
+                <b class="ds-main">Dare a friend</b>
+                <span class="ds-sub" id="dare-sub">to fly higher</span>
+                <span class="ds-cta">Tap to copy</span>
+                <span class="ds-cancel" aria-hidden="true"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44"/><circle cx="50" cy="50" r="35"/><path id="ds-arc" d="M20 50a30 30 0 0 1 60 0" fill="none" stroke="none"/><text><textPath href="#ds-arc" startOffset="50%">KÁRMÁN</textPath></text><text class="big" x="50" y="58">COPIED</text></svg></span>
+              </span>
+            </button>
             <div class="res-hero">
               <span class="res-alt" id="res-alt"></span><span class="res-unit" id="res-unit">km</span>
             </div>

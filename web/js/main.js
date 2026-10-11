@@ -106,6 +106,23 @@
     setTimeout(() => { sharing = false; }, 400);
   });
 
+  /* The dare stamp: copy the flight log with a challenge line, ink a postmark
+     over the stamp, and on phones open the share sheet as well. */
+  $('dare-stamp').addEventListener('click', async () => {
+    const last = K.ui.lastRecord;
+    if (!last) return;
+    const stamp = $('dare-stamp');
+    const str = K.share.text(last.record, last.streak, { dare: true });
+    const result = await K.share.copy(str);
+    stamp.classList.remove('stamped'); void stamp.offsetWidth; stamp.classList.add('stamped');
+    K.audio.tick();
+    K.fx.haptic && K.fx.haptic(14);
+    K.fx.toast(result === 'copied' ? 'Copied. Send it to someone who thinks they’d fly higher.' : 'Couldn\'t reach the clipboard. Long-press to copy.');
+    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
+      try { await navigator.share({ text: str }); } catch (e) { /* cancelled: it's already copied */ }
+    }
+  });
+
   /* Copy image: put the boarding-pass PNG on the clipboard. The ClipboardItem
      gets a Promise so Safari accepts it inside the tap. Browsers without
      image clipboard support fall back to a download. */
