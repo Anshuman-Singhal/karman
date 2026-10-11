@@ -32,7 +32,7 @@ const QFILE = path.join(ROOT, 'content', 'questions.json');
 const SFILE = path.join(ROOT, 'content', 'schedule.json');
 const OUT = path.join(ROOT, 'web', 'js', 'data', 'content.js');
 
-const CATEGORIES = ['Structures', 'Sky & Space', 'Living Things', 'History', 'Machines', 'Everyday Numbers'];
+const CATEGORIES = ['Structures', 'Sky & Space', 'Living Things', 'History', 'Machines', 'Everyday Numbers', 'Sports', 'Film & TV', 'Music', 'Pop Culture'];
 const HINT_UNITS = ['m', 'km', '°C', 'm/s', 'km/s', 'km/h', 'kg'];
 const MAX_PER_CAT = 2, MAX_YEARS = 3;
 const STOP = new Set('a an the of in on at to is was were did does do how what which many much long tall big far high deep old roughly about approximately first ever one its it for by from and with as are be has have that this there'.split(' '));
