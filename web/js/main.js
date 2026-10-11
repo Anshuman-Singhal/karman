@@ -106,18 +106,18 @@
     setTimeout(() => { sharing = false; }, 400);
   });
 
-  /* The dare stamp: copy the flight log with a challenge line, ink a postmark
-     over the stamp, and on phones open the share sheet as well. */
+  /* The invite stamp: copy an invitation (no score, so anyone will send it),
+     ink a thank-you postmark over the stamp, and on phones open the share sheet. */
   $('dare-stamp').addEventListener('click', async () => {
     const last = K.ui.lastRecord;
     if (!last) return;
     const stamp = $('dare-stamp');
-    const str = K.share.text(last.record, last.streak, { dare: true });
+    const str = K.share.invite();
     const result = await K.share.copy(str);
     stamp.classList.remove('stamped'); void stamp.offsetWidth; stamp.classList.add('stamped');
     K.audio.tick();
     K.fx.haptic && K.fx.haptic(14);
-    K.fx.toast(result === 'copied' ? 'Copied. Send it to someone who thinks they’d fly higher.' : 'Couldn\'t reach the clipboard. Long-press to copy.');
+    K.fx.toast(result === 'copied' ? 'Invite copied. Thank you for helping a small game grow 🎈' : 'Couldn\'t reach the clipboard. Long-press to copy.');
     if (navigator.share && matchMedia('(pointer: coarse)').matches) {
       try { await navigator.share({ text: str }); } catch (e) { /* cancelled: it's already copied */ }
     }

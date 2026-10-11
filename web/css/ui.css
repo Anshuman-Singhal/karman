@@ -4171,3 +4171,6 @@ body[data-screen="results"] #dock {
   #screen-results .res-alt { font-size: 2.9rem; }
   #screen-results .res-tier em { font-size: 1.05rem; }
 }
+/* The invite version: a three-line plea needs a touch more room. */
+.ds-sub { max-width: 84px; }
+@media (max-width: 719px) { .ds-sub { max-width: 64px; line-height: 1.12; } .ds-main { font-size: 13px; } }

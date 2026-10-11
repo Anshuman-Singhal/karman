@@ -450,8 +450,6 @@ K.ui = (() => {
 
   function results({ record, n, mode = 'daily', streak, thermals, streakInfo, isFresh, prevBest }) {
     lastRecord = { record, n, streak, mode, args: { record, n, mode, streak, thermals, streakInfo, isFresh: false, prevBest } };
-    // The dare stamp names the altitude to beat.
-    $('dare-sub').textContent = `to beat ${K.units.altText(record.alt)}`;
     $('dare-stamp').classList.remove('stamped');
     $('res-eyebrow').textContent = mode === 'unlimited' ? `Unlimited · Flight #${record.flightNo || record.run || ''}`
       : `${mode === 'archive' ? 'Archive · ' : ''}Flight #${n} · ${dayMonth(K.date.dateOfFlight(n))}`;

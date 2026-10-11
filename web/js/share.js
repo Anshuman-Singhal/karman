@@ -18,14 +18,16 @@ K.share = (() => {
 
   /* Each guess becomes how high it would carry you:
        ☁️ Wide · 🎈 Fair · ✈️ Snug · 🛰️ Tight · 🚀 Pinpoint · 💨 miss */
-  /** The flight log. With { dare: true } it ends on a challenge (the results stamp). */
+  /** An invitation with no score in it (the results stamp), so anyone can send it. */
+  const invite = () => ['🎈 KÁRMÁN: a daily game where you guess 7 numbers and bet on how sure you are.', 'Made by one student. Give it 3 minutes?', K.CONFIG.SHARE_URL].join('\n');
+
+  /** The flight log. */
   function text(record, _streak, opts = {}) {
     const legs = record.rounds.map((r) => (r.hit ? S.CHIPS[r.chip].glyph : S.MISS_GLYPH)).join('');
     const pts = record.pts != null ? record.pts : S.ptsOf(record.alt);
     const title = record.mode === 'unlimited' ? 'KÁRMÁN Unlimited' : `KÁRMÁN #${record.n}`;
     const km = S.kmOf(pts);
     const lines = [`${title} 🚀`, `${Number.isInteger(km) ? km : km.toFixed(1)} km up`, '', legs, ''];
-    if (opts.dare) lines.push('Think you can fly higher? 🎈');
     lines.push(K.CONFIG.SHARE_URL);
     return lines.join('\n');
   }
@@ -62,5 +64,5 @@ K.share = (() => {
     }
   }
 
-  return { text, share, copy };
+  return { text, share, copy, invite };
 })();
