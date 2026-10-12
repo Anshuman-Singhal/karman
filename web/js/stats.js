@@ -104,5 +104,24 @@ K.stats = (() => {
     return { n, players, step, buckets, legs, sample: true };
   }
 
-  return { submit, report, get, percentile, live, sampling };
+  /** First open of the day: counts visitors and where they came from, for the
+      owner's dashboard. Once per day per browser; the dashboard itself never counts. */
+  function hit() {
+    if (!live() || /^\/dev\b/.test(location.pathname)) return;
+    const day = K.date && K.date.flightNumber ? K.date.flightNumber() : null;
+    const stamp = String(day || new Date().toDateString());
+    try { if (localStorage.getItem('karman:hit') === stamp) return; localStorage.setItem('karman:hit', stamp); } catch (e) { /* private mode: count anyway */ }
+    const q = new URLSearchParams(location.search);
+    let src = q.get('utm_source') || q.get('ref') || q.get('src') || '';
+    if (!src && document.referrer) {
+      try { const h = new URL(document.referrer).hostname.replace(/^www\./, ''); if (!/(^|\.)karman\.day$/.test(h)) src = h; } catch (e) { /* ignore */ }
+    }
+    if (!src && window.matchMedia && matchMedia('(display-mode: standalone)').matches) src = 'home-screen';
+    fetch(`${C.API_BASE}/api/hit`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, keepalive: true,
+      body: JSON.stringify({ device: K.storage.data.device, src: src || 'direct' }),
+    }).catch(() => {});
+  }
+
+  return { submit, report, get, percentile, live, sampling, hit };
 })();

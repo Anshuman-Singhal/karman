@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>KÁRMÁN Flight Deck</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@1&display=swap">
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  /* Owner dashboard for karman.day. Data: GET /api/admin/stats (owner-only token). */
+  :root {
+    --bg: #0B0E1D;
+    --panel: #12162B;
+    --panel-2: #181D36;
+    --line: rgba(226, 232, 255, 0.09);
+    --grid: rgba(226, 232, 255, 0.07);
+    --ink: #EEF1FA;
+    --ink-2: rgba(224, 230, 248, 0.70);
+    --ink-3: rgba(224, 230, 248, 0.46);
+    /* chart series (validated for the dark surface: lightness band, CVD, contrast) */
+    --s-ret: #4F8FEA;
+    --s-new: #CC8226;
+    --s-one: #CC8226;
+    --good: #5BD49A;
+    --warn: #F4CF4A;
+    --bad: #FF5E62;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 15px/1.45 var(--f-ui); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  button { font: inherit; color: inherit; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 20px 16px 64px; }
+
+  header.top { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 20px; justify-content: space-between; padding-bottom: 18px; border-bottom: 1px solid var(--line); margin-bottom: 20px; }
+  .brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .brand b { font: 800 2rem/1 var(--f-display); letter-spacing: 0.06em; }
+  .brand span { font: italic 1.35rem/1 var(--f-serif); color: var(--ink-2); }
+  .meta { color: var(--ink-3); font-size: 0.86rem; margin-top: 6px; }
+  .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-size: 0.86rem; }
+  .btn:hover { border-color: rgba(226, 232, 255, 0.25); }
+  .btn:focus-visible, .chk input:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+  .chk { display: inline-flex; gap: 7px; align-items: center; font-size: 0.86rem; color: var(--ink-2); cursor: pointer; padding: 0 6px; }
+  .chk input { accent-color: var(--amber); }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 13px; }
+  .kpi .k { font-size: 0.78rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .kpi .v { font: 800 2.3rem/1.05 var(--f-display); margin-top: 6px; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; }
+  .kpi .s { font-size: 0.82rem; color: var(--ink-2); margin-top: 3px; }
+  .up { color: var(--good); } .down { color: var(--bad); }
+
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px 18px; min-width: 0; grid-column: span 6; }
+  .card.wide { grid-column: span 12; }
+  .card.third { grid-column: span 4; }
+  .card.two3 { grid-column: span 8; }
+  @media (max-width: 900px) { .card, .card.third, .card.two3 { grid-column: span 12; } }
+  .card h2 { margin: 0; font: 600 1rem/1.3 var(--f-ui); }
+  .card .sub { color: var(--ink-3); font-size: 0.82rem; margin: 2px 0 12px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.8rem; color: var(--ink-2); margin: 0 0 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .legend i.tick { height: 2px; width: 14px; border-radius: 1px; background: var(--ink-2); vertical-align: 3px; }
+
+  svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
+  svg.chart text { fill: var(--ink-3); font: 11px var(--f-ui); }
+  svg.chart .hit { fill: transparent; cursor: default; }
+  svg.chart .hit:hover + .hl, svg.chart g.col:hover .hl { opacity: 1; }
+  svg.chart .hl { fill: rgba(226, 232, 255, 0.06); opacity: 0; pointer-events: none; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; font-variant-numeric: tabular-nums; }
+  th { text-align: left; font-weight: 600; color: var(--ink-3); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0 8px 8px 0; border-bottom: 1px solid var(--line); }
+  td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td.n, th.n { text-align: right; }
+  .muted { color: var(--ink-3); }
+  .empty { color: var(--ink-3); font-size: 0.88rem; padding: 18px 0 6px; }
+
+  .barcell { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+  .bar { flex: 1; height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--s-one); border-radius: 4px; }
+  .barcell b { font-weight: 600; min-width: 3ch; text-align: right; }
+
+  .legs td.q { max-width: 420px; }
+  .legs .cat { font-size: 0.72rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.07em; }
+  .legs .ans { display: none; color: var(--ink-2); font-size: 0.82rem; margin-top: 2px; }
+  @media (max-width: 640px) {
+    .legs th:nth-child(3), .legs td:nth-child(3), .legs th:nth-child(5), .legs td:nth-child(5) { display: none; }
+    .legs .ans { display: block; }
+    .legs td:nth-child(4) { width: 42%; }
+  }
+  .sw { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; }
+  .stats .v { font: 800 1.6rem/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+  .stats .k { font-size: 0.8rem; color: var(--ink-3); }
+
+  .status { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.88rem; }
+  .status svg { width: 14px; height: 14px; }
+  .status.ok { color: var(--good); } .status.warn { color: var(--warn); } .status.bad { color: var(--bad); }
+  ul.plain { list-style: none; margin: 0; padding: 0; }
+  ul.plain li { padding: 8px 0; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; font-size: 0.88rem; }
+  ul.plain li:last-child { border-bottom: 0; }
+  .mask { cursor: pointer; border-bottom: 1px dotted var(--ink-3); }
+
+  #tip { position: fixed; z-index: 10; pointer-events: none; background: #1E2443; border: 1px solid rgba(226, 232, 255, 0.18); border-radius: 10px; padding: 8px 10px; font-size: 0.8rem; line-height: 1.45; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); opacity: 0; transition: opacity 0.1s; max-width: 240px; }
+  #tip b { font-weight: 600; }
+  #tip .row { display: flex; justify-content: space-between; gap: 14px; color: var(--ink-2); }
+  #tip .row span:last-child { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  .gate { min-height: 80vh; display: grid; place-items: center; text-align: center; }
+  .gate .box { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 32px 28px; max-width: 380px; }
+  .gate h1 { font: 800 2.2rem/1 var(--f-display); letter-spacing: 0.06em; margin: 0 0 6px; }
+  .gate p { color: var(--ink-2); margin: 0 0 20px; }
+  .gate #gbtn { display: flex; justify-content: center; min-height: 44px; }
+  .gate .err { color: var(--bad); font-size: 0.86rem; margin-top: 14px; min-height: 1.2em; }
+  .note { color: var(--ink-3); font-size: 0.8rem; margin-top: 10px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="gate" class="gate" hidden>
+  <div class="box">
+    <h1>KÁRMÁN</h1>
+    <p>Flight deck. Owner sign-in only.</p>
+    <div id="gbtn"></div>
+    <div class="err" id="gerr"></div>
+    <p class="note" style="margin:6px 0 0"><a href="/" style="color:var(--ink-2)">Back to the game</a></p>
+  </div>
+</div>
+
+<div id="app" class="wrap" hidden>
+  <header class="top">
+    <div>
+      <div class="brand"><b>KÁRMÁN</b><span>flight deck</span></div>
+      <div class="meta" id="meta">Loading…</div>
+    </div>
+    <div class="tools">
+      <label class="chk" title="Leave this browser's own flights and visits out of every number"><input type="checkbox" id="hideme" checked> Leave out my plays</label>
+      <button class="btn" id="refresh">Refresh</button>
+      <button class="btn" id="signout">Sign out</button>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+
+  <div class="grid">
+    <div class="card wide">
+      <h2>Pilots per day</h2>
+      <p class="sub">Everyone who finished the daily flight, split into first-timers and pilots who'd flown before. The tick is everyone who opened the game that day (counted from this update on).</p>
+      <div class="legend"><span><i style="background:var(--s-ret)"></i>Returning</span><span><i style="background:var(--s-new)"></i>New</span><span><i class="tick"></i>Opened the game</span></div>
+      <div id="c-daily"></div>
+    </div>
+
+    <div class="card two3">
+      <h2>Today's flight, leg by leg</h2>
+      <p class="sub" id="legs-sub"></p>
+      <div id="t-legs"></div>
+    </div>
+    <div class="card third">
+      <h2>Where today's pilots landed</h2>
+      <p class="sub" id="hist-sub"></p>
+      <div id="c-hist"></div>
+    </div>
+
+    <div class="card">
+      <h2>Where people come from</h2>
+      <p class="sub">Last 7 days. "Finished" means they flew that day's flight. Tag your links with <code>?ref=reddit</code> (or any name) to see each post here.</p>
+      <div id="t-src"></div>
+    </div>
+    <div class="card">
+      <h2>Countries and devices</h2>
+      <p class="sub">Last 7 days, everyone who opened the game.</p>
+      <div id="t-geo"></div>
+    </div>
+
+    <div class="card">
+      <h2>Do they come back?</h2>
+      <p class="sub">Each row is the pilots whose first flight was that day.</p>
+      <div id="t-cohort"></div>
+    </div>
+    <div class="card">
+      <h2>How many days each pilot has flown</h2>
+      <p class="sub">All time. The right side is your core.</p>
+      <div id="c-loyal"></div>
+    </div>
+
+    <div class="card">
+      <h2>When people play</h2>
+      <p class="sub">Finished flights by hour, Eastern time, last 7 days.</p>
+      <div id="c-hour"></div>
+    </div>
+    <div class="card">
+      <h2>Width choices</h2>
+      <p class="sub">Last 7 days of daily flights: how often each width is picked and how often it lands.</p>
+      <div id="t-width"></div>
+    </div>
+
+    <div class="card third">
+      <h2>Money</h2>
+      <p class="sub">Before Stripe's fees.</p>
+      <div id="money"></div>
+    </div>
+    <div class="card third">
+      <h2>Unlimited</h2>
+      <p class="sub">Practice runs finished by anyone.</p>
+      <div id="unl"></div>
+    </div>
+    <div class="card third">
+      <h2>Health</h2>
+      <p class="sub">The things that would quietly break.</p>
+      <div id="health"></div>
+    </div>
+
+    <div class="card wide">
+      <h2>Reported answers</h2>
+      <p class="sub">Questions players flagged as wrong. The Monday restock re-checks anything with 2 or more.</p>
+      <div id="t-reports"></div>
+    </div>
+  </div>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script src="/js/config.js"></script>
+<script src="/js/prng.js"></script>
+<script src="/js/data/content.js"></script>
+<script src="/js/daily.js"></script>
+<script>
+(() => {
+  const TOKEN_KEY = 'karman:admin';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const num = (x) => Number(x || 0).toLocaleString('en-US');
+  const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+  const get = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const set = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { /* ignore */ } };
+  const CHIPS = [['Wide', '--c-wide'], ['Fair', '--c-fair'], ['Snug', '--c-snug'], ['Tight', '--c-tight'], ['Pinpoint', '--c-pinpoint']];
+  const ET = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false });
+  const myDevice = (() => { try { return (JSON.parse(get('karman:v1') || '{}').device) || ''; } catch (e) { return ''; } })();
+
+  let D = null;
+  const dateOf = (n, opts = { month: 'short', day: 'numeric' }) => new Date(D.launch + (n - 1) * 864e5).toLocaleDateString('en-US', { timeZone: 'UTC', ...opts });
+  const km = (pts) => Math.round((pts / D.maxPts) * 100);
+
+  /* ---------------------------------------------------------- tooltip */
+  const tip = $('tip');
+  function showTip(e, html) {
+    tip.innerHTML = html; tip.style.opacity = 1;
+    const r = tip.getBoundingClientRect();
+    let x = e.clientX + 14, y = e.clientY - r.height - 10;
+    if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+    if (y < 8) y = e.clientY + 16;
+    tip.style.left = `${Math.max(8, x)}px`; tip.style.top = `${y}px`;
+  }
+  const hideTip = () => { tip.style.opacity = 0; };
+  function wireTips(root) {
+    root.querySelectorAll('[data-tip]').forEach((n) => {
+      n.addEventListener('mousemove', (e) => showTip(e, n.dataset.tip));
+      n.addEventListener('mouseleave', hideTip);
+      n.addEventListener('click', (e) => showTip(e, n.dataset.tip));
+    });
+  }
+  const row = (k, v) => `<div class="row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`;
+
+  /* ---------------------------------------------------------- column chart
+     cols: [{ label, segs: [[value, color]], tick?, tip }]. One y axis, from zero. */
+  function columns(el, cols, { h = 200, every = 1, yTicks = 4 } = {}) {
+    const W = Math.max(320, el.clientWidth || 600), L = 34, B = 22, T = 8;
+    const max = Math.max(1, ...cols.map((c) => Math.max(c.segs.reduce((a, s) => a + s[0], 0), c.tick || 0)));
+    const step = niceStep(max / yTicks), top = Math.ceil(max / step) * step;
+    const y = (v) => T + (h - T - B) * (1 - v / top);
+    const bw = (W - L) / cols.length, gap = Math.min(6, bw * 0.28);
+    let s = `<svg class="chart" viewBox="0 0 ${W} ${h}" role="img">`;
+    for (let v = 0; v <= top + 1e-9; v += step) s += `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${num(v)}</text>`;
+    cols.forEach((c, i) => {
+      const w = Math.min(bw - gap, 44), x = L + i * bw + (bw - w) / 2;
+      s += `<g class="col"><rect class="hl" x="${L + i * bw}" y="${T}" width="${bw}" height="${h - T - B}"/>`;
+      let acc = 0;
+      c.segs.forEach(([v, col], j) => {
+        if (!v) return;
+        const y1 = y(acc + v), y0 = y(acc), isTop = c.segs.slice(j + 1).every((t) => !t[0]);
+        const hh = Math.max(1, y0 - y1 - (acc > 0 ? 2 : 0));
+        const rr = isTop ? Math.min(4, w / 2, hh) : 0;
+        s += rr ? `<path d="M${x},${y1 + hh} V${y1 + rr} Q${x},${y1} ${x + rr},${y1} H${x + w - rr} Q${x + w},${y1} ${x + w},${y1 + rr} V${y1 + hh} Z" fill="${col}"/>`
+          : `<rect x="${x}" y="${y1}" width="${w}" height="${hh}" fill="${col}"/>`;
+        acc += v;
+      });
+      if (c.tick) s += `<line x1="${x - 1}" x2="${x + w + 1}" y1="${y(c.tick)}" y2="${y(c.tick)}" stroke="var(--ink-2)" stroke-width="2" stroke-linecap="round"/>`;
+      if (i % every === 0) s += `<text x="${x + w / 2}" y="${h - 6}" text-anchor="middle">${esc(c.label)}</text>`;
+      s += `<rect class="hit" x="${L + i * bw}" y="${T}" width="${bw}" height="${h - T}" data-tip="${esc(c.tip)}"/></g>`;
+    });
+    el.innerHTML = s + '</svg>';
+    wireTips(el);
+  }
+  function niceStep(x) {
+    const p = 10 ** Math.floor(Math.log10(Math.max(x, 1e-9))), f = x / p;
+    return Math.max(1, (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p);
+  }
+  const barCell = (p, color) => `<div class="barcell"><div class="bar"><span style="width:${Math.max(0, Math.min(100, p))}%;${color ? `background:${color}` : ''}"></span></div><b>${p}%</b></div>`;
+
+  /* ---------------------------------------------------------- render */
+  function render() {
+    const T = D.T, byN = (arr, k = 'c') => Object.fromEntries(arr.map((r) => [r.n, r[k]]));
+    const players = byN(D.daily, 'players'), avg = byN(D.daily, 'avg'), news = byN(D.newByDay), visits = byN(D.visitsByDay), newV = byN(D.newVisitsByDay);
+    const pT = players[T] || 0, pY = players[T - 1] || 0, nT = news[T] || 0;
+    const coh = D.cohorts.filter((c) => c.n < T);
+    const cohSize = coh.reduce((a, c) => a + c.size, 0), cohNext = coh.reduce((a, c) => a + c.next, 0);
+    const rev = (D.money.paid || 0) * D.priceCents / 100;
+    const at = new Date(D.now);
+    $('meta').textContent = `Flight #${T} · ${dateOf(T, { weekday: 'long', month: 'long', day: 'numeric' })} · updated ${at.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+
+    const delta = (a, b, word) => (b ? `<span class="${a >= b ? 'up' : 'down'}">${a >= b ? '▲' : '▼'} ${num(Math.abs(a - b))}</span> vs ${word}` : `${word}: none`);
+    const kpis = [
+      ['Pilots today', num(pT), delta(pT, pY, 'yesterday')],
+      ['Opened today', num(D.today.visits || 0), D.today.visits ? `${pct(D.today.finished || 0, D.today.visits)}% of them finished` : 'counting from now on'],
+      ['New today', num(nT), `${num(Math.max(0, pT - nT))} returning`],
+      ['All-time pilots', num(D.totals.pilots), `${num(D.totals.flights)} daily flights`],
+      ['Back next day', cohSize ? `${pct(cohNext, cohSize)}%` : '—', cohSize ? `of ${num(cohSize)} first-timers` : 'needs a day of data'],
+      ['Revenue', `$${rev.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`, `${num(D.money.paid)} buyer${D.money.paid === 1 ? '' : 's'}`],
+    ];
+    $('kpis').innerHTML = kpis.map(([k, v, s]) => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+
+    // pilots per day
+    const days = []; for (let n = D.d0; n <= T; n++) days.push(n);
+    columns($('c-daily'), days.map((n) => {
+      const p = players[n] || 0, nw = Math.min(p, news[n] || 0), v = visits[n] || 0;
+      return { label: dateOf(n), segs: [[p - nw, 'var(--s-ret)'], [nw, 'var(--s-new)']], tick: v,
+        tip: `<b>Flight #${n} · ${dateOf(n, { weekday: 'short', month: 'short', day: 'numeric' })}</b>${row('Finished', num(p))}${row('New', num(nw))}${row('Returning', num(p - nw))}${v ? row('Opened the game', num(v)) + row('New visitors', num(newV[n] || 0)) : ''}${p ? row('Average climb', `${km(avg[n])} km`) : ''}` };
+    }), { h: 230, every: days.length > 16 ? Math.ceil(days.length / 10) : 1 });
+
+    // today's legs
+    const todayRows = D.recent.filter((r) => r.n === T);
+    const flight = K.daily.get(T);
+    $('legs-sub').textContent = todayRows.length ? `${num(todayRows.length)} pilot${todayRows.length === 1 ? '' : 's'} so far. Hit rate per leg, and the width most people chose.` : 'Nobody has finished today yet.';
+    $('t-legs').innerHTML = !flight ? '<p class="empty">No flight scheduled for today.</p>' : `<table class="legs"><thead><tr><th>#</th><th>Question</th><th class="n">Answer</th><th>Landed</th><th>Usual width</th></tr></thead><tbody>${
+      flight.facts.map((f, i) => {
+        const hits = todayRows.filter((r) => r.legs[i] === '1').length;
+        const cc = [0, 0, 0, 0, 0]; todayRows.forEach((r) => { cc[Number(r.chips[i])] += 1; });
+        const top = todayRows.length ? cc.indexOf(Math.max(...cc)) : -1;
+        return `<tr><td class="muted">${i + 1}</td><td class="q"><div class="cat">${esc(f.cat)}</div>${esc(f.q)}<div class="ans">${esc(Number(f.answer).toLocaleString('en-US'))} ${esc(f.unit || '')}${top >= 0 ? ` · mostly ${CHIPS[top][0]}` : ''}</div></td><td class="n">${esc(Number(f.answer).toLocaleString('en-US'))} <span class="muted">${esc(f.unit || '')}</span></td><td>${todayRows.length ? barCell(pct(hits, todayRows.length)) : '<span class="muted">—</span>'}</td><td>${top >= 0 ? `<span class="sw" style="background:var(${CHIPS[top][1]})"></span>${CHIPS[top][0]} <span class="muted">${pct(cc[top], todayRows.length)}%</span>` : '<span class="muted">—</span>'}</td></tr>`;
+      }).join('')}</tbody></table>`;
+
+    // altitude histogram
+    const bins = Array.from({ length: 10 }, () => 0);
+    todayRows.forEach((r) => { bins[Math.min(9, Math.floor(km(r.pts) / 10))] += 1; });
+    const avgT = todayRows.length ? Math.round(todayRows.reduce((a, r) => a + km(r.pts), 0) / todayRows.length) : 0;
+    const bestT = todayRows.length ? Math.max(...todayRows.map((r) => km(r.pts))) : 0;
+    $('hist-sub').textContent = todayRows.length ? `Average ${avgT} km, best ${bestT} km.` : 'Waiting for the first pilot.';
+    columns($('c-hist'), bins.map((c, i) => ({ label: `${i * 10}`, segs: [[c, 'var(--s-one)']], tip: `<b>${i * 10}–${i * 10 + 10} km</b>${row('Pilots', num(c))}` })), { h: 200 });
+
+    // sources
+    $('t-src').innerHTML = D.sources.length ? `<table><thead><tr><th>Source</th><th class="n">Opened</th><th class="n">Finished</th><th>Finish rate</th></tr></thead><tbody>${
+      D.sources.map((s) => `<tr><td>${esc(s.src)}</td><td class="n">${num(s.visits)}</td><td class="n">${num(s.finished)}</td><td>${barCell(pct(s.finished, s.visits))}</td></tr>`).join('')}</tbody></table>`
+      : '<p class="empty">No visits recorded yet. They start counting with this update.</p>';
+
+    // geo + devices
+    const dn = (() => { try { return new Intl.DisplayNames(['en'], { type: 'region' }); } catch (e) { return null; } })();
+    const totalV = D.countries.reduce((a, c) => a + c.c, 0);
+    const mob = D.devices.find((d) => d.mobile === 1), desk = D.devices.find((d) => d.mobile === 0);
+    const mv = mob ? mob.c : 0, dv = desk ? desk.c : 0;
+    $('t-geo').innerHTML = totalV ? `<table><tbody>${D.countries.map((c) => `<tr><td>${esc(c.country !== '??' && dn ? dn.of(c.country) : 'Unknown')}</td><td style="width:55%">${barCell(pct(c.c, totalV))}</td><td class="n muted">${num(c.c)}</td></tr>`).join('')}</tbody></table>
+      <p class="note">Phone ${pct(mv, mv + dv)}% · Computer ${pct(dv, mv + dv)}%</p>` : '<p class="empty">No visits recorded yet.</p>';
+
+    // cohorts
+    $('t-cohort').innerHTML = D.cohorts.length ? `<table><thead><tr><th>First flight</th><th class="n">New pilots</th><th>Back next day</th><th>Back within a week</th></tr></thead><tbody>${
+      D.cohorts.slice(0, 14).map((c) => `<tr><td>${dateOf(c.n)} <span class="muted">#${c.n}</span></td><td class="n">${num(c.size)}</td><td>${c.n < T ? barCell(pct(c.next, c.size)) : '<span class="muted">tomorrow</span>'}</td><td>${c.n < T ? barCell(pct(c.week, c.size)) + (c.n + 7 > T ? '' : '') : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>`
+      : '<p class="empty">No pilots yet.</p>';
+
+    // loyalty
+    const lb = [['1 day', (d) => d === 1], ['2', (d) => d === 2], ['3', (d) => d === 3], ['4–6', (d) => d >= 4 && d <= 6], ['7–13', (d) => d >= 7 && d <= 13], ['14+', (d) => d >= 14]];
+    const lc = lb.map(([l, f]) => [l, D.loyalty.filter((r) => f(r.days)).reduce((a, r) => a + r.c, 0)]);
+    columns($('c-loyal'), lc.map(([l, c]) => ({ label: l, segs: [[c, 'var(--s-one)']], tip: `<b>Flew ${l === '1 day' ? '1 day' : `${l} days`}</b>${row('Pilots', num(c))}${row('Share', `${pct(c, D.totals.pilots)}%`)}` })), { h: 200 });
+
+    // hour of day
+    const hours = Array.from({ length: 24 }, () => 0);
+    D.recent.forEach((r) => { const h = Number(ET.format(new Date(`${r.created.replace(' ', 'T')}Z`))) % 24; hours[h] += 1; });
+    const hl = (h) => `${h % 12 || 12}${h < 12 ? 'a' : 'p'}`;
+    columns($('c-hour'), hours.map((c, h) => ({ label: hl(h), segs: [[c, 'var(--s-one)']], tip: `<b>${hl(h)}–${hl((h + 1) % 24)} ET</b>${row('Flights finished', num(c))}` })), { h: 200, every: 3 });
+
+    // widths
+    const daily7 = D.recent;
+    const picks = [0, 0, 0, 0, 0], hitsW = [0, 0, 0, 0, 0];
+    daily7.forEach((r) => { for (let i = 0; i < r.chips.length; i++) { const c = Number(r.chips[i]); picks[c] += 1; if (r.legs[i] === '1') hitsW[c] += 1; } });
+    const totalP = picks.reduce((a, b) => a + b, 0);
+    $('t-width').innerHTML = totalP ? `<table><thead><tr><th>Width</th><th>Picked</th><th>Lands</th></tr></thead><tbody>${
+      CHIPS.map(([name, v], i) => `<tr><td><span class="sw" style="background:var(${v})"></span>${name}</td><td>${barCell(pct(picks[i], totalP), 'var(--ink-3)')}</td><td>${picks[i] ? barCell(pct(hitsW[i], picks[i])) : '<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table>` : '<p class="empty">No flights this week yet.</p>';
+
+    // money
+    const m = D.money, paidDays = D.paidList.map((s) => new Date(`${s.replace(' ', 'T')}Z`).getTime());
+    const sinceDays = (d) => paidDays.filter((t) => Date.now() - t < d * 864e5).length;
+    const mask = (e) => { const [u, dmn] = String(e || '').split('@'); return dmn ? `${u.slice(0, 2)}•••@${dmn}` : 'unknown'; };
+    $('money').innerHTML = `<div class="stats">
+        <div><div class="v">$${rev.toLocaleString('en-US', { maximumFractionDigits: 2 })}</div><div class="k">all time</div></div>
+        <div><div class="v">${num(sinceDays(7))}</div><div class="k">sales this week</div></div>
+        <div><div class="v">${m.checkouts ? `${pct(m.paid, m.checkouts)}%` : '—'}</div><div class="k">checkouts that paid (${num(m.paid)} of ${num(m.checkouts)})</div></div>
+        <div><div class="v">${num(m.refunds)}</div><div class="k">refunds</div></div>
+        <div><div class="v">${num(m.accounts)}</div><div class="k">Google accounts</div></div>
+        <div><div class="v">${num(D.saves)}</div><div class="k">cloud saves</div></div>
+      </div>
+      ${D.recentBuyers.length ? `<p class="note" style="margin:16px 0 4px">Latest buyers (tap to reveal)</p><ul class="plain">${D.recentBuyers.map((b) => `<li><span class="mask" data-full="${esc(b.email || 'unknown')}">${esc(mask(b.email))}</span><span class="muted">${b.paid_at ? new Date(`${b.paid_at.replace(' ', 'T')}Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span></li>`).join('')}</ul>` : ''}`;
+    $('money').querySelectorAll('.mask').forEach((n) => n.addEventListener('click', () => { n.textContent = n.dataset.full; n.classList.remove('mask'); }));
+
+    // unlimited
+    const u = D.unlimited;
+    $('unl').innerHTML = `<div class="stats">
+      <div><div class="v">${num(u.day)}</div><div class="k">runs, last 24 h</div></div>
+      <div><div class="v">${num(u.week)}</div><div class="k">runs, last 7 days</div></div>
+      <div><div class="v">${num(u.runs)}</div><div class="k">runs, all time</div></div>
+      <div><div class="v">${num(u.pilots)}</div><div class="k">different pilots</div></div>
+      <div><div class="v">${num(D.plays7)}</div><div class="k">paid flights started, 7 days</div></div>
+    </div>`;
+
+    // health
+    const icon = { ok: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4.8 8.2l2.1 2.1 4.3-4.6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      warn: '<svg viewBox="0 0 16 16"><path d="M8 1.8l6.6 12H1.4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 6.4v3.4M8 11.8v.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+      bad: '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' };
+    const st = (kind, label) => `<span class="status ${kind}">${icon[kind]}${esc(label)}</span>`;
+    const last = K.daily.lastFlightNumber(), runway = last - T;
+    const h = D.health;
+    const pay = !h ? st('warn', 'Unknown') : h.ok ? st('ok', `Working (${h.stripe_key && h.stripe_key.mode} key)`) : st('bad', 'Needs attention');
+    const reported = D.reports.filter((r) => r.c >= 2).length;
+    $('health').innerHTML = `<ul class="plain">
+      <li><span>Payments</span>${pay}</li>
+      <li><span>Questions stocked</span>${runway >= 14 ? st('ok', `${runway} days`) : runway >= 7 ? st('warn', `${runway} days`) : st('bad', runway > 0 ? `${runway} days` : 'reserve flights')}</li>
+      <li><span>Last scheduled</span><span class="muted">${dateOf(last, { month: 'short', day: 'numeric' })} · #${last}</span></li>
+      <li><span>Flagged questions</span>${reported ? st('warn', `${reported} to check`) : st('ok', 'None')}</li>
+    </ul>
+    <p class="note">This page reads question data from the copy deployed with it, so "stocked" updates after the Monday restock deploys.</p>`;
+
+    // reports
+    $('t-reports').innerHTML = D.reports.length ? `<table><thead><tr><th>Question</th><th class="n">Our answer</th><th class="n">Reports</th><th class="n">Last</th></tr></thead><tbody>${
+      D.reports.map((r) => { const f = K.daily.fact(r.qid); return `<tr><td>${f ? esc(f.q) : `<span class="muted">${esc(r.qid)}</span>`}</td><td class="n">${f ? `${esc(Number(f.answer).toLocaleString('en-US'))} <span class="muted">${esc(f.unit || '')}</span>` : ''}</td><td class="n">${num(r.c)}</td><td class="n muted">${new Date(`${r.last.replace(' ', 'T')}Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td></tr>`; }).join('')}</tbody></table>`
+      : '<p class="empty">No reports. Nice.</p>';
+  }
+
+  /* ---------------------------------------------------------- data + auth */
+  async function load() {
+    const token = get(TOKEN_KEY);
+    if (!token) return gate();
+    $('refresh').textContent = 'Loading…';
+    try {
+      const hide = $('hideme').checked && myDevice;
+      const r = await fetch(`/api/admin/stats${hide ? `?me=${encodeURIComponent(myDevice)}` : ''}`, { headers: { authorization: `Bearer ${token}` }, cache: 'no-store' });
+      if (r.status === 401) { set(TOKEN_KEY, null); return gate(); }
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      D = await r.json();
+      $('gate').hidden = true; $('app').hidden = false;
+      render();
+    } catch (e) {
+      $('meta').textContent = `Couldn't load (${e.message}). Try Refresh.`;
+      $('app').hidden = false;
+    } finally { $('refresh').textContent = 'Refresh'; }
+  }
+
+  function gate() {
+    $('app').hidden = true; $('gate').hidden = false;
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client'; s.async = true;
+    s.onload = () => {
+      google.accounts.id.initialize({ client_id: K.CONFIG.GOOGLE_CLIENT_ID, callback: async (resp) => {
+        $('gerr').textContent = '';
+        const r = await fetch('/api/admin/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: resp.credential }) });
+        if (r.status === 403) { $('gerr').textContent = 'That account isn\'t the owner of this game.'; return; }
+        if (!r.ok) { $('gerr').textContent = 'Sign-in failed. Try again.'; return; }
+        set(TOKEN_KEY, (await r.json()).token);
+        load();
+      } });
+      google.accounts.id.renderButton($('gbtn'), { theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with', width: 260 });
+    };
+    s.onerror = () => { $('gerr').textContent = 'Couldn\'t load Google sign-in.'; };
+    document.head.appendChild(s);
+  }
+
+  $('hideme').checked = get('karman:admin-hideme') !== '0';
+  if (!myDevice) { $('hideme').checked = false; $('hideme').disabled = true; $('hideme').parentElement.title = 'This browser has never played, so there is nothing to leave out.'; }
+  $('hideme').addEventListener('change', () => { set('karman:admin-hideme', $('hideme').checked ? '1' : '0'); load(); });
+  $('refresh').addEventListener('click', load);
+  $('signout').addEventListener('click', () => { set(TOKEN_KEY, null); location.reload(); });
+  let rt = 0;
+  addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => D && render(), 150); });
+  setInterval(() => { if (!document.hidden && D) load(); }, 5 * 60 * 1000);
+  load();
+})();
+</script>
+</body>
+</html>

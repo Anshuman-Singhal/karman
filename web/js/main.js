@@ -214,6 +214,7 @@
   });
 
   K.game.boot();
+  K.stats.hit();
   // Access first (a purchase coming back from Stripe), then the cloud copy.
   K.access.refresh().finally(() => K.access.afterSignIn());
   document.addEventListener('visibilitychange', () => { if (document.hidden && K.sync) K.sync.now(); });

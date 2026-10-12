@@ -118,5 +118,40 @@ check(r3.players === 2 && r3.run === true, 'run stats count only that run');
 check((await (await call('/api/stats/r4')).json()).players === 0, 'other runs are separate');
 check((await runPost(0, 'device-run-0003', 100)).status === 422, 'run 0 rejected');
 
+// visits: first open of the day per device, source cleaned up
+const hit = (device, src, ua = 'Mozilla/5.0 (iPhone)') => call('/api/hit', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': ua }, body: JSON.stringify({ device, src }) });
+check((await hit('device-abc-123', 'www.Reddit.com')).status === 204, 'visit recorded');
+await hit('device-abc-123', 'twitter');
+check(db.prepare('SELECT COUNT(*) c FROM visits').get().c === 1, 'second open the same day ignored');
+check(db.prepare('SELECT src, mobile FROM visits').get().src === 'reddit.com' && db.prepare('SELECT mobile FROM visits').get().mobile === 1, 'source normalised, phone detected');
+await hit('device-zzz-999', '<script>');
+check(db.prepare("SELECT src FROM visits WHERE device = 'device-zzz-999'").get().src === 'other', 'junk source stored as other');
+check((await hit('x', 'a')).status === 422, 'bad device refused');
+
+// owner dashboard: only the owner's Google account gets in
+check((await call('/api/admin/stats')).status === 401, 'dashboard needs a token');
+check((await call('/api/admin/stats', { headers: { authorization: 'Bearer 9999999999999.forged' } })).status === 401, 'forged dashboard token refused');
+env.GOOGLE_CLIENT_ID = 'cid';
+const tokeninfo = { 'tok-owner': { aud: 'cid', iss: 'accounts.google.com', sub: 'g-own', email: 'Owner@Example.com', email_verified: 'true' },
+  'tok-other': { aud: 'cid', iss: 'accounts.google.com', sub: 'g-x', email: 'someone@example.com', email_verified: 'true' } };
+const prevFetch = globalThis.fetch;
+globalThis.fetch = async (url, init) => {
+  const m = String(url).match(/tokeninfo\?id_token=([\w-]+)/);
+  if (m) return tokeninfo[m[1]] ? new Response(JSON.stringify(tokeninfo[m[1]])) : new Response('{}', { status: 400 });
+  return prevFetch(url, init);
+};
+env.ADMIN_SHA256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode('owner@example.com')))].map((x) => x.toString(16).padStart(2, '0')).join('');
+const login = (idToken) => call('/api/admin/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken }) });
+check((await login('tok-other')).status === 403, 'another Google account is refused');
+const lg = await login('tok-owner');
+check(lg.status === 200, 'owner signs in (email case ignored)');
+const { token } = await lg.json();
+const dash = await call('/api/admin/stats', { headers: { authorization: `Bearer ${token}` } });
+const dd = await dash.json();
+check(dash.status === 200 && dd.totals.pilots >= 1 && Array.isArray(dd.daily) && dd.today.visits === 2 && dd.sources.length === 2, 'dashboard returns the numbers');
+const dm = await (await call('/api/admin/stats?me=device-abc-123', { headers: { authorization: `Bearer ${token}` } })).json();
+check(dm.today.visits === 1 && dm.totals.pilots === dd.totals.pilots - 1, '"leave out my plays" leaves that device out');
+globalThis.fetch = prevFetch;
+
 console.log(fails ? `${fails} failed` : 'Worker checks passed.');
 process.exit(fails ? 1 : 0);

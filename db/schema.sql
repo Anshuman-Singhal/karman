@@ -74,3 +74,17 @@ CREATE TABLE IF NOT EXISTS saves (
   ver      INTEGER NOT NULL DEFAULT 1,
   updated  TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- One row per device per day it opened the game (first open that day only),
+-- for the owner's dashboard: how many people came, from where, and how many
+-- of them finished. Coarse on purpose: the referring site, the country
+-- Cloudflare already knows, phone or not. No IP, no cookies.
+CREATE TABLE IF NOT EXISTS visits (
+  day      INTEGER NOT NULL,           -- flight number of that day
+  device   TEXT    NOT NULL,
+  src      TEXT    NOT NULL DEFAULT 'direct',
+  country  TEXT,
+  mobile   INTEGER NOT NULL DEFAULT 0,
+  created  TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (day, device)
+);

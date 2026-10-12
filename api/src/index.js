@@ -13,6 +13,9 @@
      PUT  /api/save        { data, base }                    → { ver } or 409 + current copy
      GET  /api/me          Authorization: Bearer <session>   → { unlimited, refunded } (asks Stripe if our record says unpaid)
      POST /api/play        Authorization: Bearer <session>   → 204   for the refund rule
+     POST /api/hit         { device, src }                   → 204   first open of the day (dashboard)
+     POST /api/admin/login { idToken }                       → { token }   owner only (karman.day/dev)
+     GET  /api/admin/stats Authorization: Bearer <token>     → everything the dashboard shows
 
    Secrets (wrangler secret put …): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
    SESSION_SECRET. Plain vars (wrangler.jsonc): GOOGLE_CLIENT_ID, PRICE_CENTS.
@@ -137,7 +140,7 @@ async function verifyGoogle(idToken, env) {
   if (!r.ok) return null;
   const t = await r.json();
   if (t.aud !== env.GOOGLE_CLIENT_ID || !['accounts.google.com', 'https://accounts.google.com'].includes(t.iss)) return null;
-  return { sub: t.sub, email: t.email };
+  return { sub: t.sub, email: t.email, verified: t.email_verified === true || t.email_verified === 'true' };
 }
 
 /* ------------------------------------------------------------ purchase
@@ -329,6 +332,98 @@ async function getReports(env) {
   return json({ questions: r.results || [] }, { headers: { 'cache-control': 'public, max-age=300' } });
 }
 
+/* ------------------------------------------------------------ visits
+   POST /api/hit { device, src }: the first open of the day per device.
+   The country comes from Cloudflare; phone or not from the user agent. */
+async function postHit(request, env) {
+  let b;
+  try { b = await request.json(); } catch { return json({ error: 'bad json' }, { status: 400 }); }
+  if (!b || typeof b.device !== 'string' || !/^[\w-]{8,64}$/.test(b.device)) return json({ error: 'invalid' }, { status: 422 });
+  const raw = String(b.src || 'direct').toLowerCase().replace(/^www\./, '').slice(0, 40);
+  const src = /^[\w.-]{1,40}$/.test(raw) ? raw : 'other';
+  const country = request.cf && typeof request.cf.country === 'string' ? request.cf.country.slice(0, 2) : null;
+  const mobile = /Mobi|Android|iPhone|iPad/i.test(request.headers.get('user-agent') || '') ? 1 : 0;
+  await env.DB.prepare('INSERT OR IGNORE INTO visits (day, device, src, country, mobile) VALUES (?, ?, ?, ?, ?)')
+    .bind(latestFlight(), b.device, src, country, mobile).run();
+  return new Response(null, { status: 204 });
+}
+
+/* ------------------------------------------------------------ owner dashboard
+   karman.day/dev signs in with Google; only the owner's account gets a token.
+   The owner is matched by the SHA-256 of their email, so the address itself
+   isn't written in this (public) repo. ADMIN_SHA256 in the dashboard vars
+   overrides it (comma-separated for more than one person). */
+const OWNER_SHA256 = '9cfa24bece8be678de7ae30766619cedef1c6c2bf0dfedd8f0a5237c03bcb0c7';
+const ADMIN_DAYS = 30;
+async function sha256(s) {
+  const d = await crypto.subtle.digest('SHA-256', enc.encode(s));
+  return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+async function postAdminLogin(request, env) {
+  let b;
+  try { b = await request.json(); } catch { return json({ error: 'bad json' }, { status: 400 }); }
+  const who = b && b.idToken ? await verifyGoogle(b.idToken, env) : null;
+  if (!who || !who.email) return json({ error: 'sign-in failed' }, { status: 401 });
+  const allowed = String(env.ADMIN_SHA256 || OWNER_SHA256).split(',').map((x) => x.trim());
+  if (!who.verified || !allowed.includes(await sha256(who.email.trim().toLowerCase()))) return json({ error: 'not the owner' }, { status: 403 });
+  const exp = Date.now() + ADMIN_DAYS * 864e5;
+  return json({ token: `${exp}.${await hmac(env.SESSION_SECRET, `admin:${exp}`)}`, email: who.email });
+}
+async function isAdmin(request, env) {
+  const tok = (request.headers.get('authorization') || '').replace(/^Bearer /, '');
+  const [exp, sig] = tok.split('.');
+  return Boolean(env.SESSION_SECRET && exp && sig && Number(exp) > Date.now() && sig === await hmac(env.SESSION_SECRET, `admin:${exp}`));
+}
+
+/** GET /api/admin/stats?me=<device>: everything on the dashboard in one go.
+    `me` leaves the owner's own browser out of every count. */
+async function getAdmin(request, env, ctx) {
+  if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
+  const meRaw = new URL(request.url).searchParams.get('me') || '';
+  const me = /^[\w-]{8,64}$/.test(meRaw) ? meRaw : '';
+  const T = latestFlight();
+  const d0 = Math.max(1, T - 29);
+  const all = async (sql, ...args) => ((await env.DB.prepare(sql).bind(...args).all()).results || []);
+  const one = async (sql, ...args) => (await env.DB.prepare(sql).bind(...args).first()) || {};
+  const firsts = `SELECT device, MIN(n) AS first FROM results WHERE n < ${RUN_BASE} AND device != ? GROUP BY device`;
+  const vfirsts = 'SELECT device, MIN(day) AS first FROM visits WHERE device != ? GROUP BY device';
+
+  const [daily, newByDay, totals, loyalty, cohorts, recent, visitsByDay, newVisitsByDay, sources, countries, devices, unlimited,
+    money, paidList, recentBuyers, saves, plays, reports] = await Promise.all([
+    all(`SELECT n, COUNT(*) AS players, ROUND(AVG(pts), 1) AS avg, MAX(pts) AS best FROM results WHERE n BETWEEN ? AND ? AND device != ? GROUP BY n`, d0, T, me),
+    all(`SELECT first AS n, COUNT(*) AS c FROM (${firsts}) GROUP BY first`, me),
+    one(`SELECT COUNT(DISTINCT device) AS pilots, COUNT(*) AS flights FROM results WHERE n < ${RUN_BASE} AND device != ?`, me),
+    all(`SELECT days, COUNT(*) AS c FROM (SELECT device, COUNT(*) AS days FROM results WHERE n < ${RUN_BASE} AND device != ? GROUP BY device) GROUP BY days ORDER BY days`, me),
+    all(`SELECT f.first AS n, COUNT(*) AS size,
+        SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = f.device AND r.n = f.first + 1)) AS next,
+        SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = f.device AND r.n BETWEEN f.first + 1 AND f.first + 7)) AS week
+      FROM (${firsts}) f WHERE f.first >= ? GROUP BY f.first ORDER BY f.first DESC`, me, d0),
+    all(`SELECT n, pts, legs, chips, created FROM results WHERE n BETWEEN ? AND ? AND device != ?`, Math.max(1, T - 6), T, me),
+    all('SELECT day AS n, COUNT(*) AS c FROM visits WHERE day BETWEEN ? AND ? AND device != ? GROUP BY day', d0, T, me),
+    all(`SELECT first AS n, COUNT(*) AS c FROM (${vfirsts}) GROUP BY first`, me),
+    all(`SELECT v.src, COUNT(*) AS visits, SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = v.device AND r.n = v.day)) AS finished
+      FROM visits v WHERE v.day > ? AND v.device != ? GROUP BY v.src ORDER BY visits DESC LIMIT 15`, T - 7, me),
+    all('SELECT COALESCE(country, \'??\') AS country, COUNT(*) AS c FROM visits WHERE day > ? AND device != ? GROUP BY country ORDER BY c DESC LIMIT 12', T - 7, me),
+    all('SELECT mobile, COUNT(*) AS c FROM visits WHERE day > ? AND device != ? GROUP BY mobile', T - 7, me),
+    one(`SELECT COUNT(*) AS runs, COUNT(DISTINCT device) AS pilots, SUM(created >= datetime('now', '-1 day')) AS day, SUM(created >= datetime('now', '-7 days')) AS week FROM results WHERE n >= ${RUN_BASE} AND device != ?`, me),
+    one('SELECT (SELECT COUNT(*) FROM users) AS accounts, (SELECT COUNT(*) FROM users WHERE unlimited = 1) AS paid, (SELECT COUNT(*) FROM refunds) AS refunds, (SELECT COUNT(DISTINCT sub) FROM checkouts) AS checkouts'),
+    all('SELECT paid_at FROM users WHERE unlimited = 1 AND paid_at IS NOT NULL ORDER BY paid_at DESC LIMIT 2000'),
+    all('SELECT email, paid_at FROM users WHERE unlimited = 1 ORDER BY paid_at DESC LIMIT 8'),
+    one('SELECT COUNT(*) AS c FROM saves'),
+    one("SELECT COUNT(*) AS c FROM plays WHERE at >= datetime('now', '-7 days')"),
+    all('SELECT qid, COUNT(*) AS c, MAX(created) AS last FROM reports GROUP BY qid ORDER BY c DESC, last DESC LIMIT 12'),
+  ]);
+  let health = null;
+  try { health = await (await getHealth(env, ctx)).json(); } catch { /* shown as unknown */ }
+  const today = await one('SELECT COUNT(*) AS visits, SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = v.device AND r.n = v.day)) AS finished FROM visits v WHERE v.day = ? AND v.device != ?', T, me);
+  return json({
+    T, d0, launch: LAUNCH_UTC, priceCents: Number(env.PRICE_CENTS || 599), maxPts: MAX_PTS, now: new Date().toISOString(),
+    daily, newByDay, totals, loyalty, cohorts, recent, visitsByDay, newVisitsByDay, today,
+    sources, countries, devices, unlimited, money, paidList: paidList.map((r) => r.paid_at), recentBuyers,
+    saves: saves.c || 0, plays7: plays.c || 0, reports, health,
+  }, { headers: { 'cache-control': 'no-store' } });
+}
+
 /** Paid player started an Unlimited/archive flight: logged so refunds follow the rule. */
 async function postPlay(request, env) {
   const sub = await readSession(request, env);
@@ -366,6 +461,9 @@ export default {
     if (url.pathname === '/api/stripe' && request.method === 'POST') return postStripe(request, env);
     if (url.pathname === '/api/me' && request.method === 'GET') return getMe(request, env);
     if (url.pathname === '/api/play' && request.method === 'POST') return postPlay(request, env);
+    if (url.pathname === '/api/hit' && request.method === 'POST') return postHit(request, env);
+    if (url.pathname === '/api/admin/login' && request.method === 'POST') return postAdminLogin(request, env);
+    if (url.pathname === '/api/admin/stats' && request.method === 'GET') return getAdmin(request, env, ctx);
     if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, { status: 404 });
     return env.ASSETS.fetch(request);    // everything else: the game itself
   },
