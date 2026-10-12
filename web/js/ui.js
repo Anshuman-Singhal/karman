@@ -232,7 +232,7 @@ K.ui = (() => {
       </g>`;
 
     const label = alone ? `Only your flight so far today: ${K.units.altText(S.kmOf(record.pts))}.`
-      : `Today's climbs from 0 to ${K.units.altText(S.MAX_KM)} across ${stats.players.toLocaleString('en-US')} pilots. You reached ${K.units.altText(S.kmOf(record.pts))}.`;
+      : `Today's climbs from 0 to ${K.units.altText(S.MAX_KM)}. You reached ${K.units.altText(S.kmOf(record.pts))}.`;
     return `<svg viewBox="0 0 ${HIST.w} ${HIST.h}" class="hist-svg hist-v" role="img" aria-label="${label}">
       <line x1="${HIST.axis}" x2="${HIST.axis}" y1="${HIST.top}" y2="${HIST.base}" class="h-axis"/>
       ${ticks.join('')}${karman}
@@ -389,12 +389,12 @@ K.ui = (() => {
     chart.classList.remove('draw');
     if (!stats || !stats.players) { box.hidden = true; chart.innerHTML = ''; return; }
     const players = stats.players;
-    const many = players.toLocaleString('en-US');
     const higher = stats.buckets.filter(([from]) => from > record.pts).reduce((a, b) => a + b[1], 0);
     const pct = K.stats.percentile(stats, record.pts);
     let kind = 'rank';
     const runNo = record.mode === 'unlimited' ? record.run : null;
-    const crowd = runNo ? `the <b>${many}</b> pilots who flew this one` : `today’s <b>${many}</b> pilots`;
+    // No head count: while KÁRMÁN is small, "of today's pilots" reads better than a tiny number.
+    const crowd = runNo ? 'the pilots who flew this one' : 'today’s pilots';
     // One sentence, one size: the figure is bold ink, never a different face.
     let txt = `Higher than <b class="pctl-inline">${pct}%</b> of ${crowd}.`;
     let said = txt.replace(/<[^>]+>/g, '');
