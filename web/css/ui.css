@@ -4233,3 +4233,40 @@ body[data-screen="results"] #dock {
 /* The invite version: a three-line plea needs a touch more room. */
 .ds-sub { max-width: 84px; }
 @media (max-width: 719px) { .ds-sub { max-width: 64px; line-height: 1.12; } .ds-main { font-size: 13px; } }
+
+/* ---------------------------------------------------------------- site tag
+   "karman.day" for anyone watching over a shoulder or on a stream. A small
+   ticket in the top bar's paper, torn at the ends like the Menu ticket.
+   Home and results only; it lifts away in flight and in the climb view. */
+.site-tag {
+  position: absolute; z-index: 5; left: 50%;
+  top: calc(env(safe-area-inset-top, 0px) + 58px);
+  display: flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 14px 0 12px;
+  background: var(--fibre), var(--stock); color: var(--ink);
+  border-radius: 4px;
+  -webkit-mask: radial-gradient(circle at 0 50%, transparent 3.5px, #000 4px) left / 51% 100% no-repeat,
+                radial-gradient(circle at 100% 50%, transparent 3.5px, #000 4px) right / 51% 100% no-repeat;
+          mask: radial-gradient(circle at 0 50%, transparent 3.5px, #000 4px) left / 51% 100% no-repeat,
+                radial-gradient(circle at 100% 50%, transparent 3.5px, #000 4px) right / 51% 100% no-repeat;
+  filter: drop-shadow(0 6px 14px rgba(2, 4, 14, 0.22));
+  pointer-events: none; user-select: none;
+  opacity: 0; transform: translate(-50%, -8px);
+  transition: opacity 260ms ease, transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.site-tag svg { width: 12px; height: 15px; color: var(--ember-ink); flex: none; }
+.site-tag span { font: 800 16px/1 var(--f-display); letter-spacing: 0.1em; text-transform: uppercase; padding-top: 1px; }
+.site-tag span b { color: var(--ember-ink); font-weight: 800; letter-spacing: 0.04em; }
+/* the perforation after the balloon, like the Menu ticket's */
+.site-tag svg { padding-right: 8px; box-sizing: content-box; border-right: 1.5px dashed var(--perf-c); height: 15px; }
+body[data-screen="home"] .site-tag,
+body[data-screen="results"] .site-tag,
+body[data-screen="closed"] .site-tag { opacity: 1; transform: translate(-50%, 0); }
+body.climb-open .site-tag { opacity: 0; transform: translate(-50%, -8px); }
+/* Wide enough: sit in the top bar itself, level with the Menu ticket. */
+@media (min-width: 640px) {
+  .site-tag { top: calc(env(safe-area-inset-top, 0px) + 12px); height: 38px; padding: 0 18px 0 15px; gap: 9px; border-radius: 5px; }
+  .site-tag span { font-size: 19px; }
+  .site-tag svg { width: 14px; height: 18px; padding-right: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .site-tag { transition: opacity 160ms linear; transform: translate(-50%, 0); } }
