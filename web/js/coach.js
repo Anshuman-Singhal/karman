@@ -63,7 +63,7 @@ K.coach = (() => {
   /* Step 4's explanation as a small scale rather than a paragraph:
        ● Wide ─ ● ─ ● ─ ● ─ Pinpoint ●
        unsure            know it exactly
-       wide reward · +2 km   tight reward · +20 km
+       reward +2 km               reward +20 km
      Same facts (unsure → exact, the more sure the higher the climb and the
      tighter the range), read in a glance. Climbs follow the player's units. */
   function scale() {
@@ -72,7 +72,7 @@ K.coach = (() => {
     return `<div class="coach-scale">
       <div class="cs-row cs-names"><b>${C[0].name}</b><span class="cs-track" aria-hidden="true">${dots}</span><b>${C[4].name}</b></div>
       <div class="cs-row cs-when"><span>unsure</span><span>know it exactly</span></div>
-      <div class="cs-row cs-what"><span>wide reward · <em>${climb(0)}</em></span><span>tight reward · <em>${climb(4)}</em></span></div>
+      <div class="cs-row cs-what"><span>reward <em>${climb(0)}</em></span><span>reward <em>${climb(4)}</em></span></div>
     </div>`;
   }
 
