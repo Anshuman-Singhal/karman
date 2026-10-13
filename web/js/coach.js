@@ -8,7 +8,7 @@
      1 · "Type your best guess."   → a pause in the typing advances
      2 · "Tap Wide."               → only Wide advances
      3 · "Now tap Pinpoint."       → only Pinpoint advances
-     4 · "Pick a width. Lock it in." → Pinpoint holds a beat, then every width
+     4 · "How sure are you? Pick one." → Pinpoint holds a beat, then every width
          is unselected (Lock waits), a slow colour wash runs across the five
          boxes, and a small arrow in each box's colour bobs over it, each box
          breathing its tint, until the player picks one. Then the ring moves
@@ -55,7 +55,8 @@ K.coach = (() => {
     3: { at: () => [...entry(), $('wbtns')], focus: () => chipEl(4), arrowAt: () => chipEl(4), tone: 'pinpoint',
       title: () => 'Now tap Pinpoint.', body: () => '' },
     4: { at: () => [...entry(), $('wbtns'), $('btn-lock')], focus: () => (pick === 'chosen' ? $('btn-lock') : $('wbtns')), tone: 'amber',
-      title: () => 'Pick a width. Lock it in.', body: () => '' },
+      title: () => (pick === 'chosen' ? 'Now lock it in.' : 'How sure are you? Pick one.'),
+      body: () => (pick === 'chosen' ? '' : '<p><b>Wide</b> if you’re unsure, all the way to <b>Pinpoint</b> if you know it exactly. The surer you are, the higher you climb, but the tighter your range.</p>') },
   };
   const LAST = 4;
 
@@ -219,12 +220,14 @@ K.coach = (() => {
     }, reduced() ? 300 : 1100);
   }
   function chosen(chip) {
+    const firstPick = pick !== 'chosen';
     pick = 'chosen';
     seqT.forEach(clearTimeout); seqT = [];
     arrows.forEach((a) => a.classList.remove('on'));
     widthEls().forEach((b) => b.classList.remove('coach-breathe', 'coach-box'));
     markRange(chip);
     focus = $('btn-lock');
+    if (slip && firstPick) setText(STEPS[4]);
     place();
   }
 

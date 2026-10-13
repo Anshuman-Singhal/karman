@@ -417,10 +417,10 @@ K.round = (() => {
       els.hi.textContent = '—';
     }
     els.lock.disabled = guess == null || none;
-    els.lockMain.textContent = guess == null ? 'Type a guess' : none ? 'Pick a width' : 'Lock it in';
+    els.lockMain.textContent = guess == null ? 'Type a guess' : none ? 'Pick one' : 'Lock it in';
     if (none) {
       els.lockStub.innerHTML = '';
-      els.lock.setAttribute('aria-label', 'Pick a width first');
+      els.lock.setAttribute('aria-label', 'Pick how sure you are first');
     } else {
       const bet = S.legPointsFor(state.chip, Boolean(ctx.clueHere));
       els.lockStub.innerHTML = `<i class="kl-pip"></i>${K.units.climbText(S.kmOf(bet))}`;

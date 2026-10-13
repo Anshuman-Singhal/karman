@@ -3262,6 +3262,7 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 .coach-title { margin: 0; font: 700 17px/1.25 var(--f-ui); letter-spacing: -0.005em; color: var(--ink); text-wrap: balance; }
 .coach-body { margin: 0; }
 .coach-body p { margin: 2px 0 0; color: var(--ink-2); }
+.coach-body b { color: var(--ink); font-weight: 700; }
 /* the arrow: a solid pointer in the step's colour, inked, bouncing over the width to tap */
 .coach-arrow {
   position: fixed; z-index: 41; width: 17px; height: 22px; translate: -50% -100%; pointer-events: none; opacity: 0;
