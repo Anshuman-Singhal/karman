@@ -63,7 +63,7 @@ K.coach = (() => {
   /* Step 4's explanation as a small scale rather than a paragraph:
        ● Wide ─ ● ─ ● ─ ● ─ Pinpoint ●
        unsure            know it exactly
-       wide range · +2 km   tight range · +20 km
+       wide reward · +2 km   tight reward · +20 km
      Same facts (unsure → exact, the more sure the higher the climb and the
      tighter the range), read in a glance. Climbs follow the player's units. */
   function scale() {
@@ -72,7 +72,7 @@ K.coach = (() => {
     return `<div class="coach-scale">
       <div class="cs-row cs-names"><b>${C[0].name}</b><span class="cs-track" aria-hidden="true">${dots}</span><b>${C[4].name}</b></div>
       <div class="cs-row cs-when"><span>unsure</span><span>know it exactly</span></div>
-      <div class="cs-row cs-what"><span>wide range · <em>${climb(0)}</em></span><span>tight range · <em>${climb(4)}</em></span></div>
+      <div class="cs-row cs-what"><span>wide reward · <em>${climb(0)}</em></span><span>tight reward · <em>${climb(4)}</em></span></div>
     </div>`;
   }
 
@@ -233,7 +233,7 @@ K.coach = (() => {
         place();
         arrows.forEach((a) => a.classList.add('on'));
       }, reduced() ? 0 : 230 * 4 + 1500);
-    }, reduced() ? 300 : 2600);
+    }, reduced() ? 300 : 2000);
   }
   function chosen(chip) {
     const firstPick = pick !== 'chosen';
