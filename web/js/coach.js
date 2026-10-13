@@ -56,9 +56,25 @@ K.coach = (() => {
       title: () => 'Now tap Pinpoint, for when you know the answer exactly.', body: () => '' },
     4: { at: () => [...entry(), $('wbtns'), $('btn-lock')], focus: () => (pick === 'chosen' ? $('btn-lock') : $('wbtns')), tone: 'amber',
       title: () => (pick === 'chosen' ? 'Now lock it in.' : 'How sure are you? Pick one.'),
-      body: () => (pick === 'chosen' ? '' : '<p><b>Wide</b> if you’re unsure, all the way to <b>Pinpoint</b> if you know it exactly. The more sure you are, the higher you climb, but the tighter your range.</p>') },
+      body: () => (pick === 'chosen' ? '' : scale()) },
   };
   const LAST = 4;
+
+  /* Step 4's explanation as a small scale rather than a paragraph:
+       ● Wide ─ ● ─ ● ─ ● ─ Pinpoint ●
+       unsure            know it exactly
+       wide range · +2 km   tight range · +20 km
+     Same facts (unsure → exact, the more sure the higher the climb and the
+     tighter the range), read in a glance. Climbs follow the player's units. */
+  function scale() {
+    const C = S().CHIPS, climb = (i) => K.units.climbText(S().kmOf(S().legPoints(i)));
+    const dots = C.map((c) => `<i style="--c: var(--c-${c.key})"></i>`).join('');
+    return `<div class="coach-scale">
+      <div class="cs-row cs-names"><b>${C[0].name}</b><span class="cs-track" aria-hidden="true">${dots}</span><b>${C[4].name}</b></div>
+      <div class="cs-row cs-when"><span>unsure</span><span>know it exactly</span></div>
+      <div class="cs-row cs-what"><span>wide range · <em>${climb(0)}</em></span><span>tight range · <em>${climb(4)}</em></span></div>
+    </div>`;
+  }
 
   /* ---------------------------------------------------------- layout */
   const R = (el) => el.getBoundingClientRect();
@@ -217,7 +233,7 @@ K.coach = (() => {
         place();
         arrows.forEach((a) => a.classList.add('on'));
       }, reduced() ? 0 : 230 * 4 + 1500);
-    }, reduced() ? 300 : 1100);
+    }, reduced() ? 300 : 2600);
   }
   function chosen(chip) {
     const firstPick = pick !== 'chosen';

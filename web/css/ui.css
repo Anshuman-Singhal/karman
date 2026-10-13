@@ -3265,6 +3265,17 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 .coach-body { margin: 0; }
 .coach-body p { margin: 2px 0 0; color: var(--ink-2); }
 .coach-body b { color: var(--ink); font-weight: 700; }
+/* step 4: the confidence scale, Wide → Pinpoint */
+.coach-scale { margin: 8px 0 1px; }
+.cs-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.cs-names b { font: 800 15px/1 var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink); }
+.cs-track { flex: 1; display: flex; justify-content: space-between; align-items: center; position: relative; padding: 0 2px; }
+.cs-track::before { content: ""; position: absolute; left: 4px; right: 4px; top: 50%; height: 1.5px; margin-top: -0.75px; background: repeating-linear-gradient(90deg, rgba(20, 33, 61, 0.35) 0 4px, transparent 4px 7px); }
+.cs-track i { position: relative; width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1.5px var(--ink); }
+.cs-when { margin-top: 7px; font: 600 11px/1.2 var(--f-ui); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3, rgba(20, 33, 61, 0.55)); }
+.cs-what { margin-top: 3px; font: 500 13.5px/1.25 var(--f-ui); color: var(--ink-2); }
+.cs-what em { font-style: normal; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.cs-when span:last-child, .cs-what span:last-child { text-align: right; }
 /* the arrow: a solid pointer in the step's colour, inked, bouncing over the width to tap */
 .coach-arrow {
   position: fixed; z-index: 41; width: 17px; height: 22px; translate: -50% -100%; pointer-events: none; opacity: 0;
