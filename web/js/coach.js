@@ -1,13 +1,18 @@
 /* ==========================================================================
    KÁRMÁN · coach.js
-   The one guided leg: the first leg of a pilot's first flight (once ever).
-   A spotlight tutorial with three short slips. The veil covers everything
-   EXCEPT the control the slip is about, so the player just does the thing:
+   The one guided leg: the first leg of a pilot's first flight (and once more
+   for everyone whenever storage.js bumps guideV). A spotlight tutorial; the
+   veil covers everything EXCEPT the controls the slip is about, so the
+   player just does the thing:
 
-     1 · "Type your best guess."     → the first digit advances (the guess stays live)
-     2 · "Pick how sure you are."    → tapping any width advances (an arrow points at Wide)
-     3 · "Lock it in."               → locking ends the guide
-   The lit area only ever grows, so a player can keep typing through 2 and 3.
+     1 · "Type your best guess."   → a pause in the typing advances
+     2 · "Tap Wide."               → only Wide advances; the range swells
+     3 · "Now tap Pinpoint."       → only Pinpoint advances; the range shrinks
+     4 · "Your call."              → any width, then Lock ends the guide
+   Players used to tap the pre-selected width and never look at the others
+   (Oct 2026), so steps 2 and 3 make them feel both ends of the trade before
+   choosing. Each slip quotes their own range and climb, in their units.
+   The lit area only ever grows, so a player can keep typing throughout.
 
    No Next button. "Skip guide" on each slip ends it and starts the clock.
    The veil is four panels around a hole, so the lit control is live.
@@ -24,11 +29,21 @@ K.coach = (() => {
   // fix a digit) while the width row, then Lock, join it. The ring marks the
   // control the slip is about.
   const entry = () => (coarse() ? [$('readout'), $('keypad')] : [$('readout')]);
+  const chipEl = (i) => document.querySelectorAll('#wbtns .wbtn')[i];
+  const S = () => K.scoring;
+  const climb = (i) => K.units.climbText(S().kmOf(S().legPoints(i)));
+  const rangeNow = () => `${$('r-lo').textContent}–${$('r-hi').textContent}`;
+  let seen = { wide: '', pin: '' };     // the ranges the player saw, quoted back on the next slip
   const STEPS = {
-    1: { at: () => entry(), focus: () => (coarse() ? $('keypad') : $('readout')), title: 'Type your best guess.', body: 'No clock on this first one.' },
-    2: { at: () => [...entry(), $('wbtns')], focus: () => $('wbtns'), title: 'Pick how sure you are.', body: 'Wider is safer. Narrower climbs more.', arrowAt: () => document.querySelector('#wbtns .wbtn') },
-    3: { at: () => [...entry(), $('wbtns'), $('btn-lock')], focus: () => $('btn-lock'), title: 'Lock it in.', body: 'From the next leg: 30 seconds a question.' },
+    1: { at: () => entry(), focus: () => (coarse() ? $('keypad') : $('readout')), title: () => 'Type your best guess.', body: () => 'No clock on this first one.' },
+    2: { at: () => [...entry(), $('wbtns')], focus: () => chipEl(0), arrowAt: () => chipEl(0),
+      title: () => 'Now, how sure are you? Tap Wide.', body: () => 'Watch the range around your guess.' },
+    3: { at: () => [...entry(), $('wbtns')], focus: () => chipEl(4), arrowAt: () => chipEl(4),
+      title: () => 'Now tap Pinpoint.', body: () => `Wide covers ${seen.wide}. Safe, but only ${climb(0)}.` },
+    4: { at: () => [...entry(), $('wbtns'), $('btn-lock')], focus: () => $('wbtns'),
+      title: () => 'Your call. Pick a width, lock it in.', body: () => `Pinpoint is just ${seen.pin}: ${climb(4)} if you're right, nothing if you're not.` },
   };
+  const LAST = 4;
 
   /* ---------------------------------------------------------- layout */
   const R = (el) => el.getBoundingClientRect();
@@ -100,7 +115,7 @@ K.coach = (() => {
     lit = s.at().filter(Boolean);
     focus = s.focus ? s.focus() : null;
     lit.forEach((e) => e.classList.add('coach-lit'));
-    slip.innerHTML = `<span class="coach-step">${n} / 3</span><p class="coach-title">${s.title}</p><p class="coach-body">${s.body}</p><button type="button" class="coach-skip">Skip guide</button>`;
+    slip.innerHTML = `<span class="coach-step">${n} / ${LAST}</span><p class="coach-title">${s.title()}</p><p class="coach-body">${s.body()}</p><button type="button" class="coach-skip">Skip guide</button>`;
     slip.querySelector('.coach-skip').addEventListener('click', skip);
     veil.classList.add('on');
     slip.classList.remove('in'); void slip.offsetWidth; slip.classList.add('in');
@@ -108,7 +123,7 @@ K.coach = (() => {
   }
 
   /* ---------------------------------------------------------- hooks */
-  function start() { show(1); }
+  function start() { seen = { wide: '', pin: '' }; show(1); }
 
   /** round.js reports keypad / width changes through game.js. */
   // Step 1 waits for a pause in the typing (not the first digit), so a full
@@ -118,7 +133,8 @@ K.coach = (() => {
     if (!step) return;
     clearTimeout(typeT);
     if (step === 1 && entry) typeT = setTimeout(() => { if (step === 1) show(2); }, 1100);
-    else if (step <= 2 && kind === 'chip') show(3);
+    else if (step === 2 && kind === 'chip' && chip === 0) { seen.wide = rangeNow(); show(3); }
+    else if (step === 3 && kind === 'chip' && chip === 4) { seen.pin = rangeNow(); show(4); }
     else requestAnimationFrame(place);
   }
 

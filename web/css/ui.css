@@ -2927,6 +2927,11 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 #screen-round .verdict-delta { color: var(--ink-2); }
 #screen-round .result-line { color: var(--ink-2); }
 #screen-round .result-line strong { color: var(--ink); }
+/* "Pinpoint would have hit too": a first-week nudge toward the other widths */
+.result-hind { margin: 6px 0 0; font: 400 14px/1.35 var(--f-ui); color: var(--ink-2, var(--text-dim)); }
+.result-hind b { font-weight: 700; color: var(--ink, var(--text)); }
+.result-hind i { display: inline-block; width: 9px; height: 9px; margin-right: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1.5px rgba(20, 33, 61, 0.25); vertical-align: 0; }
+.result-hind[hidden] { display: none; }
 #screen-round .result-fact { border-top: 1.5px dashed var(--perf-c); font: italic 400 16.5px/1.35 var(--f-serif); color: rgba(20, 33, 61, 0.72); }
 
 /* ---------------------------------------------------------------- 7 · home strip */

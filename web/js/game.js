@@ -332,6 +332,22 @@ K.game = (() => {
     busy = false;
   }
 
+  /** What another width would have done with the same guess: the narrowest
+      width that would also have hit (after a hit), or the narrowest wider one
+      that would have caught it (after a miss). Shown during a pilot's first
+      week of flights, so the trade between the widths is felt, not explained. */
+  const HINDSIGHT_FLIGHTS = 7;
+  function hindsight(fact, result) {
+    if (result.guess == null || ((store.stats && store.stats.flights) || 0) >= HINDSIGHT_FLIGHTS) return null;
+    const hitWith = (c) => S.isHit(fact, S.range(fact, result.guess, c));
+    if (result.hit) {
+      for (let c = S.CHIPS.length - 1; c > result.chip; c--) if (hitWith(c)) return { chip: c, pts: S.legPointsFor(c, result.clue), hit: true };
+      return null;
+    }
+    for (let c = result.chip - 1; c >= 0; c--) if (hitWith(c)) return { chip: c, pts: S.legPointsFor(c, result.clue), hit: false };
+    return null;
+  }
+
   /** The reveal: anticipation → impact → outcome → climb. */
   async function playReveal(fact, result, replay) {
     K.round.lockVisual();
@@ -367,6 +383,7 @@ K.game = (() => {
     K.round.showResult({
       hit: result.hit, chipIdx: result.chip, delta: result.delta, ptsAfter: result.ptsAfter, clue: result.clue,
       timedOut: result.timedOut, guess: result.guess, lo: result.lo, hi: result.hi,
+      hindsight: hindsight(fact, result),
       nextLabel: i < C.LEGS - 1 ? 'Next leg' : 'See your flight',
       nextStub: i < C.LEGS - 1 ? `Leg ${i + 2}` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
     });

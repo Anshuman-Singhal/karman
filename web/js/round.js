@@ -511,6 +511,15 @@ K.round = (() => {
     els.result.querySelector('.result-line').innerHTML = guess == null
       ? `Answer <strong>${view.fmt(fact.answer, true)}${unit}</strong>`
       : `Answer <strong>${view.fmt(fact.answer, true)}${unit}</strong> · you said ${view.fmt(lo)}–${view.fmt(hi)}`;
+    const hs = els.result.querySelector('.result-hind');
+    const h = args.hindsight;
+    hs.hidden = !h;
+    if (h) {
+      const name = S.CHIPS[h.chip].name;
+      const km = K.units.climbText(S.kmOf(h.pts));
+      hs.style.setProperty('--c', `var(--c-${S.CHIPS[h.chip].key})`);
+      hs.innerHTML = h.hit ? `<i></i><b>${name}</b> would have hit too: <b>${km}</b>.` : `<i></i><b>${name}</b> would have caught it: <b>${km}</b>.`;
+    }
     els.result.querySelector('.result-fact').textContent = K.units.hint(fact.card);
     const nb = els.result.querySelector('#btn-next');
     nb.querySelector('.kl-main').textContent = nextLabel;
