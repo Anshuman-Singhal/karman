@@ -233,7 +233,7 @@ K.coach = (() => {
         place();
         arrows.forEach((a) => a.classList.add('on'));
       }, reduced() ? 0 : 230 * 4 + 1500);
-    }, reduced() ? 300 : 2000);
+    }, reduced() ? 300 : 1600);
   }
   function chosen(chip) {
     const firstPick = pick !== 'chosen';
