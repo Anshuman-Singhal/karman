@@ -56,7 +56,7 @@ K.coach = (() => {
       title: () => 'Now tap Pinpoint.', body: () => '' },
     4: { at: () => [...entry(), $('wbtns'), $('btn-lock')], focus: () => (pick === 'chosen' ? $('btn-lock') : $('wbtns')), tone: 'amber',
       title: () => (pick === 'chosen' ? 'Now lock it in.' : 'How sure are you? Pick one.'),
-      body: () => (pick === 'chosen' ? '' : '<p><b>Wide</b> if you’re unsure, all the way to <b>Pinpoint</b> if you know it exactly. The surer you are, the higher you climb, but the tighter your range.</p>') },
+      body: () => (pick === 'chosen' ? '' : '<p><b>Wide</b> if you’re unsure, all the way to <b>Pinpoint</b> if you know it exactly. The more sure you are, the higher you climb, but the tighter your range.</p>') },
   };
   const LAST = 4;
 
