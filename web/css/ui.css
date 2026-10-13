@@ -3262,12 +3262,6 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 .coach-title { margin: 0; font: 700 17px/1.25 var(--f-ui); letter-spacing: -0.005em; color: var(--ink); text-wrap: balance; }
 .coach-body { margin: 0; }
 .coach-body p { margin: 2px 0 0; color: var(--ink-2); }
-/* the ledger: one row per width the player has felt — pip, name, their range, its climb */
-.coach-row { display: flex; align-items: baseline; gap: 8px; margin: 7px 0 0; padding: 6px 0 0; border-top: 1.5px dashed rgba(20, 33, 61, 0.22); font-variant-numeric: tabular-nums; }
-.coach-row i { align-self: center; width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1.5px var(--ink); flex: none; }
-.coach-row b { font: 600 13px/1 var(--f-ui); color: var(--ink); min-width: 58px; }
-.coach-row span { flex: 1; font: 700 16px/1 var(--f-display); letter-spacing: 0.02em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.coach-row em { font: 800 16px/1 var(--f-display); font-style: normal; letter-spacing: 0.02em; color: var(--ink); }
 /* the arrow: a solid pointer in the step's colour, inked, bouncing over the width to tap */
 .coach-arrow {
   position: fixed; z-index: 41; width: 17px; height: 22px; translate: -50% -100%; pointer-events: none; opacity: 0;
@@ -3278,20 +3272,43 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 .coach-arrow svg { width: 100%; height: 100%; display: block; fill: var(--rc); stroke: var(--ink); animation: coacharrow 1.1s ease-in-out infinite; transition: fill 380ms ease; }
 @keyframes coacharrow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }   /* a tap, not a hover */
 .coach-lit { position: relative; }
-/* the hero beat on the card: the range edges push out on Wide and draw in on Pinpoint */
-.r-edge.coach-swell, .r-edge.coach-close { animation: coachEdge 620ms var(--ease-out) both; transform-origin: var(--ox, 0 50%); }
-.r-hi.coach-swell, .r-hi.coach-close { --ox: 100% 50%; }
-.r-lo.coach-swell { --dx: -7px; } .r-hi.coach-swell { --dx: 7px; }
-.r-lo.coach-close { --dx: 7px; } .r-hi.coach-close { --dx: -7px; }
-@keyframes coachEdge {
-  0% { transform: none; }
-  28% { transform: translateX(var(--dx)) scale(1.12); color: var(--ink); }
-  100% { transform: none; }
+/* The highlighter: a marker stroke laid under the lower half of the text in a
+   width's colour (like a pen across "PINPOINT"), swept left to right, held a
+   beat, then faded. On the range numbers when a width is tapped in the guide,
+   and across all five widths at "Pick a width". */
+:root {
+  --hl-wide: rgba(139, 152, 178, 0.55);    /* Wide's chip is near-white: a cool grey reads on cream */
+  --hl-fair: rgba(108, 169, 255, 0.62);
+  --hl-snug: rgba(91, 212, 154, 0.62);
+  --hl-tight: rgba(244, 207, 74, 0.72);
+  --hl-pinpoint: rgba(255, 94, 98, 0.66);
+}
+.r-num { position: relative; isolation: isolate; }
+.coach-hl { position: relative; }
+.coach-hl::before {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  left: -0.14em; right: -0.14em; bottom: -0.03em; height: 0.56em;
+  background: var(--hl); border-radius: 1px;
+  transform-origin: 0 50%; transform: scaleX(0); opacity: 0;
+  animation: coachHL 1.9s var(--hl-delay, 0ms) both;
+}
+/* the five width boxes: an inset wash (over the box, under its label) */
+.wbtn.coach-box:not(.on) { animation: coachBox 1.5s var(--hl-delay, 0ms) both; }
+@keyframes coachBox {
+  0% { box-shadow: inset 0 0 0 60px transparent; }
+  22%, 45% { box-shadow: inset 0 0 0 60px color-mix(in srgb, var(--hl) 70%, transparent); }
+  100% { box-shadow: inset 0 0 0 60px transparent; }
+}
+@keyframes coachHL {
+  0% { transform: scaleX(0); opacity: 1; animation-timing-function: cubic-bezier(0.3, 0.7, 0.2, 1); }
+  18% { transform: scaleX(1); opacity: 1; }
+  62% { transform: scaleX(1); opacity: 1; animation-timing-function: ease-in; }
+  100% { transform: scaleX(1); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .coach-arrow svg { animation: none; }
   .coach-slip, .coach-ring, .coach-panel, .coach-arrow, .coach-text, .coach-pips i { transition: none; }
-  .r-edge.coach-swell, .r-edge.coach-close { animation: none; }
+  .coach-hl::before, .wbtn.coach-box { animation: none; }
 }
 /* the tag sits under the share ticket (Keep flying is right above it) */
 .share-nudge { bottom: auto; top: calc(100% + 8px); }

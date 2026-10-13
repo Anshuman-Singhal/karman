@@ -399,8 +399,9 @@ K.round = (() => {
     els.guess.textContent = typed == null ? (state.entry.endsWith('.') ? '0.' : '') : fact.scale === 'year' ? String(typed) : showEntry(state.entry);
     if (guess != null) {
       const r = S.range(fact, guess, state.chip);
-      els.lo.textContent = view.fmt(r.lo);
-      els.hi.textContent = view.fmt(r.hi);
+      // wrapped so the guide can run a highlighter under just the number
+      els.lo.innerHTML = `<span class="r-num">${view.fmt(r.lo)}</span>`;
+      els.hi.innerHTML = `<span class="r-num">${view.fmt(r.hi)}</span>`;
     } else {
       els.lo.textContent = '—';
       els.hi.textContent = '—';

@@ -6,13 +6,14 @@
    player just does the thing:
 
      1 · "Type your best guess."   → a pause in the typing advances
-     2 · "Tap Wide."               → only Wide advances; the range swells
-     3 · "Now tap Pinpoint."       → only Pinpoint advances; the range shrinks
+     2 · "Tap Wide."               → only Wide advances
+     3 · "Now tap Pinpoint."       → only Pinpoint advances
      4 · "Pick a width. Lock in."  → any width, then Lock ends the guide
    Players used to tap the pre-selected width and never look at the others
    (Oct 2026), so steps 2 and 3 make them feel both ends of the trade before
-   choosing. The slip keeps a small ledger of the ranges they just saw (in
-   their units), so the trade is read in a glance rather than in a sentence.
+   choosing. Every width tap in the guide runs a highlighter, in that width's
+   colour, under the range numbers and lets it fade: the card itself shows
+   what changed. Step 4 sweeps the same highlighter across all five widths.
    The lit area only ever grows, so a player can keep typing throughout.
 
    One slip, anchored above the card: its text crossfades and its height
@@ -38,24 +39,15 @@ K.coach = (() => {
   const entry = () => (coarse() ? [$('readout'), $('keypad')] : [$('readout')]);
   const chipEl = (i) => document.querySelectorAll('#wbtns .wbtn')[i];
   const S = () => K.scoring;
-  const climb = (i) => K.units.climbText(S().kmOf(S().legPoints(i)));
-  const rangeNow = () => `${$('r-lo').textContent}–${$('r-hi').textContent}`;
-  let seen = { wide: '', pin: '' };     // the ranges the player saw, kept on the slip's ledger
-
-  // A ledger row: the width's colour pip, its name, the range it gave this guess, its climb.
-  const row = (i, range) => {
-    const c = S().CHIPS[i];
-    return `<span class="coach-row" style="--c: var(--c-${c.key})"><i></i><b>${c.name}</b><span>${range}</span><em>${climb(i)}</em></span>`;
-  };
   const STEPS = {
     1: { at: () => entry(), focus: () => (coarse() ? $('keypad') : $('readout')), tone: 'amber',
       title: () => 'Type your best guess.', body: () => '<p>No clock on this one.</p>' },
     2: { at: () => [...entry(), $('wbtns')], focus: () => chipEl(0), arrowAt: () => chipEl(0), tone: 'wide',
       title: () => 'Tap Wide.', body: () => '<p>Watch your range.</p>' },
     3: { at: () => [...entry(), $('wbtns')], focus: () => chipEl(4), arrowAt: () => chipEl(4), tone: 'pinpoint',
-      title: () => 'Now tap Pinpoint.', body: () => row(0, seen.wide) },
+      title: () => 'Now tap Pinpoint.', body: () => '' },
     4: { at: () => [...entry(), $('wbtns'), $('btn-lock')], focus: () => $('wbtns'), tone: 'amber',
-      title: () => 'Pick a width. Lock it in.', body: () => row(0, seen.wide) + row(4, seen.pin) },
+      title: () => 'Pick a width. Lock it in.', body: () => '' },
   };
   const LAST = 4;
 
@@ -165,21 +157,26 @@ K.coach = (() => {
     requestAnimationFrame(place);
   }
 
-  /** The hero beat: the range edges swell (Wide) or close (Pinpoint) as the
-      player taps, so the width is felt on the card itself. */
-  function pulse(kind) {
+  /** A highlighter stroke under `els` in a width's colour, then it fades.
+      Restarts cleanly if tapped again mid-stroke. stagger: ms between items. */
+  function mark(els, colorOf, stagger = 0, cls = 'coach-hl') {
     if (reduced()) return;
-    ['r-lo', 'r-hi'].forEach((id) => {
-      const e = $(id);
+    els.forEach((e, i) => {
       if (!e) return;
-      e.classList.remove('coach-swell', 'coach-close');
+      e.classList.remove(cls);
+      e.style.setProperty('--hl', colorOf(i));
+      e.style.setProperty('--hl-delay', `${i * stagger}ms`);
       void e.offsetWidth;
-      e.classList.add(kind);
+      e.classList.add(cls);
     });
   }
+  const chipColor = (i) => `var(--hl-${S().CHIPS[i].key})`;
+  const markRange = (chip) => mark([...document.querySelectorAll('#readout .r-num')], () => chipColor(chip));
+  // "Pick a width": each of the five boxes washes with its own colour, left to right.
+  const markWidths = () => mark([...document.querySelectorAll('#wbtns .wbtn')], chipColor, 110, 'coach-box');
 
   /* ---------------------------------------------------------- hooks */
-  function start() { seen = { wide: '', pin: '' }; show(1); }
+  function start() { show(1); }
 
   /** round.js reports keypad / width changes through game.js. */
   // Step 1 waits for a pause in the typing (not the first digit), so a full
@@ -189,9 +186,12 @@ K.coach = (() => {
     if (!step) return;
     clearTimeout(typeT);
     if (step === 1 && entry) typeT = setTimeout(() => { if (step === 1) show(2); }, 1100);
-    else if (step === 2 && kind === 'chip' && chip === 0) { seen.wide = rangeNow(); pulse('coach-swell'); show(3); }
-    else if (step === 3 && kind === 'chip' && chip === 4) { seen.pin = rangeNow(); pulse('coach-close'); show(4); }
-    else requestAnimationFrame(place);
+    else {
+      if (step >= 2 && kind === 'chip') markRange(chip);
+      if (step === 2 && kind === 'chip' && chip === 0) show(3);
+      else if (step === 3 && kind === 'chip' && chip === 4) { show(4); setTimeout(() => { if (step === 4) markWidths(); }, 420); }
+      else requestAnimationFrame(place);
+    }
   }
 
   function skip() { stop(); if (onDone) onDone('skipped'); }
@@ -201,7 +201,7 @@ K.coach = (() => {
     step = 0;
     if (lit) lit.forEach((e) => e && e.classList.remove('coach-lit'));
     lit = null; focus = null;
-    ['r-lo', 'r-hi'].forEach((id) => { const e = $(id); if (e) e.classList.remove('coach-swell', 'coach-close'); });
+    document.querySelectorAll('.coach-hl, .coach-box').forEach((e) => e.classList.remove('coach-hl', 'coach-box'));
     if (veil) { window.removeEventListener('resize', place); const v = veil; veil = null; panels = []; ring = slip = arrow = pips = text = null; v.classList.remove('on'); setTimeout(() => v.remove(), 260); }
   }
 
