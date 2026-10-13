@@ -255,7 +255,7 @@ K.game = (() => {
       entry: live.entry, chip: live.chip,
       clueUsed: live.clueLeg != null, clueHere: live.clueLeg === i, clueLeg: live.clueLeg,
       onClue: () => { live.clueLeg = i; save(); },
-      onChange: (entry, chip, kind) => { live.entry = entry; live.chip = chip; store.lastChip = chip; saveSoon(); if (live.untimed) K.coach.input(entry, chip, kind); },
+      onChange: (entry, chip, kind) => { live.entry = entry; live.chip = chip; if (chip != null) store.lastChip = chip; saveSoon(); if (live.untimed) K.coach.input(entry, chip, kind); },
     };
     if (animate) {
       await K.round.advance(opts);
@@ -299,6 +299,8 @@ K.game = (() => {
   let legShownAt = 0;   // a tap that lands in the first half-second of a new leg is a stray Next-leg tap
   async function lock(opts = {}) {
     if (!live || live.phase !== 'round' || busy) return;
+    if (live && live.chip == null && !opts.timedOut) return;     // the guide cleared the width: pick one first
+    if (live && live.chip == null) live.chip = store.lastChip != null ? store.lastChip : S.DEFAULT_CHIP;
     if (!opts.timedOut && (Date.now() - legShownAt < 500 || document.getElementById('screen-round').classList.contains('leg-out') || document.getElementById('screen-round').classList.contains('leg-in'))) return;
     busy = true;
     stopTimer();

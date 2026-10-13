@@ -253,9 +253,17 @@ K.round = (() => {
     if (/^[0-9]$/.test(e.key)) { press(e.key); return true; }
     if (e.key === '.' || e.key === ',') { press('.'); return true; }
     if (e.key === 'Backspace') { press('del'); return true; }
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { selectChip(Math.max(0, state.chip - 1)); return true; }
-    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { selectChip(Math.min(4, state.chip + 1)); return true; }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { selectChip(state.chip == null ? 0 : Math.max(0, state.chip - 1)); return true; }
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { selectChip(state.chip == null ? 4 : Math.min(4, state.chip + 1)); return true; }
     return false;
+  }
+
+  /** The guide's last step: no width selected, so the player has to choose one. */
+  function clearChip() {
+    if (!fact || locked) return;
+    state.chip = null;
+    update();
+    onChange(state.entry, null, 'clear');
   }
 
   function selectChip(i) {
@@ -389,15 +397,17 @@ K.round = (() => {
 
   /* ------------------------------------------------------------ paint */
   function update() {
-    const chip = S.CHIPS[state.chip];
+    const none = state.chip == null;          // the guide clears the width so the player must choose one
+    const chip = none ? null : S.CHIPS[state.chip];
     const typed = typedValue();
     const guess = guessValue();
-    els.card.style.setProperty('--chip', `var(--c-${chip.key})`);
+    if (chip) els.card.style.setProperty('--chip', `var(--c-${chip.key})`);
+    els.card.classList.toggle('no-chip', none);
     els.card.classList.toggle('empty', guess == null);
 
     // Readout: low ⟵ guess ⟶ high
     els.guess.textContent = typed == null ? (state.entry.endsWith('.') ? '0.' : '') : fact.scale === 'year' ? String(typed) : showEntry(state.entry);
-    if (guess != null) {
+    if (guess != null && !none) {
       const r = S.range(fact, guess, state.chip);
       // wrapped so the guide can run a highlighter under just the number
       els.lo.innerHTML = `<span class="r-num">${view.fmt(r.lo)}</span>`;
@@ -406,11 +416,16 @@ K.round = (() => {
       els.lo.textContent = '—';
       els.hi.textContent = '—';
     }
-    els.lock.disabled = guess == null;
-    els.lockMain.textContent = guess == null ? 'Type a guess' : 'Lock it in';
-    const bet = S.legPointsFor(state.chip, Boolean(ctx.clueHere));
-    els.lockStub.innerHTML = `<i class="kl-pip"></i>${K.units.climbText(S.kmOf(bet))}`;
-    els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `Lock it in for ${K.units.climbText(S.kmOf(bet))}`);
+    els.lock.disabled = guess == null || none;
+    els.lockMain.textContent = guess == null ? 'Type a guess' : none ? 'Pick a width' : 'Lock it in';
+    if (none) {
+      els.lockStub.innerHTML = '';
+      els.lock.setAttribute('aria-label', 'Pick a width first');
+    } else {
+      const bet = S.legPointsFor(state.chip, Boolean(ctx.clueHere));
+      els.lockStub.innerHTML = `<i class="kl-pip"></i>${K.units.climbText(S.kmOf(bet))}`;
+      els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `Lock it in for ${K.units.climbText(S.kmOf(bet))}`);
+    }
 
     // Width buttons: the chosen one lights up; values halve when the clue is on.
     els.wbtnEls.forEach((b, i) => {
@@ -568,7 +583,7 @@ K.round = (() => {
 
   return {
     init, render, advance, setUnits, setTimer, lockVisual, dropNeedle, markOutcome, bandPoint, showResult,
-    renderLegs, selectChip, key, guessValue, offByText,
+    renderLegs, selectChip, clearChip, key, guessValue, offByText,
     get locked() { return locked; },
     get state() { return state; },
   };

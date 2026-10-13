@@ -8,7 +8,11 @@
      1 · "Type your best guess."   → a pause in the typing advances
      2 · "Tap Wide."               → only Wide advances
      3 · "Now tap Pinpoint."       → only Pinpoint advances
-     4 · "Pick a width. Lock in."  → any width, then Lock ends the guide
+     4 · "Pick a width. Lock it in." → Pinpoint holds a beat, then every width
+         is unselected (Lock waits), a slow colour wash runs across the five
+         boxes, and a small arrow in each box's colour bobs over it, each box
+         breathing its tint, until the player picks one. Then the ring moves
+         to Lock, and locking ends the guide.
    Players used to tap the pre-selected width and never look at the others
    (Oct 2026), so steps 2 and 3 make them feel both ends of the trade before
    choosing. Every width tap in the guide runs a highlighter, in that width's
@@ -31,6 +35,10 @@ K.coach = (() => {
   let step = 0;
   let veil = null, panels = [], ring = null, slip = null, arrow = null, lit = null, focus = null;
   let pips = null, text = null, swapT = 0;
+  let arrows = [];             // step 4: one small arrow per width, in its colour
+  let pick = '';               // step 4 phase: 'wash' → 'choose' → 'chosen'
+  let seqT = [];               // step 4 timers
+  const later = (fn, ms) => { seqT.push(setTimeout(fn, ms)); };
   let onDone = null;
 
   // The lit area grows rather than moves: the guess stays live (keep typing,
@@ -46,7 +54,7 @@ K.coach = (() => {
       title: () => 'Tap Wide.', body: () => '<p>Watch your range.</p>' },
     3: { at: () => [...entry(), $('wbtns')], focus: () => chipEl(4), arrowAt: () => chipEl(4), tone: 'pinpoint',
       title: () => 'Now tap Pinpoint.', body: () => '' },
-    4: { at: () => [...entry(), $('wbtns'), $('btn-lock')], focus: () => $('wbtns'), tone: 'amber',
+    4: { at: () => [...entry(), $('wbtns'), $('btn-lock')], focus: () => (pick === 'chosen' ? $('btn-lock') : $('wbtns')), tone: 'amber',
       title: () => 'Pick a width. Lock it in.', body: () => '' },
   };
   const LAST = 4;
@@ -86,6 +94,14 @@ K.coach = (() => {
       arrow.style.top = `${a.top - 3}px`;   // its tip rests on the ring; the bounce taps down, never up into the readout
       arrow.classList.add('on');
     } else arrow.classList.remove('on');
+    // step 4: an arrow over every width while the player chooses
+    arrows.forEach((a, i) => {
+      const c = chipEl(i);
+      if (!c) return;
+      const b = R(c);
+      a.style.left = `${b.left + b.width / 2}px`;
+      a.style.top = `${b.top - pad - 1}px`;
+    });
   }
 
   /* ---------------------------------------------------------- dom */
@@ -98,6 +114,15 @@ K.coach = (() => {
     arrow = document.createElement('div'); arrow.className = 'coach-arrow';
     arrow.innerHTML = '<svg viewBox="0 0 22 28" aria-hidden="true"><path d="M8 1.5h6v12h5.5L11 26.5 2.5 13.5H8z" stroke-width="1.6" stroke-linejoin="round"/></svg>';
     veil.appendChild(arrow);
+    arrows = S().CHIPS.map((c, i) => {
+      const a = document.createElement('div');
+      a.className = 'coach-arrow coach-mini';
+      a.style.setProperty('--ac', `var(--c-${c.key})`);
+      a.style.setProperty('--hl-delay', `${i * 140}ms`);
+      a.innerHTML = '<svg viewBox="0 0 22 28" aria-hidden="true"><path d="M8 1.5h6v12h5.5L11 26.5 2.5 13.5H8z" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+      veil.appendChild(a);
+      return a;
+    });
     slip = document.createElement('div');
     slip.className = 'coach-slip';
     slip.setAttribute('role', 'status');
@@ -172,11 +197,39 @@ K.coach = (() => {
   }
   const chipColor = (i) => `var(--hl-${S().CHIPS[i].key})`;
   const markRange = (chip) => mark([...document.querySelectorAll('#readout .r-num')], () => chipColor(chip));
-  // "Pick a width": each of the five boxes washes with its own colour, left to right.
-  const markWidths = () => mark([...document.querySelectorAll('#wbtns .wbtn')], chipColor, 110, 'coach-box');
+  const widthEls = () => [...document.querySelectorAll('#wbtns .wbtn')];
+
+  /** Step 4, in order: Pinpoint's range holds a beat → every width is unselected
+      → a slow wash crosses the five boxes → an arrow bobs over each box, each
+      breathing its tint, until the player picks. */
+  function toChoose() {
+    pick = 'wash';
+    later(() => {
+      if (step !== 3) return;
+      K.round.clearChip();
+      show(4);
+      mark(widthEls(), chipColor, 230, 'coach-box');
+      later(() => {
+        if (step !== 4 || pick !== 'wash') return;
+        pick = 'choose';
+        widthEls().forEach((b, i) => { b.style.setProperty('--hl', chipColor(i)); b.style.setProperty('--hl-delay', `${i * 140}ms`); b.classList.add('coach-breathe'); });
+        place();
+        arrows.forEach((a) => a.classList.add('on'));
+      }, reduced() ? 0 : 230 * 4 + 1500);
+    }, reduced() ? 300 : 1100);
+  }
+  function chosen(chip) {
+    pick = 'chosen';
+    seqT.forEach(clearTimeout); seqT = [];
+    arrows.forEach((a) => a.classList.remove('on'));
+    widthEls().forEach((b) => b.classList.remove('coach-breathe', 'coach-box'));
+    markRange(chip);
+    focus = $('btn-lock');
+    place();
+  }
 
   /* ---------------------------------------------------------- hooks */
-  function start() { show(1); }
+  function start() { pick = ''; show(1); }
 
   /** round.js reports keypad / width changes through game.js. */
   // Step 1 waits for a pause in the typing (not the first digit), so a full
@@ -186,10 +239,12 @@ K.coach = (() => {
     if (!step) return;
     clearTimeout(typeT);
     if (step === 1 && entry) typeT = setTimeout(() => { if (step === 1) show(2); }, 1100);
+    else if (kind === 'chip' && step === 4) chosen(chip);
+    else if (kind === 'chip' && step === 3 && pick === 'wash') { /* Pinpoint is holding its beat */ }
     else {
       if (step >= 2 && kind === 'chip') markRange(chip);
       if (step === 2 && kind === 'chip' && chip === 0) show(3);
-      else if (step === 3 && kind === 'chip' && chip === 4) { show(4); setTimeout(() => { if (step === 4) markWidths(); }, 420); }
+      else if (step === 3 && kind === 'chip' && chip === 4) toChoose();
       else requestAnimationFrame(place);
     }
   }
@@ -198,11 +253,13 @@ K.coach = (() => {
 
   function stop() {
     clearTimeout(typeT); clearTimeout(swapT);
-    step = 0;
+    seqT.forEach(clearTimeout); seqT = [];
+    step = 0; pick = '';
+    document.querySelectorAll('.coach-breathe').forEach((e) => e.classList.remove('coach-breathe'));
     if (lit) lit.forEach((e) => e && e.classList.remove('coach-lit'));
     lit = null; focus = null;
     document.querySelectorAll('.coach-hl, .coach-box').forEach((e) => e.classList.remove('coach-hl', 'coach-box'));
-    if (veil) { window.removeEventListener('resize', place); const v = veil; veil = null; panels = []; ring = slip = arrow = pips = text = null; v.classList.remove('on'); setTimeout(() => v.remove(), 260); }
+    if (veil) { window.removeEventListener('resize', place); const v = veil; veil = null; panels = []; ring = slip = arrow = pips = text = null; arrows = []; v.classList.remove('on'); setTimeout(() => v.remove(), 260); }
   }
 
   return { start, input, stop, skip, set onDone(fn) { onDone = fn; }, get active() { return step > 0; }, get paused() { return step > 0; } };

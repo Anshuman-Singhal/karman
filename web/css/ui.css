@@ -3292,13 +3292,23 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
   transform-origin: 0 50%; transform: scaleX(0); opacity: 0;
   animation: coachHL 1.9s var(--hl-delay, 0ms) both;
 }
-/* the five width boxes: an inset wash (over the box, under its label) */
-.wbtn.coach-box:not(.on) { animation: coachBox 1.5s var(--hl-delay, 0ms) both; }
+/* "Pick a width": the five boxes wash with their own colour, slowly, left to
+   right (an inset wash: over the box, under its label)… */
+.wbtn.coach-box:not(.on) { animation: coachBox 1.9s var(--hl-delay, 0ms) both; }
 @keyframes coachBox {
-  0% { box-shadow: inset 0 0 0 60px transparent; }
-  22%, 45% { box-shadow: inset 0 0 0 60px color-mix(in srgb, var(--hl) 70%, transparent); }
-  100% { box-shadow: inset 0 0 0 60px transparent; }
+  0% { box-shadow: inset 0 0 0 60px transparent; animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  40% { box-shadow: inset 0 0 0 60px color-mix(in srgb, var(--hl) 75%, transparent); animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); }
+  100% { box-shadow: inset 0 0 0 60px color-mix(in srgb, var(--hl) 22%, transparent); }
 }
+/* …then each keeps a soft breathing tint until the player picks one */
+.wbtn.coach-breathe:not(.on) { animation: coachBreathe 2.6s var(--hl-delay, 0ms) ease-in-out infinite; }
+@keyframes coachBreathe {
+  0%, 100% { box-shadow: inset 0 0 0 60px color-mix(in srgb, var(--hl) 22%, transparent); }
+  50% { box-shadow: inset 0 0 0 60px color-mix(in srgb, var(--hl) 48%, transparent); }
+}
+/* one small arrow over every width, in that width's colour, bobbing in a ripple */
+.coach-arrow.coach-mini { width: 12px; height: 16px; transition: opacity 320ms ease var(--hl-delay, 0ms); }
+.coach-arrow.coach-mini svg { fill: var(--ac); animation-delay: var(--hl-delay, 0ms); animation-duration: 1.3s; }
 @keyframes coachHL {
   0% { transform: scaleX(0); opacity: 1; animation-timing-function: cubic-bezier(0.3, 0.7, 0.2, 1); }
   18% { transform: scaleX(1); opacity: 1; }
@@ -3308,7 +3318,8 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 @media (prefers-reduced-motion: reduce) {
   .coach-arrow svg { animation: none; }
   .coach-slip, .coach-ring, .coach-panel, .coach-arrow, .coach-text, .coach-pips i { transition: none; }
-  .coach-hl::before, .wbtn.coach-box { animation: none; }
+  .coach-hl::before, .wbtn.coach-box, .wbtn.coach-breathe { animation: none; }
+  .wbtn.coach-breathe:not(.on) { box-shadow: inset 0 0 0 60px color-mix(in srgb, var(--hl) 30%, transparent); }
 }
 /* the tag sits under the share ticket (Keep flying is right above it) */
 .share-nudge { bottom: auto; top: calc(100% + 8px); }
