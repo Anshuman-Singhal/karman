@@ -25,6 +25,8 @@ K.round = (() => {
   let els;
   let fact = null;
   let view = null;          // units.view(fact)
+  let lastResult = null;    // showResult args, to redraw it if the units flip
+  let reveal = { guess: null, chip: 0 };   // what the ruler shows after the lock
   let state = { entry: '', chip: 2 };
   let ctx = { clueUsed: false, clueHere: false, onClue: null };
   let locked = false;
@@ -112,7 +114,9 @@ K.round = (() => {
     [['leg-no', `Leg ${opts.index + 1}`], ['leg-of', `/ ${K.CONFIG.LEGS}`], ['leg-cat', fact.cat]]
       .forEach(([c, t]) => { const s = document.createElement('span'); s.className = c; s.textContent = t; els.cat.appendChild(s); });
     els.cat.setAttribute('aria-label', `Leg ${opts.index + 1} of ${K.CONFIG.LEGS}, ${fact.cat}`);
-    els.q.textContent = fact.q;
+    els.q.textContent = K.units.hint(fact.q);
+    lastResult = null;
+    reveal = { guess: null, chip: 0 };
     renderHint();
     renderClue();
     renderUnit();
@@ -271,21 +275,36 @@ K.round = (() => {
 
   /** Switch metric ⇄ imperial, converting whatever has been typed. */
   function toggleUnits() { setUnits(K.units.system() === 'imperial' ? 'metric' : 'imperial'); }
-  /** Menu switch + inline toggle. Re-renders the live leg in the new units. */
+  /** Menu switch + inline toggle. Everything on the card that carries a unit
+      re-renders in place: the typed guess (converted), the range edges, the
+      width chips and lock stub (km ⇄ mi), the hint, clue and question text,
+      and, after the reveal, the ruler, needle and result lines. */
   function setUnits(sys) {
-    if (!fact || locked) { K.units.setSystem(sys); return; }
-    const metric = guessValue();
     K.units.setSystem(sys);
-    if (!view.convertible) { view = K.units.view(fact); return; }
+    if (!fact) return;
+    const old = view;
     view = K.units.view(fact);
-    if (metric != null) state.entry = String(Number(view.toDisp(metric).toPrecision(4)));
+    els.q.textContent = K.units.hint(fact.q);
     renderUnit();
     renderHint();
-    els.unitBtn.classList.remove('flip');
-    void els.unitBtn.offsetWidth;
-    els.unitBtn.classList.add('flip');
-    update();
-    onChange(state.entry, state.chip);
+    if (!locked) {
+      const typed = typedValue();
+      if (typed != null && fact.scale !== 'year' && old.convertible) state.entry = String(Number(view.toDisp(old.toMetric(typed)).toPrecision(4)));
+      if (view.convertible) {
+        els.unitBtn.classList.remove('flip');
+        void els.unitBtn.offsetWidth;
+        els.unitBtn.classList.add('flip');
+      }
+      update();
+      onChange(state.entry, state.chip);
+      return;
+    }
+    if (els.card.classList.contains('show-ruler')) {
+      if (reveal.guess != null) layoutRuler(reveal.guess, reveal.chip);
+      else { ruler = makeRuler(fact.scale === 'year' ? fact.answer : view.toDisp(fact.answer)); drawTicks(ruler); }
+      placeNeedle();
+    }
+    if (lastResult && !els.result.hidden) showResult(lastResult);
   }
 
   /** Show typed digits with thousands separators, keeping a trailing "." or decimals. */
@@ -429,11 +448,24 @@ K.round = (() => {
 
   /** The ruler slides in; the needle hovers, then drops onto the answer. */
   async function dropNeedle(metricGuess) {
+    reveal = { guess: metricGuess, chip: state.chip };
     const answerD = fact.scale === 'year' ? fact.answer : view.toDisp(fact.answer);
     if (metricGuess != null) layoutRuler(metricGuess, state.chip);
     else { ruler = makeRuler(answerD); drawTicks(ruler); els.band.style.width = '0'; }
     els.card.classList.add('show-ruler');
+    placeNeedle();
+    await K.fx.sleep(K.fx.reduced() ? 60 : 260);
+    els.needle.hidden = false;
+    els.needle.classList.add('hover');
+    await K.fx.sleep(K.fx.reduced() ? 120 : 560);
+    els.needle.classList.remove('hover');
+    els.needle.classList.add('drop');
+    await K.fx.sleep(K.fx.reduced() ? 60 : 280);
+  }
 
+  /** Needle on the answer, labelled in the player's units. */
+  function placeNeedle() {
+    const answerD = fact.scale === 'year' ? fact.answer : view.toDisp(fact.answer);
     const raw = ruler.toT(answerD);
     const off = raw < 0 ? 'left' : raw > 1 ? 'right' : '';
     const t = clamp(raw, 0, 1);
@@ -443,13 +475,6 @@ K.round = (() => {
     els.needle.classList.toggle('label-l', t > 0.72);
     els.needle.classList.toggle('label-r', t < 0.28);
     els.needle.classList.toggle('offscale', !!off);
-    await K.fx.sleep(K.fx.reduced() ? 60 : 260);
-    els.needle.hidden = false;
-    els.needle.classList.add('hover');
-    await K.fx.sleep(K.fx.reduced() ? 120 : 560);
-    els.needle.classList.remove('hover');
-    els.needle.classList.add('drop');
-    await K.fx.sleep(K.fx.reduced() ? 60 : 280);
   }
 
   function markOutcome(hit, chipIdx) {
@@ -467,7 +492,9 @@ K.round = (() => {
     return S.offBy({ ...fact, answer: view.toDisp(fact.answer) }, view.toDisp(metricGuess), false);
   }
 
-  function showResult({ hit, chipIdx, delta, ptsAfter, timedOut, guess, lo, hi, clue, nextLabel, nextStub }) {
+  function showResult(args) {
+    lastResult = args;
+    const { hit, chipIdx, delta, ptsAfter, timedOut, guess, lo, hi, clue, nextLabel, nextStub } = args;
     const chip = S.CHIPS[chipIdx];
     const unit = view.unit ? ` ${view.unit}` : '';
     const verdict = els.result.querySelector('.verdict');
@@ -484,7 +511,7 @@ K.round = (() => {
     els.result.querySelector('.result-line').innerHTML = guess == null
       ? `Answer <strong>${view.fmt(fact.answer, true)}${unit}</strong>`
       : `Answer <strong>${view.fmt(fact.answer, true)}${unit}</strong> · you said ${view.fmt(lo)}–${view.fmt(hi)}`;
-    els.result.querySelector('.result-fact').textContent = fact.card;
+    els.result.querySelector('.result-fact').textContent = K.units.hint(fact.card);
     const nb = els.result.querySelector('#btn-next');
     nb.querySelector('.kl-main').textContent = nextLabel;
     nb.querySelector('.kl-stub').innerHTML = nextStub || '';

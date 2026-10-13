@@ -335,14 +335,14 @@ K.ui = (() => {
     const answer = `<span class="ans-val ${side(L.pin)}" style="left:${L.pin.toFixed(2)}%"><em>Answer</em>${ansTxt}${unit}</span>`;
 
     return `<div class="ans ${state}" style="--c:${color};--i:${opts.order != null ? opts.order : i}" data-leg="${i}">
-      <div class="ans-top"><span class="ans-no">${i + 1}</span><p class="ans-q">${esc(fact.q)}</p><span class="ans-pts">${r.clue ? CLUE_SVG : ''}${pts}</span></div>
+      <div class="ans-top"><span class="ans-no">${i + 1}</span><p class="ans-q">${esc(K.units.hint(fact.q))}</p><span class="ans-pts">${r.clue ? CLUE_SVG : ''}${pts}</span></div>
       <div class="ans-line">
         ${you}
         ${track}
         <i class="ans-pin" style="left:${L.pin.toFixed(2)}%"></i>
         ${answer}
       </div>
-      <p class="ans-fact">${esc(fact.card)}</p>
+      <p class="ans-fact">${esc(K.units.hint(fact.card))}</p>
     </div>`;
   }
 

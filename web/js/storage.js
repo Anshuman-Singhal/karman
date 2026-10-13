@@ -100,6 +100,14 @@ K.storage = (() => {
     try {
       const raw = localStorage.getItem(KEY);
       data = migrate(raw ? JSON.parse(raw) : fresh());
+      // Oct 2026: new pilots start in metric (the scoring reads cleanly in km:
+      // Pinpoint +20 km). Pilots who already flew without ever choosing keep
+      // what they had been seeing (imperial for US English) until they switch.
+      if (raw && !(data.prefs && data.prefs.units) && Object.keys(data.days || {}).length) {
+        let legacy = 'metric';
+        try { if (/^en-US$/i.test(navigator.language)) legacy = 'imperial'; } catch (e) { /* metric */ }
+        data.prefs = { ...(data.prefs || {}), units: legacy };
+      }
     } catch (e) {
       data = data || fresh();
     }

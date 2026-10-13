@@ -33,7 +33,20 @@ const SFILE = path.join(ROOT, 'content', 'schedule.json');
 const OUT = path.join(ROOT, 'web', 'js', 'data', 'content.js');
 
 const CATEGORIES = ['Structures', 'Sky & Space', 'Living Things', 'History', 'Machines', 'Everyday Numbers', 'Sports', 'Film & TV', 'Music', 'Pop Culture'];
-const HINT_UNITS = ['m', 'km', '°C', 'm/s', 'km/s', 'km/h', 'kg'];
+/* Units are owned by web/js/units.js (the game's converter): read its lists so
+   the checks here can never drift from what players actually get. */
+import vm from 'node:vm';
+const UNITS = (() => {
+  const sandbox = { K: { storage: { data: {} } }, navigator: { language: 'en' } };
+  vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'web', 'js', 'units.js'), 'utf8'), sandbox);
+  return sandbox.K.units;
+})();
+const HINT_UNITS = Object.keys(UNITS.TOKEN_UNITS);
+/* A unit that looks metric must have an imperial twin in units.js, or a player
+   in imperial is stuck typing millimetres (the A4 question, Oct 2026). */
+const METRICISH = /(^|\s)(mm|cm|m|km|kg|g|mg|ml|l|grams?|kilograms?|milligrams?|meters?|metres?|kilometers?|kilometres?|centimeters?|millimeters?|liters?|litres?|milliliters?|tonnes?|hectares?|°c|square (km|m|meters?)|cubic \w+|kph|kmh)($|\s)/i;
+/* Metric numbers in text must be {tokens} so they convert too; {=100 m} keeps a name as written. */
+const RAW_METRIC = /(?<![\w.,])\d[\d,]*(?:\.\d+)?\s*(?:mm|cm|m|km|kg|g|ml|L|°C|km\/h|km\/s|m\/s|meters?|liters?|litres?|tonnes?|kilograms?|grams?|square km|sq km)(?![\w])/;
 const MAX_PER_CAT = 2, MAX_YEARS = 3;
 const STOP = new Set('a an the of in on at to is was were did does do how what which many much long tall big far high deep old roughly about approximately first ever one its it for by from and with as are be has have that this there'.split(' '));
 
@@ -90,6 +103,12 @@ function validateQuestion(q, { requireSource }) {
   const brit = /\b(storeys?|colours?|centre|kilometres?|aluminium|litres?|grey|metres?|travelled|favourite|programme|theatre)\b/i;
   ['q', 'hint', 'card', 'clue'].forEach((k) => { const m = String(q[k]).match(brit); if (m) e.push(`${k}: use American spelling ("${m[0]}")`); });
   if (q.unit === 'metres') e.push('unit: use "meters"');
+  if (q.unit && METRICISH.test(q.unit) && !UNITS.METRIC_UNITS.includes(q.unit)) e.push(`unit "${q.unit}" has no imperial version; use one of: ${UNITS.METRIC_UNITS.filter((u) => !/^(metres|litres)$/.test(u)).join(', ')} (or add it to web/js/units.js)`);
+  ['q', 'hint', 'card', 'clue'].forEach((k) => {
+    const bare = String(q[k]).replace(/\{[^}]*\}/g, '');
+    const m = bare.match(RAW_METRIC);
+    if (m) e.push(`${k}: "${m[0]}" won't convert for imperial players; write it as {${m[0].replace(/\s*(meters?|metres?)$/, ' m').replace(/\s*(liters?|litres?)$/, ' L').replace(/\s*tonnes?$/, ' t').replace(/\s*square km$/, ' sq km')}} (or {=${m[0]}} if it's a name, like the {=100 m} dash)`);
+  });
   if (requireSource && !/^https?:\/\/\S+$/.test(q.source || '')) e.push('source must be a URL');
   return e;
 }

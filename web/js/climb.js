@@ -80,7 +80,7 @@ K.climb = (() => {
     const ans = l.fact ? `<span class="cs-v"><i>Answer</i> ${esc(valText(l, l.fact.answer))}</span>` : '';
     const x = l.crossed.length ? `<em class="cs-x">${esc(l.crossed.length === 1 ? l.crossed[0].name : l.crossed.map((m) => m.short).join(' · '))}</em>` : '';
     return `<span class="cs-head"><b class="cs-km">${esc(climbWord(l))}</b><small>Leg ${l.i + 1}</small></span>`
-      + `<span class="cs-q">${esc(l.fact ? shortQ(l.fact.q) : '')}</span>`
+      + `<span class="cs-q">${esc(l.fact ? shortQ(K.units.hint(l.fact.q)) : '')}</span>`
       + `<span class="cs-va">${you}${ans}</span>${x}`;
   }
   function summaryHTML() {

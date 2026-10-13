@@ -16,7 +16,7 @@ Add **70 new questions**: the tool puts 49 into the next 7 daily flights and 21 
 4. Write 70 candidates into `content/batches/YYYY-MM-DD.json`, a JSON array of objects shaped like:
    ```json
    { "cat": "Structures", "q": "How tall is the Leaning Tower of Pisa?", "unit": "meters", "answer": 56,
-     "scale": "log", "min": 1, "max": 2000, "hint": "For scale: a 10-storey building is about {30 m} tall.",
+     "scale": "log", "min": 1, "max": 2000, "hint": "For scale: a 10-story building is about {30 m} tall.",
      "card": "It leans about 4 degrees, down from 5.5 before engineers steadied it in 2001.",
      "clue": "The Statue of Liberty, ground to torch, is about {93 m} tall.",
      "source": "https://en.wikipedia.org/wiki/Leaning_Tower_of_Pisa" }
@@ -26,13 +26,13 @@ Add **70 new questions**: the tool puts 49 into the next 7 daily flights and 21 
    - **Good questions** are things a curious adult can reason toward but rarely knows exactly: a famous height, distance, count, speed or year. Avoid trivia that needs specialist knowledge, anything political or tragic in a flippant way, and anything that changes over time (populations, records likely to be broken, prices).
    - **Relatable first** (from playtesting: players found the set too niche). Prefer things people have seen, used, eaten, visited or watched: famous landmarks, the body, animals, food, sports, everyday objects, well-known films/inventions. A question should make a typical adult think "ooh, I have a rough idea". Skip obscure history, specialist science and anything that needs a degree.
    - **One answer only.** The question must have exactly one defensible number. If the thing can be counted or measured two ways (e.g. "squares on a chessboard": 64 cells vs 204 squares of all sizes), reword the question so only one reading is possible. The `card` must never mention a different figure for the same quantity.
-   - **Units**: metric. Use `meters`, `km`, `°C`, `m per second`, `km per second`, `km per hour`, `kg` where possible (players can switch to imperial). Counts use a plural noun (`bones`, `floors`). Years use `"unit": ""` and `"scale": "year"`, AD only.
+   - **Units**: metric, and ONLY these (each has an imperial twin, so players who switch to imperial can answer in their units): `meters`, `km`, `mm`, `cm`, `kg`, `tonnes`, `liters`, `square km`, `°C`, `m per second`, `km per second`, `km per hour`. The build refuses any other metric unit. Counts use a plural noun (`bones`, `floors`). Years use `"unit": ""` and `"scale": "year"`, AD only.
    - **Answer**: the commonly cited figure from the source. Decimals are fine.
    - **Counts get `"int": true`**: anything counted in whole things (bones, legs, moons, countries, floors) must set `"int": true`, so the player types a whole number and the narrow widths keep their minimum steps (Tight ±1, Snug ±2, Fair ±4). Measurements (meters, kg, km per hour) never set it.
    - **min / max**: for `log`, about answer ÷ 25 rounded down to a power of ten, and answer × 25 rounded up. For `year`, about 150 years before to 100 years after (no later than 2050).
    - **clue** (new): a SECOND, CLOSER benchmark the player can buy for half the climb. One plain sentence ≤ 110 characters, no "For scale"/"Clue" prefix, a different subject than the question, nearer the answer than the hint (log questions: within about ÷3…×3 of the answer but never within ±8%; years: within ±60 but never within ±4), never the answer or its digits. Braces for convertible measurements, as in the hint.
    - **American English only**: meters, story, color, center (the checker rejects British spellings).
-   - **hint**: starts "For scale:" and gives a related reference point, **never the answer or something that trivially implies it**. Put convertible measurements in braces so they show in the player's units: `{330 m}`, `{42 km}`, `{350 km/h}`, `{1,500 kg}`, `{327 °C}`.
+   - **hint**: starts "For scale:" and gives a related reference point, **never the answer or something that trivially implies it**. Put convertible measurements in braces so they show in the player's units: `{330 m}`, `{42 km}`, `{350 km/h}`, `{1,500 kg}`, `{327 °C}`, `{86 mm}`, `{15 cm}`, `{100 L}`, `{12 t}`, `{550,000 sq km}`. This applies to EVERY field (q, hint, clue, card): a bare "15 cm" anywhere fails the build. A measurement that is a name stays literal with `{=…}`: the `{=100 m}` dash, a `{=9 mm}` pistol.
    - **card**: one surprising true sentence, 170 characters max.
    - **source**: a URL where the answer can be confirmed (Wikipedia is fine).
 5. **Independent verification pass.** For each candidate, open its source and check the answer again without looking at what you wrote. If the numbers disagree by more than 2% (or 0 years for year questions), fix it or drop it. Replace dropped ones so the batch stays at 70.

@@ -31,7 +31,7 @@ K.audio = (() => {
 
   /** Create the audio context. Must be called from a tap/click handler. */
   function unlock() {
-    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    if (ctx) { if (ctx.state !== 'running' && ctx.state !== 'closed') ctx.resume().catch(() => {}); return; }
     if (!enabled()) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
@@ -291,5 +291,14 @@ K.audio = (() => {
     if (on) unlock();
   }
 
-  return { unlock, takeoff, whoosh, burner, tick, puff, hit, miss, stamp, stage, enabled, setEnabled };
+  /* Any tap or key press wakes the sound, not just Take off: a reload in the
+     middle of a flight resumes without one, and phones suspend audio when the
+     tab goes to the background. Capture phase, so the very first key press
+     (which also plays its tick) already has sound. */
+  if (typeof document !== 'undefined') {
+    const wake = () => { if (enabled()) unlock(); };
+    ['pointerdown', 'keydown', 'touchend'].forEach((t) => document.addEventListener(t, wake, { capture: true, passive: true }));
+  }
+
+  return { unlock, takeoff, whoosh, burner, tick, puff, hit, miss, stamp, stage, enabled, setEnabled, get state() { return ctx ? ctx.state : 'off'; } };
 })();

@@ -505,7 +505,7 @@ K.game = (() => {
       K.fx.banner({
         eyebrow: m.id === 'karman' ? 'You reached space' : first ? 'First time' : '',
         title: m.name,
-        meta: big ? `${m.km % 1 ? m.km.toFixed(1) : m.km} km` : '',
+        meta: big ? K.units.altText(m.km, { decimals: K.units.system() === 'imperial' || m.km % 1 ? 1 : 0 }) : '',
         tone: m.id === 'karman' ? 'space' : first ? 'fresh' : 'quiet',
         hold: big ? 2100 : 1100,
       });
@@ -516,7 +516,7 @@ K.game = (() => {
       }
       K.fx.haptic(12);
     } else if (ev.type === 'pb') {
-      K.fx.banner({ eyebrow: 'Personal best', title: 'Higher than you have ever flown', meta: `past ${ev.km.toFixed(1)} km`, tone: 'pb' });
+      K.fx.banner({ eyebrow: 'Personal best', title: 'Higher than you have ever flown', meta: `past ${K.units.altText(ev.km, { decimals: 1 })}`, tone: 'pb' });
     }
   }
 

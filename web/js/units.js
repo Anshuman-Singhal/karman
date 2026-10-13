@@ -20,8 +20,18 @@ K.units = (() => {
     '°C':            { imp: '°F',               to: (v) => v * 9 / 5 + 32, from: (v) => (v - 32) * 5 / 9 },
     'km per hour':   { imp: 'miles per hour',   to: (v) => v * 0.621371, from: (v) => v / 0.621371 },
     'kg':            { imp: 'pounds',           to: (v) => v * 2.20462,  from: (v) => v / 2.20462 },
+    'mm':            { imp: 'inches',           to: (v) => v / 25.4,     from: (v) => v * 25.4 },
+    'cm':            { imp: 'inches',           to: (v) => v / 2.54,     from: (v) => v * 2.54 },
+    'liters':        { imp: 'gallons',          to: (v) => v * 0.264172, from: (v) => v / 0.264172 },
+    'litres':        { imp: 'gallons',          to: (v) => v * 0.264172, from: (v) => v / 0.264172 },   // legacy spelling
+    'square km':     { imp: 'square miles',     to: (v) => v * 0.386102, from: (v) => v / 0.386102 },
+    'tonnes':        { imp: 'tons',             to: (v) => v * 1.10231,  from: (v) => v / 1.10231 },
   };
-  const SHORT = { meters: 'm', metres: 'm', feet: 'ft', 'km per second': 'km/s', 'miles per second': 'mi/s', 'm per second': 'm/s', 'feet per second': 'ft/s', 'km per hour': 'km/h', 'miles per hour': 'mph', pounds: 'lb' };
+  /* Every metric unit a question may use. tools/content.mjs refuses a
+     question whose unit looks metric but has no imperial twin here, so a
+     player in imperial can always answer in their own units. */
+  const METRIC_UNITS = Object.keys(MAP);
+  const SHORT = { mm: 'mm', cm: 'cm', inches: 'in', liters: 'L', litres: 'L', gallons: 'gal', 'square km': 'sq km', 'square miles': 'sq mi', meters: 'm', metres: 'm', feet: 'ft', 'km per second': 'km/s', 'miles per second': 'mi/s', 'm per second': 'm/s', 'feet per second': 'ft/s', 'km per hour': 'km/h', 'miles per hour': 'mph', pounds: 'lb' };
 
   /* ---- altitude (the score) in the player's units ----
      Scored and stored in km; shown as km or miles. Ceiling 140 km ≈ 87 mi. */
@@ -53,10 +63,10 @@ K.units = (() => {
   /** A width's nominal climb (before a leg is flown): "+10 km" / "+6 mi". */
   const climbText = (km) => (system() === 'imperial' ? `+${Math.round(km * KM_TO_MI)} mi` : `+${Math.round(km * 10) / 10} km`);
 
-  /** Default: imperial for US English, metric for everyone else. */
-  function defaultSystem() {
-    try { return /^en-US$/i.test(navigator.language) ? 'imperial' : 'metric'; } catch (e) { return 'metric'; }
-  }
+  /** Everyone starts in metric (scores read cleanly: Pinpoint +20 km); the
+      menu switch or the unit chip flips it. storage.js keeps imperial for
+      pilots who were already seeing it before this default changed. */
+  function defaultSystem() { return 'metric'; }
 
   function system() {
     const p = K.storage.data && K.storage.data.prefs;
@@ -91,14 +101,27 @@ K.units = (() => {
   }
 
   /** Render a hint like "For scale: … {93 m} …" in the player's units. */
-  const TOKEN_UNITS = { m: 'meters', km: 'km', '°C': '°C', 'm/s': 'm per second', 'km/s': 'km per second', 'km/h': 'km per hour', kg: 'kg' };
+  const TOKEN_UNITS = { m: 'meters', km: 'km', '°C': '°C', 'm/s': 'm per second', 'km/s': 'km per second', 'km/h': 'km per hour', kg: 'kg',
+    mm: 'mm', cm: 'cm', L: 'liters', 'sq km': 'square km', t: 'tonnes' };
+  const TOKEN_RE = /\{([\d.,]+)\s*(km\/h|km\/s|m\/s|sq km|km|kg|mm|cm|m|°C|L|t)\}/g;
+  /** Question, hint, clue and fun-fact text: {93 m} tokens become "93 m" or "305 ft". */
   function hint(text) {
-    return String(text || '').replace(/\{([\d.,]+)\s*(km\/h|km\/s|m\/s|km|kg|m|°C)\}/g, (_, num, u) => {
+    return String(text || '').replace(TOKEN_RE, (_, num, u) => {
       const v = Number(num.replace(/,/g, ''));
       const vw = view({ unit: TOKEN_UNITS[u], scale: 'log' });
-      return `${vw.fmt(v)} ${vw.short}`;
-    });
+      const imp = vw.imperial;
+      // °C/°F stay exact-ish; small imperial lengths keep a decimal.
+      let shown;
+      if (TOKEN_UNITS[u] === '°C') shown = String(Math.round(vw.toDisp(v)));
+      else if (!imp) shown = vw.fmt(v);
+      else {
+        // Converted "about" figures: no false precision (15 cm → 5.9 in, 381 m → 1,250 ft).
+        const d = vw.toDisp(v), a = Math.abs(d);
+        shown = a >= 10 ? Math.round(Number(d.toPrecision(3))).toLocaleString('en-US') : a >= 1 ? String(Number(d.toFixed(1))) : String(Number(d.toPrecision(2)));
+      }
+      return `${shown} ${vw.short}`;
+    }).replace(/\{=([^}]*)\}/g, '$1');      // {=100 m}: a name ("the 100 m dash"), never converted
   }
 
-  return { altUnit, altVal, altNum, altText, altShown, legText, climbText, view, system, setSystem, convertible, defaultSystem, hint };
+  return { altUnit, altVal, altNum, altText, altShown, legText, climbText, view, system, setSystem, convertible, defaultSystem, hint, METRIC_UNITS, TOKEN_UNITS };
 })();
