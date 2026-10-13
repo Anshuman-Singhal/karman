@@ -2925,6 +2925,7 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 }
 #screen-round .verdict.is-miss { color: var(--ink-2); background: linear-gradient(transparent 50%, rgba(20, 33, 61, 0.12) 50%, rgba(20, 33, 61, 0.12) 86%, transparent 86%); }
 #screen-round .verdict-delta { color: var(--ink-2); }
+#screen-round .verdict-delta.gain { font: 800 24px/1 var(--f-display); letter-spacing: 0.02em; color: var(--ink); }
 #screen-round .result-line { color: var(--ink-2); }
 #screen-round .result-line strong { color: var(--ink); }
 /* "Pinpoint would've hit too · +20 km": a first-week nudge toward the other

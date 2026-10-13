@@ -522,7 +522,9 @@ K.round = (() => {
     const climb = ptsAfter != null ? K.units.legText(S.kmOf(ptsAfter - delta), S.kmOf(ptsAfter)) : K.units.climbText(S.kmOf(delta));
     if (hit) d = `${climb}${clue ? ' (clue: half)' : ''}`;
     else d = guess == null ? (timedOut ? 'No climb' : 'No climb') : `No climb · ${offByText(guess)}`;
-    els.result.querySelector('.verdict-delta').textContent = d;
+    const vd = els.result.querySelector('.verdict-delta');
+    vd.textContent = d;
+    vd.classList.toggle('gain', Boolean(hit));      // the climb is the headline on a hit
 
     els.result.querySelector('.result-line').innerHTML = guess == null
       ? `Answer <strong>${view.fmt(fact.answer, true)}${unit}</strong>`
@@ -532,10 +534,9 @@ K.round = (() => {
     hs.hidden = !h;
     if (h) {
       const name = S.CHIPS[h.chip].name;
-      const km = K.units.climbText(S.kmOf(h.pts));
       hs.style.setProperty('--c', `var(--c-${S.CHIPS[h.chip].key})`);
       // One line, same voice as the answer line: a width pip, the width, the climb.
-      hs.innerHTML = `<i></i><b>${name}</b> would've ${h.hit ? 'hit too' : 'caught it'} · <b>${km}</b>`;
+      hs.innerHTML = `<i></i><b>${name}</b> would've ${h.hit ? 'hit too' : 'caught it'}.`;
     }
     els.result.querySelector('.result-fact').textContent = K.units.hint(fact.card);
     const nb = els.result.querySelector('#btn-next');
