@@ -8,21 +8,28 @@
      1 · "Type your best guess."   → a pause in the typing advances
      2 · "Tap Wide."               → only Wide advances; the range swells
      3 · "Now tap Pinpoint."       → only Pinpoint advances; the range shrinks
-     4 · "Your call."              → any width, then Lock ends the guide
+     4 · "Pick a width. Lock in."  → any width, then Lock ends the guide
    Players used to tap the pre-selected width and never look at the others
    (Oct 2026), so steps 2 and 3 make them feel both ends of the trade before
-   choosing. Each slip quotes their own range and climb, in their units.
+   choosing. The slip keeps a small ledger of the ranges they just saw (in
+   their units), so the trade is read in a glance rather than in a sentence.
    The lit area only ever grows, so a player can keep typing throughout.
 
-   No Next button. "Skip guide" on each slip ends it and starts the clock.
+   One slip, anchored above the card: its text crossfades and its height
+   eases between steps; the ring, the hole in the veil and the arrow glide
+   to their next target (CSS transitions, off under reduced motion).
+
+   No Next button. "Skip" on the slip ends it and starts the clock.
    The veil is four panels around a hole, so the lit control is live.
    ========================================================================== */
 
 K.coach = (() => {
   const $ = (id) => document.getElementById(id);
   const coarse = () => matchMedia('(pointer: coarse)').matches;
+  const reduced = () => (K.fx && K.fx.reduced ? K.fx.reduced() : matchMedia('(prefers-reduced-motion: reduce)').matches);
   let step = 0;
   let veil = null, panels = [], ring = null, slip = null, arrow = null, lit = null, focus = null;
+  let pips = null, text = null, swapT = 0;
   let onDone = null;
 
   // The lit area grows rather than moves: the guess stays live (keep typing,
@@ -33,15 +40,22 @@ K.coach = (() => {
   const S = () => K.scoring;
   const climb = (i) => K.units.climbText(S().kmOf(S().legPoints(i)));
   const rangeNow = () => `${$('r-lo').textContent}–${$('r-hi').textContent}`;
-  let seen = { wide: '', pin: '' };     // the ranges the player saw, quoted back on the next slip
+  let seen = { wide: '', pin: '' };     // the ranges the player saw, kept on the slip's ledger
+
+  // A ledger row: the width's colour pip, its name, the range it gave this guess, its climb.
+  const row = (i, range) => {
+    const c = S().CHIPS[i];
+    return `<span class="coach-row" style="--c: var(--c-${c.key})"><i></i><b>${c.name}</b><span>${range}</span><em>${climb(i)}</em></span>`;
+  };
   const STEPS = {
-    1: { at: () => entry(), focus: () => (coarse() ? $('keypad') : $('readout')), title: () => 'Type your best guess.', body: () => 'No clock on this first one.' },
-    2: { at: () => [...entry(), $('wbtns')], focus: () => chipEl(0), arrowAt: () => chipEl(0),
-      title: () => 'Now, how sure are you? Tap Wide.', body: () => 'Watch the range around your guess.' },
-    3: { at: () => [...entry(), $('wbtns')], focus: () => chipEl(4), arrowAt: () => chipEl(4),
-      title: () => 'Now tap Pinpoint.', body: () => `Wide covers ${seen.wide}. Safe, but only ${climb(0)}.` },
-    4: { at: () => [...entry(), $('wbtns'), $('btn-lock')], focus: () => $('wbtns'),
-      title: () => 'Your call. Pick a width, lock it in.', body: () => `Pinpoint is just ${seen.pin}: ${climb(4)} if you're right, nothing if you're not.` },
+    1: { at: () => entry(), focus: () => (coarse() ? $('keypad') : $('readout')), tone: 'amber',
+      title: () => 'Type your best guess.', body: () => '<p>No clock on this one.</p>' },
+    2: { at: () => [...entry(), $('wbtns')], focus: () => chipEl(0), arrowAt: () => chipEl(0), tone: 'wide',
+      title: () => 'Tap Wide.', body: () => '<p>Watch your range.</p>' },
+    3: { at: () => [...entry(), $('wbtns')], focus: () => chipEl(4), arrowAt: () => chipEl(4), tone: 'pinpoint',
+      title: () => 'Now tap Pinpoint.', body: () => row(0, seen.wide) },
+    4: { at: () => [...entry(), $('wbtns'), $('btn-lock')], focus: () => $('wbtns'), tone: 'amber',
+      title: () => 'Pick a width. Lock it in.', body: () => row(0, seen.wide) + row(4, seen.pin) },
   };
   const LAST = 4;
 
@@ -52,7 +66,6 @@ K.coach = (() => {
     if (!slip || !lit || !lit.length) return;
     const rs = lit.map(R), pad = 6, W = window.innerWidth, H = window.innerHeight;
     const r = { left: Math.min(...rs.map((q) => q.left)), top: Math.min(...rs.map((q) => q.top)), right: Math.max(...rs.map((q) => q.right)), bottom: Math.max(...rs.map((q) => q.bottom)) };
-    r.width = r.right - r.left;
     const hole = { l: r.left - pad, t: r.top - pad, r: r.right + pad, b: r.bottom + pad };
     const f = focus ? R(focus) : r;
     const ringBox = { l: f.left - pad, t: f.top - pad, r: f.right + pad, b: f.bottom + pad };
@@ -63,28 +76,24 @@ K.coach = (() => {
     Object.assign(left.style, { left: 0, top: `${hole.t}px`, width: `${Math.max(0, hole.l)}px`, height: `${hole.b - hole.t}px` });
     Object.assign(right.style, { left: `${hole.r}px`, top: `${hole.t}px`, width: `${Math.max(0, W - hole.r)}px`, height: `${hole.b - hole.t}px` });
     Object.assign(ring.style, { left: `${ringBox.l}px`, top: `${ringBox.t}px`, width: `${ringBox.r - ringBox.l}px`, height: `${ringBox.b - ringBox.t}px` });
-    // the slip sits above the card (over the sky), never on the keys
+    // The slip hangs above the card (over the sky), centred on it and anchored
+    // at its foot, so it only ever grows upward and never covers the keys.
     const dock = $('dock');
-    const dockTop = dock ? R(dock).top : H * 0.55;
-    const w = Math.min(320, W - 32);
+    const d = dock ? R(dock) : { left: 0, width: W, top: H * 0.55 };
+    const w = Math.min(336, W - 32);
+    const x = Math.max(16, Math.min(W - w - 16, d.left + d.width / 2 - w / 2));
     slip.style.width = `${w}px`;
-    const cx = f.left + (f.right - f.left) / 2;
-    const x = Math.max(16, Math.min(W - w - 16, cx - w / 2));
-    const h = slip.offsetHeight;
-    let y = dockTop - h - 16;
-    if (y < 12) y = Math.max(12, r.top - h - 14);
     slip.style.left = `${x}px`;
-    slip.style.top = `${y}px`;
-    slip.style.setProperty('--arrow-x', `${Math.max(22, Math.min(w - 22, cx - x))}px`);
-    // the bouncing arrow over Wide
+    slip.style.bottom = `${Math.max(12, H - d.top + 14)}px`;
+    // the arrow over the width to tap; it glides from one to the next
     const s = STEPS[step];
     const target = s && s.arrowAt ? s.arrowAt() : null;
-    if (arrow && target) {
+    if (target) {
       const a = R(target);
-      arrow.hidden = false;
       arrow.style.left = `${a.left + a.width / 2}px`;
-      arrow.style.top = `${a.top - 8}px`;
-    } else if (arrow) arrow.hidden = true;
+      arrow.style.top = `${a.top - 3}px`;   // its tip rests on the ring; the bounce taps down, never up into the readout
+      arrow.classList.add('on');
+    } else arrow.classList.remove('on');
   }
 
   /* ---------------------------------------------------------- dom */
@@ -94,12 +103,16 @@ K.coach = (() => {
     veil.className = 'coach-veil';
     panels = ['top', 'left', 'right', 'bottom'].map((k) => { const d = document.createElement('div'); d.className = `coach-panel coach-${k}`; veil.appendChild(d); return d; });
     ring = document.createElement('div'); ring.className = 'coach-ring'; veil.appendChild(ring);
-    arrow = document.createElement('div'); arrow.className = 'coach-arrow'; arrow.hidden = true;
-    arrow.innerHTML = '<svg viewBox="0 0 24 32" aria-hidden="true"><path d="M12 2v22M4 16l8 10 8-10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    arrow = document.createElement('div'); arrow.className = 'coach-arrow';
+    arrow.innerHTML = '<svg viewBox="0 0 22 28" aria-hidden="true"><path d="M8 1.5h6v12h5.5L11 26.5 2.5 13.5H8z" stroke-width="1.6" stroke-linejoin="round"/></svg>';
     veil.appendChild(arrow);
     slip = document.createElement('div');
     slip.className = 'coach-slip';
     slip.setAttribute('role', 'status');
+    slip.innerHTML = `<div class="coach-head"><span class="coach-pips" aria-hidden="true">${'<i></i>'.repeat(LAST)}</span><button type="button" class="coach-skip">Skip</button></div><div class="coach-text"><p class="coach-title"></p><div class="coach-body"></div></div>`;
+    pips = [...slip.querySelectorAll('.coach-pips i')];
+    text = slip.querySelector('.coach-text');
+    slip.querySelector('.coach-skip').addEventListener('click', skip);
     veil.appendChild(slip);
     document.body.appendChild(veil);
     // the panels swallow taps so nothing else moves while a slip is up
@@ -107,7 +120,35 @@ K.coach = (() => {
     window.addEventListener('resize', place);
   }
 
+  /** The slip's words: crossfade the text and ease the height, in place. */
+  function setText(s, first) {
+    const fill = () => {
+      slip.querySelector('.coach-title').textContent = s.title();
+      slip.querySelector('.coach-body').innerHTML = s.body();
+    };
+    clearTimeout(swapT);
+    if (first || reduced()) {
+      fill();
+      text.style.height = '';
+      return;
+    }
+    const h0 = text.offsetHeight;
+    text.style.height = `${h0}px`;
+    text.classList.add('out');
+    swapT = setTimeout(() => {
+      fill();
+      text.style.height = 'auto';
+      const h1 = text.offsetHeight;
+      text.style.height = `${h0}px`;
+      void text.offsetWidth;
+      text.style.height = `${h1}px`;
+      text.classList.remove('out');
+      swapT = setTimeout(() => { text.style.height = ''; }, 320);
+    }, 150);
+  }
+
   function show(n) {
+    const first = !veil;
     ensureDom();
     step = n;
     const s = STEPS[n];
@@ -115,11 +156,26 @@ K.coach = (() => {
     lit = s.at().filter(Boolean);
     focus = s.focus ? s.focus() : null;
     lit.forEach((e) => e.classList.add('coach-lit'));
-    slip.innerHTML = `<span class="coach-step">${n} / ${LAST}</span><p class="coach-title">${s.title()}</p><p class="coach-body">${s.body()}</p><button type="button" class="coach-skip">Skip guide</button>`;
-    slip.querySelector('.coach-skip').addEventListener('click', skip);
-    veil.classList.add('on');
-    slip.classList.remove('in'); void slip.offsetWidth; slip.classList.add('in');
+    veil.dataset.tone = s.tone;
+    slip.dataset.step = String(n);
+    pips.forEach((p, i) => { p.classList.toggle('done', i < n - 1); p.classList.toggle('now', i === n - 1); });
+    setText(s, first);
+    place();
+    if (first) { void veil.offsetWidth; veil.classList.add('on'); }   // lay out first, so nothing glides in from nowhere
     requestAnimationFrame(place);
+  }
+
+  /** The hero beat: the range edges swell (Wide) or close (Pinpoint) as the
+      player taps, so the width is felt on the card itself. */
+  function pulse(kind) {
+    if (reduced()) return;
+    ['r-lo', 'r-hi'].forEach((id) => {
+      const e = $(id);
+      if (!e) return;
+      e.classList.remove('coach-swell', 'coach-close');
+      void e.offsetWidth;
+      e.classList.add(kind);
+    });
   }
 
   /* ---------------------------------------------------------- hooks */
@@ -133,19 +189,20 @@ K.coach = (() => {
     if (!step) return;
     clearTimeout(typeT);
     if (step === 1 && entry) typeT = setTimeout(() => { if (step === 1) show(2); }, 1100);
-    else if (step === 2 && kind === 'chip' && chip === 0) { seen.wide = rangeNow(); show(3); }
-    else if (step === 3 && kind === 'chip' && chip === 4) { seen.pin = rangeNow(); show(4); }
+    else if (step === 2 && kind === 'chip' && chip === 0) { seen.wide = rangeNow(); pulse('coach-swell'); show(3); }
+    else if (step === 3 && kind === 'chip' && chip === 4) { seen.pin = rangeNow(); pulse('coach-close'); show(4); }
     else requestAnimationFrame(place);
   }
 
   function skip() { stop(); if (onDone) onDone('skipped'); }
 
   function stop() {
-    clearTimeout(typeT);
+    clearTimeout(typeT); clearTimeout(swapT);
     step = 0;
     if (lit) lit.forEach((e) => e && e.classList.remove('coach-lit'));
     lit = null; focus = null;
-    if (veil) { window.removeEventListener('resize', place); const v = veil; veil = null; panels = []; ring = slip = arrow = null; v.classList.remove('on'); setTimeout(() => v.remove(), 220); }
+    ['r-lo', 'r-hi'].forEach((id) => { const e = $(id); if (e) e.classList.remove('coach-swell', 'coach-close'); });
+    if (veil) { window.removeEventListener('resize', place); const v = veil; veil = null; panels = []; ring = slip = arrow = pips = text = null; v.classList.remove('on'); setTimeout(() => v.remove(), 260); }
   }
 
   return { start, input, stop, skip, set onDone(fn) { onDone = fn; }, get active() { return step > 0; }, get paused() { return step > 0; } };

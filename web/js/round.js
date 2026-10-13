@@ -518,7 +518,8 @@ K.round = (() => {
       const name = S.CHIPS[h.chip].name;
       const km = K.units.climbText(S.kmOf(h.pts));
       hs.style.setProperty('--c', `var(--c-${S.CHIPS[h.chip].key})`);
-      hs.innerHTML = h.hit ? `<i></i><b>${name}</b> would have hit too: <b>${km}</b>.` : `<i></i><b>${name}</b> would have caught it: <b>${km}</b>.`;
+      // One line, same voice as the answer line: a width pip, the width, the climb.
+      hs.innerHTML = `<i></i><b>${name}</b> would've ${h.hit ? 'hit too' : 'caught it'} · <b>${km}</b>`;
     }
     els.result.querySelector('.result-fact').textContent = K.units.hint(fact.card);
     const nb = els.result.querySelector('#btn-next');

@@ -2927,10 +2927,12 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 #screen-round .verdict-delta { color: var(--ink-2); }
 #screen-round .result-line { color: var(--ink-2); }
 #screen-round .result-line strong { color: var(--ink); }
-/* "Pinpoint would have hit too": a first-week nudge toward the other widths */
-.result-hind { margin: 6px 0 0; font: 400 14px/1.35 var(--f-ui); color: var(--ink-2, var(--text-dim)); }
+/* "Pinpoint would've hit too · +20 km": a first-week nudge toward the other
+   widths, set like the answer line above it, with the width's pip (the same
+   pip the Lock ticket's stub carries). */
+.result-hind { margin: 4px 0 0; font: 400 15px/1.4 var(--f-ui); color: var(--ink-2, var(--text-dim)); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .result-hind b { font-weight: 700; color: var(--ink, var(--text)); }
-.result-hind i { display: inline-block; width: 9px; height: 9px; margin-right: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1.5px rgba(20, 33, 61, 0.25); vertical-align: 0; }
+.result-hind i { display: inline-block; width: 10px; height: 10px; margin: 0 9px 0 1px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1.5px var(--ink, rgba(20, 33, 61, 0.6)); vertical-align: -0.5px; }
 .result-hind[hidden] { display: none; }
 #screen-round .result-fact { border-top: 1.5px dashed var(--perf-c); font: italic 400 16.5px/1.35 var(--f-serif); color: rgba(20, 33, 61, 0.72); }
 
@@ -3216,29 +3218,81 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 
 /* ---------------------------------------------------------------- guided first leg (coach.js)
    A spotlight: four dark panels around a hole, so the lit control is live;
-   a paper slip above the card says the one thing to do. No buttons but Skip. */
-.coach-veil { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
-.coach-panel { position: fixed; background: rgba(8, 11, 26, 0.56); pointer-events: none; opacity: 0; transition: opacity 220ms ease; }
-.coach-veil.on .coach-panel { pointer-events: auto; opacity: 1; }
-.coach-ring { position: fixed; border-radius: 12px; pointer-events: none; box-shadow: 0 0 0 3px rgba(240, 124, 44, 0.9), 0 0 24px rgba(240, 124, 44, 0.5); opacity: 0; transition: opacity 220ms ease, left 280ms var(--ease-out), top 280ms var(--ease-out), width 280ms var(--ease-out), height 280ms var(--ease-out); }
-.coach-veil.on .coach-ring { opacity: 1; }
-.coach-slip {
-  position: fixed; z-index: 41; padding: 12px 14px 10px; border-radius: 8px;
-  background: #F6EDDB; color: #14213D; font: 500 14px/1.35 var(--f-ui);
-  box-shadow: 0 16px 40px rgba(5, 8, 22, 0.45), inset 0 0 0 1px rgba(20, 33, 61, 0.16);
-  opacity: 0; transform: translateY(8px); transition: opacity 220ms ease, transform 280ms var(--ease-out); pointer-events: auto;
+   a paper slip pinned above the card says the one thing to do. The ring,
+   the hole and the arrow glide between targets; the slip stays put and its
+   words crossfade. Each step has a tone: the width's own colour on the ring,
+   the arrow and the slip's edge (data-tone on the veil). No buttons but Skip. */
+.coach-veil { position: fixed; inset: 0; z-index: 40; pointer-events: none; --rc: var(--amber-real); }
+.coach-veil[data-tone="wide"] { --rc: var(--c-wide); }
+.coach-veil[data-tone="pinpoint"] { --rc: var(--c-pinpoint); }
+.coach-panel {
+  position: fixed; background: rgba(8, 11, 26, 0.58); pointer-events: none; opacity: 0;
+  transition: opacity 240ms ease, left 380ms var(--ease-out), top 380ms var(--ease-out), width 380ms var(--ease-out), height 380ms var(--ease-out);
 }
-.coach-slip.in { opacity: 1; transform: none; }
-.coach-slip::after { content: ""; position: absolute; top: 100%; left: var(--arrow-x, 50%); translate: -50% 0; border: 9px solid transparent; border-top-color: #F6EDDB; filter: drop-shadow(0 2px 1px rgba(5, 8, 22, 0.25)); }
-.coach-step { display: block; font: 800 11px/1 var(--f-display); letter-spacing: 0.14em; color: #C25A12; margin-bottom: 5px; }
-.coach-title { margin: 0 0 2px; font: 700 17px/1.25 var(--f-ui); }
-.coach-body { margin: 0; color: rgba(20, 33, 61, 0.72); }
-.coach-skip { display: block; margin: 8px 0 0; padding: 4px 0; border: 0; background: none; color: rgba(20, 33, 61, 0.5); font: 500 12.5px/1 var(--f-ui); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.coach-arrow { position: fixed; z-index: 41; width: 26px; height: 34px; translate: -50% -100%; color: #F07C2C; pointer-events: none; filter: drop-shadow(0 2px 2px rgba(5, 8, 22, 0.4)); animation: coacharrow 1.1s ease-in-out infinite; }
-.coach-arrow svg { width: 100%; height: 100%; display: block; }
-@keyframes coacharrow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.coach-veil.on .coach-panel { pointer-events: auto; opacity: 1; }
+/* the ring: a band of the step's colour inside an ink keyline, like a printed highlight */
+.coach-ring {
+  position: fixed; border-radius: 11px; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 0 3px var(--rc), 0 0 0 4.5px var(--ink), 0 0 22px color-mix(in srgb, var(--rc) 55%, transparent);
+  transition: opacity 240ms ease, box-shadow 380ms ease, left 380ms var(--ease-out), top 380ms var(--ease-out), width 380ms var(--ease-out), height 380ms var(--ease-out);
+}
+.coach-veil.on .coach-ring { opacity: 1; }
+/* the slip: a cream note with an ink keyline and a coloured stub edge */
+.coach-slip {
+  position: fixed; z-index: 41; box-sizing: border-box; padding: 11px 14px 13px 20px; border-radius: 8px;
+  background:
+    linear-gradient(90deg, var(--rc) 0 6px, var(--ink) 6px 7.5px, transparent 7.5px),
+    linear-gradient(180deg, #FBF5EA 0%, #F3E9D6 60%, #EFE3CC 100%);
+  color: var(--ink); font: 500 14px/1.35 var(--f-ui);
+  box-shadow: inset 0 0 0 1.5px var(--ink), 0 18px 40px rgba(5, 8, 22, 0.42), 0 2px 6px rgba(5, 8, 22, 0.2);
+  opacity: 0; transform: translateY(6px); pointer-events: auto;
+  transition: opacity 240ms ease, transform 320ms var(--ease-out), background 380ms ease;
+}
+.coach-veil.on .coach-slip { opacity: 1; transform: none; }
+.coach-head { display: flex; align-items: center; justify-content: space-between; margin: 0 0 7px; }
+.coach-pips { display: inline-flex; gap: 5px; align-items: center; }
+.coach-pips i { width: 7px; height: 7px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-3); background: transparent; transition: background 320ms ease, box-shadow 320ms ease, transform 320ms var(--ease-out); }
+.coach-pips i.done { background: var(--ink-3); box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+.coach-pips i.now { background: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); transform: scale(1.2); }
+.coach-skip { margin: 0 -6px 0 0; padding: 4px 6px; border: 0; background: none; color: var(--ink-3); font: 800 11px/1 var(--f-display); letter-spacing: 0.16em; text-transform: uppercase; cursor: pointer; border-radius: 4px; }
+.coach-skip:hover { color: var(--ink); background: rgba(20, 33, 61, 0.06); }
+.coach-skip:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.coach-text { overflow: hidden; transition: height 300ms var(--ease-out), opacity 150ms ease, transform 150ms ease; }
+.coach-text.out { opacity: 0; transform: translateY(-3px); }
+.coach-title { margin: 0; font: 700 17px/1.25 var(--f-ui); letter-spacing: -0.005em; color: var(--ink); text-wrap: balance; }
+.coach-body { margin: 0; }
+.coach-body p { margin: 2px 0 0; color: var(--ink-2); }
+/* the ledger: one row per width the player has felt — pip, name, their range, its climb */
+.coach-row { display: flex; align-items: baseline; gap: 8px; margin: 7px 0 0; padding: 6px 0 0; border-top: 1.5px dashed rgba(20, 33, 61, 0.22); font-variant-numeric: tabular-nums; }
+.coach-row i { align-self: center; width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1.5px var(--ink); flex: none; }
+.coach-row b { font: 600 13px/1 var(--f-ui); color: var(--ink); min-width: 58px; }
+.coach-row span { flex: 1; font: 700 16px/1 var(--f-display); letter-spacing: 0.02em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.coach-row em { font: 800 16px/1 var(--f-display); font-style: normal; letter-spacing: 0.02em; color: var(--ink); }
+/* the arrow: a solid pointer in the step's colour, inked, bouncing over the width to tap */
+.coach-arrow {
+  position: fixed; z-index: 41; width: 17px; height: 22px; translate: -50% -100%; pointer-events: none; opacity: 0;
+  filter: drop-shadow(0 1px 1px rgba(5, 8, 22, 0.25));
+  transition: opacity 200ms ease, left 380ms var(--ease-out), top 380ms var(--ease-out);
+}
+.coach-arrow.on { opacity: 1; }
+.coach-arrow svg { width: 100%; height: 100%; display: block; fill: var(--rc); stroke: var(--ink); animation: coacharrow 1.1s ease-in-out infinite; transition: fill 380ms ease; }
+@keyframes coacharrow { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }   /* a tap, not a hover */
 .coach-lit { position: relative; }
-@media (prefers-reduced-motion: reduce) { .coach-arrow { animation: none; } .coach-slip, .coach-ring, .coach-panel { transition: none; } }
+/* the hero beat on the card: the range edges push out on Wide and draw in on Pinpoint */
+.r-edge.coach-swell, .r-edge.coach-close { animation: coachEdge 620ms var(--ease-out) both; transform-origin: var(--ox, 0 50%); }
+.r-hi.coach-swell, .r-hi.coach-close { --ox: 100% 50%; }
+.r-lo.coach-swell { --dx: -7px; } .r-hi.coach-swell { --dx: 7px; }
+.r-lo.coach-close { --dx: 7px; } .r-hi.coach-close { --dx: -7px; }
+@keyframes coachEdge {
+  0% { transform: none; }
+  28% { transform: translateX(var(--dx)) scale(1.12); color: var(--ink); }
+  100% { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coach-arrow svg { animation: none; }
+  .coach-slip, .coach-ring, .coach-panel, .coach-arrow, .coach-text, .coach-pips i { transition: none; }
+  .r-edge.coach-swell, .r-edge.coach-close { animation: none; }
+}
 /* the tag sits under the share ticket (Keep flying is right above it) */
 .share-nudge { bottom: auto; top: calc(100% + 8px); }
 .share-nudge::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #14213D; }
