@@ -48,7 +48,7 @@ K.coach = (() => {
 
   const STEPS = {
     1: { lit: () => [entry()], focus: () => entry(), tone: 'amber',
-      title: () => 'Type your best guess.', body: () => '<p>No timer on this one. 30 seconds from the next.</p>' },
+      title: () => 'Type your best guess.', body: () => '<p>No time limit on this one. After this, 30 seconds each.</p>' },
     2: { lit: () => [$('wbtns'), $('btn-lock')], focus: () => (chosen != null ? $('btn-lock') : $('wbtns')), tone: () => (chosen != null ? S().CHIPS[chosen].key : 'amber'),
       title: () => 'How sure are you? Tap a box.',
       body: () => (chosen != null ? outcome(chosen) : '<p>If the answer\u2019s in your box, you climb. If not, nothing.</p>') },

@@ -359,21 +359,30 @@ K.round = (() => {
   }
 
   /* ---- the range a width gives, in words and on the buttons ---- */
-  /** A range edge for a button: 3 significant figures, commas to 9,999, then 12k · 1.1M · 2.4B. */
-  function edgeShort(vMetric) {
+  /** A range edge for a button or the readout. Full numbers with commas
+      while they fit (the non-gamer asked what "k" was); 12k · 1.5M · 15B
+      only when they would not. `level` 0 = full, 1 = k from 10,000, 2 = M/B. */
+  function edgeShort(vMetric, level = 0) {
     if (fact.scale === 'year') return view.fmt(vMetric);
     const v = view.toDisp(vMetric);
     const g = Number(v.toPrecision(3)), a = Math.abs(g);
     if (a >= 1e9) return `${+(g / 1e9).toPrecision(3)}B`;
-    if (a >= 1e6) return `${+(g / 1e6).toPrecision(3)}M`;
-    if (a >= 1e4) return `${+(g / 1e3).toPrecision(3)}k`;
+    if (a >= 1e6 && level >= 1) return `${+(g / 1e6).toPrecision(3)}M`;
+    if (a >= 1e4 && level >= 1) return `${+(g / 1e3).toPrecision(3)}k`;
     return g.toLocaleString('en-US', { maximumFractionDigits: a < 10 ? 2 : 1 });
   }
-  /** "33–75" for a button, "7" when the width is exact on a small count. */
+  /** "33–75" for a button, "7" when the width is exact on a small count;
+      the fullest spelling that fits the box. */
   function rangeShort(r) {
-    const lo = edgeShort(r.lo), hi = edgeShort(r.hi);
-    return lo === hi ? lo : `${lo}–${hi}`;
+    for (let level = 0; level <= 1; level++) {
+      const lo = edgeShort(r.lo, level), hi = edgeShort(r.hi, level);
+      const t = lo === hi ? lo : `${lo}–${hi}`;
+      if (t.length <= 10 || level === 1) return t;
+    }
+    return '';
   }
+  /** One readout edge: full while it fits, compact beyond six digits. */
+  const edgeReadout = (vMetric) => { const t = edgeShort(vMetric, 0); return t.length <= 7 ? t : edgeShort(vMetric, 1); };
   /** The same range in a sentence: "between 33 and 75 meters" / "exactly 7 dots" / "between 1890 and 1980". */
   /** A range edge in a sentence: "1.5 million" rather than "1,500,000". */
   function edgeWords(vMetric) {
@@ -452,8 +461,8 @@ K.round = (() => {
     if (guess != null && !none) {
       const r = S.range(fact, guess, state.chip);
       // wrapped so the guide can run a highlighter under just the number
-      els.lo.innerHTML = `<span class="r-num">${edgeShort(r.lo)}</span>`;
-      els.hi.innerHTML = `<span class="r-num">${edgeShort(r.hi)}</span>`;
+      els.lo.innerHTML = `<span class="r-num">${edgeReadout(r.lo)}</span>`;
+      els.hi.innerHTML = `<span class="r-num">${edgeReadout(r.hi)}</span>`;
     } else {
       els.lo.textContent = '—';
       els.hi.textContent = '—';
@@ -601,7 +610,7 @@ K.round = (() => {
     const h = args.hindsight;
     hs.hidden = !h;
     if (h) {
-      const name = S.CHIPS[h.chip].name;
+      const name = args.plain ? SURE[h.chip] : S.CHIPS[h.chip].name;   // first week: the box's own word
       hs.style.setProperty('--c', `var(--c-${S.CHIPS[h.chip].key})`);
       // One line, same voice as the answer line: a width pip, the width, its range, the climb.
       const hr = S.range(fact, guess, h.chip);
