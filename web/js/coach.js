@@ -38,12 +38,32 @@ K.coach = (() => {
   const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const entry = () => (coarse() ? $('keypad') : $('readout'));
 
-  /** The live sentence for a tapped width: both outcomes, in the player's units. */
+  /** The live sentence for a tapped width: both outcomes, in the player's units.
+      It sits ON the card, right above the guess and its range (where the eye
+      already is), not in the slip. */
   function outcome(chip) {
     const rs = K.round.ranges();
     if (!rs || chip == null) return '';
     const r = rs[chip];
-    return `<p class="coach-live">If it's <b>${esc(r.words)}</b>, you climb <b>${esc(r.climb)}</b>. If not, nothing.</p>`;
+    return `If it's <b>${esc(r.words)}</b>, you climb <b>${esc(r.climb)}</b>. If not, nothing.`;
+  }
+  function say(chip) {
+    const hint = $('round-hint');
+    if (!hint) return;
+    let el = $('coach-say');
+    if (chip == null) { if (el) el.remove(); hint.classList.remove('coach-said'); return; }
+    if (!el) {
+      // It takes the place of the "For scale" hint (already used: the guess is
+      // typed), which is the line right above the guess and its range.
+      el = document.createElement('p');
+      el.id = 'coach-say';
+      el.className = 'coach-say';
+      el.setAttribute('role', 'status');
+      hint.after(el);
+      hint.classList.add('coach-said');
+    }
+    el.style.setProperty('--c', `var(--c-${S().CHIPS[chip].key})`);
+    el.innerHTML = outcome(chip);
   }
 
   const STEPS = {
@@ -51,7 +71,7 @@ K.coach = (() => {
       title: () => 'Type your best guess.', body: () => '<p>No time limit on this one. After this, 30 seconds each.</p>' },
     2: { lit: () => [$('wbtns'), $('btn-lock')], focus: () => (chosen != null ? $('btn-lock') : $('wbtns')), tone: () => (chosen != null ? S().CHIPS[chosen].key : 'amber'),
       title: () => 'How sure are you? Tap a box.',
-      body: () => (chosen != null ? outcome(chosen) : '<p>If the answer\u2019s in your box, you climb. If not, nothing.</p>') },
+      body: () => (chosen != null ? '' : '<p>If the answer\u2019s in your box, you climb. If not, nothing.</p>') },
   };
 
   /* ---------------------------------------------------------------- layout */
@@ -188,12 +208,12 @@ K.coach = (() => {
       veil.dataset.tone = tone(s);
       focus = s.focus();
       if (firstPick) setText(s);
-      else { slip.querySelector('.coach-body').innerHTML = s.body(); }
+      say(chip);
       place();
       return;
     }
     // more digits: the ranges on the card change; the sentence follows
-    if (chosen != null) slip.querySelector('.coach-body').innerHTML = STEPS[2].body();
+    if (chosen != null) say(chosen);
     requestAnimationFrame(place);
   }
 
@@ -202,6 +222,7 @@ K.coach = (() => {
   function stop() {
     clearTimeout(typeT); clearTimeout(swapT);
     step = 0; chosen = null;
+    say(null);
     blank(false);
     if (lit) lit.forEach((e) => e && e.classList.remove('coach-lit'));
     lit = null; focus = null;

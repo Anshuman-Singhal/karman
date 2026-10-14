@@ -4511,3 +4511,17 @@ body:has(#screen-round.paused) #hud .round-timer b::before {
 #screen-round .wbtns.coach-blank .wbtn::after { opacity: 0; }
 /* once a number is typed the hint has done its job; the row prints in a beat later */
 #screen-round:not(.empty) .wbtns.coach-blank::after { content: none; }
+
+/* Guide step 2: the live sentence takes the place of the "For scale" hint, the
+   line right above the guess and its range ("If it's between 33.3 and 75
+   meters, you climb +10 km. If not, nothing."). */
+#round-hint.coach-said { display: none; }
+.coach-say {
+  margin: 4px 0 0; text-wrap: balance;
+  font: 500 14.5px/1.35 var(--f-ui); color: var(--ink-2);
+  animation: coachSay 260ms var(--ease-out) both;
+}
+.coach-say::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1.5px var(--ink); vertical-align: 0; }
+.coach-say b { color: var(--ink); font-weight: 700; white-space: nowrap; }
+@keyframes coachSay { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .coach-say { animation: none; } }
