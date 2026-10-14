@@ -21,6 +21,8 @@ K.round = (() => {
   const $ = (id) => document.getElementById(id);
   const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
   const MAX_DIGITS = 9;
+  /** What each width is for, in everyday words: the tag on every width box. */
+  const SURE = ['no idea', 'rough idea', 'ballpark', 'close', 'know it'];
 
   let els;
   let fact = null;
@@ -57,7 +59,7 @@ K.round = (() => {
       b.setAttribute('role', 'radio');
       b.style.setProperty('--c', `var(--c-${c.key})`);
       b.style.setProperty('--i', String(i));   // the guide prints the row in left to right
-      b.innerHTML = `<span class="wb-range"></span><b class="wb-climb"></b>`;
+      b.innerHTML = `<span class="wb-word">${SURE[i]}</span><span class="wb-range"></span><b class="wb-climb"></b>`;
       b.addEventListener('click', () => selectChip(i));
       els.wbtns.appendChild(b);
       return b;
@@ -157,7 +159,7 @@ K.round = (() => {
     c.dataset.state = st;
     c.disabled = st === 'spent';
     c.innerHTML = {
-      ready: '<span class="ct-main">Clue</span><span class="ct-stub">½<small>climb</small></span>',
+      ready: '<span class="ct-main">Clue</span><span class="ct-stub ct-cost">costs half</span>',
       on: '<span class="ct-main">Clue on</span>',
       spent: `<span class="ct-main">Used on leg ${leg}</span>`,
     }[st];
@@ -173,7 +175,7 @@ K.round = (() => {
     const c = els.clue;
     if (c.dataset.state !== 'armed') {
       c.dataset.state = 'armed';
-      c.innerHTML = '<span class="ct-main">Confirm</span><span class="ct-stub">½<small>climb</small></span>';
+      c.innerHTML = '<span class="ct-main">Confirm</span><span class="ct-stub ct-cost">costs half</span>';
       c.setAttribute('aria-label', 'Tap again to use your clue. This leg pays half');
       els.hint.classList.remove('is-clue');
       els.hint.classList.add('is-cost');
@@ -357,8 +359,6 @@ K.round = (() => {
   }
 
   /* ---- the range a width gives, in words and on the buttons ---- */
-  /** What each width is for, before there is a guess to turn into numbers. */
-  const SURE = ['no idea', 'rough idea', 'ballpark', 'close', 'know it'];
   /** A range edge for a button: 3 significant figures, commas to 9,999, then 12k · 1.1M · 2.4B. */
   function edgeShort(vMetric) {
     if (fact.scale === 'year') return view.fmt(vMetric);
@@ -477,9 +477,9 @@ K.round = (() => {
       const r = guess != null ? S.range(fact, guess, i) : null;
       b.classList.toggle('on', i === state.chip);
       b.setAttribute('aria-checked', String(i === state.chip));
-      const short = r ? rangeShort(r) : SURE[i];
+      const short = r ? rangeShort(r) : '';
       b.querySelector('.wb-range').textContent = short;
-      b.classList.toggle('long', Boolean(r) && short.length >= 9);   // "144M–156M": a size down so it stays whole
+      b.classList.toggle('long', short.length >= 9);   // "144M–156M": a size down so it stays whole
       b.querySelector('.wb-climb').textContent = climb;
       b.setAttribute('aria-label', r ? `${S.CHIPS[i].name}: ${rangeWords(r)}, climb ${climb}` : `${S.CHIPS[i].name}: ${SURE[i]}, climb ${climb}`);
     });

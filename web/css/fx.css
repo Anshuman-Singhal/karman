@@ -106,3 +106,8 @@
   .odo-strip { transition: none !important; }
   .cloud, .plane, .windsock { animation: none !important; }
 }
+
+/* While a milestone banner is up, the sky's passing captions (a weather balloon
+   "rising") step back so the banner never reads over them. */
+body:has(.banner.show) #scene .cap { opacity: 0.18; transition: opacity 240ms ease; }
+#scene .cap { transition: opacity 400ms ease; }

@@ -48,10 +48,10 @@ K.coach = (() => {
 
   const STEPS = {
     1: { lit: () => [entry()], focus: () => entry(), tone: 'amber',
-      title: () => 'Type your best guess.', body: () => '<p>No rush: the clock is paused.</p>' },
+      title: () => 'Type your best guess.', body: () => '<p>No timer on this one. 30 seconds from the next.</p>' },
     2: { lit: () => [$('wbtns'), $('btn-lock')], focus: () => (chosen != null ? $('btn-lock') : $('wbtns')), tone: () => (chosen != null ? S().CHIPS[chosen].key : 'amber'),
       title: () => 'How sure are you? Tap a box.',
-      body: () => (chosen != null ? outcome(chosen) : '<p>Wider is safer. Narrower climbs more.</p>') },
+      body: () => (chosen != null ? outcome(chosen) : '<p>If the answer\u2019s in your box, you climb. If not, nothing.</p>') },
   };
 
   /* ---------------------------------------------------------------- layout */
