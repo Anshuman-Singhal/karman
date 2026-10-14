@@ -43,7 +43,7 @@ K.round = (() => {
     els = {
       card: $('screen-round'), timerLive: $('timer-live'), legs: $('legs'), cat: $('round-cat'),
       timer: $('round-timer'), clue: $('btn-clue'), q: $('round-q'), hint: $('round-hint'),
-      lo: $('r-lo'), hi: $('r-hi'), guess: $('guess-value'), unitBtn: $('unit-toggle'),
+      lo: $('r-lo'), hi: $('r-hi'), between: $('r-between'), guess: $('guess-value'), unitBtn: $('unit-toggle'),
       ticks: $('scale-ticks'), track: $('track'), band: $('band'), needle: $('needle'),
       wbtns: $('wbtns'),
       pad: $('keypad'), controls: $('round-controls'), result: $('round-result'),
@@ -463,9 +463,11 @@ K.round = (() => {
       // wrapped so the guide can run a highlighter under just the number
       els.lo.innerHTML = `<span class="r-num">${edgeReadout(r.lo)}</span>`;
       els.hi.innerHTML = `<span class="r-num">${edgeReadout(r.hi)}</span>`;
+      if (els.between) els.between.textContent = rangeWords(r);
     } else {
       els.lo.textContent = '—';
       els.hi.textContent = '—';
+      if (els.between) els.between.textContent = '';
     }
     els.lock.disabled = guess == null || none;
     els.lockMain.textContent = guess == null ? 'Type a guess' : none ? 'Pick one' : 'Lock it in';
