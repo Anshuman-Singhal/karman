@@ -4388,6 +4388,8 @@ body:has(#screen-round.paused) #hud .round-timer b::before {
 #screen-round .wbtns.coach-blank { box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.2); }
 #screen-round .wbtns.coach-blank .wbtn { pointer-events: none; }
 #screen-round .wbtns.coach-blank .wbtn > *, #screen-round .wbtns.coach-blank .wbtn::after { opacity: 0; }
+/* once a number is typed the hint has done its job; the row prints in a beat later */
+#screen-round:not(.empty) .wbtns.coach-blank::after { content: none; }
 #screen-round .wbtns.coach-blank .wbtn + .wbtn::before { opacity: 0.45; }
 #screen-round .wbtns { transition: box-shadow 400ms ease; }
 /* step 2: it prints in, box by box */
@@ -4507,3 +4509,5 @@ body:has(#screen-round.paused) #hud .round-timer b::before {
   font: italic 400 15px/1 var(--f-serif); color: rgba(20, 33, 61, 0.42); pointer-events: none;
 }
 #screen-round .wbtns.coach-blank .wbtn::after { opacity: 0; }
+/* once a number is typed the hint has done its job; the row prints in a beat later */
+#screen-round:not(.empty) .wbtns.coach-blank::after { content: none; }
