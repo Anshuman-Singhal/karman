@@ -4535,10 +4535,9 @@ body:has(#screen-round.paused) #hud .round-timer b::before {
 }
 .round.show-ruler .r-between, .round.is-revealed .r-between { display: none; }
 
-/* Keep flying: centred like Next leg, a bigger line under it, and a stub that
-   says which Unlimited flight is next ("FLIGHT · #6") instead of a lone ∞. */
+/* Keep flying: centred title; owners see just KEEP FLYING | UNLIMITED. */
 #screen-results .keep-ticket .kt-main { align-items: center; text-align: center; gap: 5px; padding: 0 12px; }
 #screen-results .keep-ticket .kt-main b { font-size: 24px; letter-spacing: 0.08em; }
 #screen-results .keep-ticket .kt-main small { font-size: 13px; font-weight: 500; }
-#screen-results .keep-ticket .kt-stub { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 22px; line-height: 1; }
-#screen-results .keep-ticket .kt-stub small { font: 700 9.5px/1 var(--f-ui); letter-spacing: 0.14em; text-transform: uppercase; color: rgba(20, 33, 61, 0.62); }
+#screen-results .keep-ticket.owned { --cut: 72%; }
+#screen-results .keep-ticket.owned .kt-stub { font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; }
