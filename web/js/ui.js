@@ -508,8 +508,15 @@ K.ui = (() => {
   /* ------------------------------------------------------------ keep flying */
   function paintKeep() {
     const A = K.access;
-    $('keep-sub').textContent = A.unlimited() ? '7 new questions' : A.freeRunLeft() ? 'Your first Unlimited run is free' : `Unlimited · ${K.CONFIG.PRICE} once`;
-    $('keep-stub').innerHTML = A.unlimited() ? '∞' : A.freeRunLeft() ? 'FREE' : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>';
+    const d = K.storage.data;
+    const runs = (K.SCHEDULE && K.SCHEDULE.runs) || [];
+    const left = Math.max(0, runs.length - new Set(d.runsDone || []).size);
+    // Owned: say what's waiting and which flight it will be (like Next leg's "LEG 2").
+    $('keep-sub').textContent = A.unlimited()
+      ? (left > 1 ? `7 new questions · ${left} runs to go` : left === 1 ? '7 new questions · last new run' : '7 questions · replays from here')
+      : A.freeRunLeft() ? 'Your first Unlimited run is free' : `Unlimited · ${K.CONFIG.PRICE} once`;
+    $('keep-stub').innerHTML = A.unlimited() ? `<small>Flight</small>#${(d.unlimitedCount || 0) + 1}`
+      : A.freeRunLeft() ? 'FREE' : '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>';
   }
 
   /** Anything that shows locked/unlocked state, after access changes. */
