@@ -243,11 +243,12 @@ K.game = (() => {
     legShownAt = Date.now();   // from the first frame of the new leg, stray taps are ignored
     const i = live.round;
     const fact = flight.facts[i];
+    const guided = live.untimed && i === 0;   // the one guided leg: no clock, no width chosen for you
     if (!resuming) {
       live.phase = 'round';
       live.startedAt = Date.now();
       live.entry = '';
-      live.chip = store.lastChip != null ? store.lastChip : S.DEFAULT_CHIP;   // keep the width you used last
+      live.chip = guided ? null : store.lastChip != null ? store.lastChip : S.DEFAULT_CHIP;   // keep the width you used last
       save();
     }
     const opts = {
@@ -264,16 +265,18 @@ K.game = (() => {
       live.startedAt = Date.now();   // the 30 s start once the dial is full
       save();
     } else K.round.render(opts);
-    K.scene.setChip(live.chip, true);
+    if (live.chip != null) K.scene.setChip(live.chip, true);
     if (K.ui.current !== 'round') K.ui.show('round');
-    if (live.untimed && i === 0) {          // the one guided leg: no clock, three slips
+    if (guided) {                            // the one guided leg: the clock is paused, two slips
       K.round.setTimer(C.ROUND_SECONDS, C.ROUND_SECONDS);
+      K.round.setPaused(true);
       K.coach.onDone = () => {                 // skipped: the clock starts now
         if (!live || live.phase !== 'round') return;
         live.untimed = false; store.tutored = true; live.startedAt = Date.now(); save();
+        K.round.setPaused(false);
         startTimer(C.ROUND_SECONDS);
       };
-      setTimeout(() => K.coach.start(), K.fx.reduced() ? 0 : 500);
+      setTimeout(() => K.coach.start({ entry: live.entry, chip: live.chip }), K.fx.reduced() ? 0 : 500);
       return;
     }
     startTimer(C.ROUND_SECONDS);
@@ -304,7 +307,7 @@ K.game = (() => {
     if (!opts.timedOut && (Date.now() - legShownAt < 500 || document.getElementById('screen-round').classList.contains('leg-out') || document.getElementById('screen-round').classList.contains('leg-in'))) return;
     busy = true;
     stopTimer();
-    if (live.untimed) { K.coach.stop(); live.untimed = false; store.tutored = true; save(); }
+    if (live.untimed) { K.coach.stop(); K.round.setPaused(false); live.untimed = false; store.tutored = true; save(); }
 
     const i = live.round;
     const fact = flight.facts[i];
@@ -386,6 +389,7 @@ K.game = (() => {
       hit: result.hit, chipIdx: result.chip, delta: result.delta, ptsAfter: result.ptsAfter, clue: result.clue,
       timedOut: result.timedOut, guess: result.guess, lo: result.lo, hi: result.hi,
       hindsight: hindsight(fact, result),
+      plain: ((store.stats && store.stats.flights) || 0) < HINDSIGHT_FLIGHTS,   // first week: the rule in a sentence
       nextLabel: i < C.LEGS - 1 ? 'Next leg' : 'See your flight',
       nextStub: i < C.LEGS - 1 ? `Leg ${i + 2}` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
     });

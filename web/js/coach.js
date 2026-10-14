@@ -1,31 +1,26 @@
 /* ==========================================================================
    KÁRMÁN · coach.js
    The one guided leg: the first leg of a pilot's first flight (and once more
-   for everyone whenever storage.js bumps guideV). A spotlight tutorial; the
-   veil covers everything EXCEPT the controls the slip is about, so the
-   player just does the thing:
+   for everyone whenever storage.js bumps guideV). Two slips, nothing dimmed,
+   and the controls themselves do the explaining:
 
-     1 · "Type your best guess."   → a pause in the typing advances
-     2 · "Tap Wide."               → only Wide advances
-     3 · "Now tap Pinpoint."       → only Pinpoint advances
-     4 · "How sure are you? Pick one." → Pinpoint holds a beat, then every width
-         is unselected (Lock waits), a slow colour wash runs across the five
-         boxes, and a small arrow in each box's colour bobs over it, each box
-         breathing its tint, until the player picks one. Then the ring moves
-         to Lock, and locking ends the guide.
-   Players used to tap the pre-selected width and never look at the others
-   (Oct 2026), so steps 2 and 3 make them feel both ends of the trade before
-   choosing. Every width tap in the guide runs a highlighter, in that width's
-   colour, under the range numbers and lets it fade: the card itself shows
-   what changed. Step 4 sweeps the same highlighter across all five widths.
-   The lit area only ever grows, so a player can keep typing throughout.
+     1 · "Type your best guess."   The card is fully readable; the width row
+         is on it but unprinted (a blank strip, not tappable), so there is
+         one thing to do. The dial shows a pause glyph. A pause in the typing
+         advances.
+     2 · "How sure are you?"       The width row prints in, each box showing
+         the real range it gives the typed guess and its climb; no box is
+         chosen. The ring moves onto the row. A tap fills the box, runs the
+         highlighter under the range numbers, and the slip's line becomes the
+         live sentence that states both outcomes in plain words:
+         "If it's between 33 and 75 meters, you climb +10 km. If not, nothing."
+         The ring glides to Lock; locking ends the guide.
 
-   One slip, anchored above the card: its text crossfades and its height
-   eases between steps; the ring, the hole in the veil and the arrow glide
-   to their next target (CSS transitions, off under reduced motion).
+   No veil: the Oct 2026 tests found the dimmed question was the one thing
+   players never read. No prescribed taps either: every tap shows its own
+   consequence, which is what teaches. One slip per step, few words.
 
    No Next button. "Skip" on the slip ends it and starts the clock.
-   The veil is four panels around a hole, so the lit control is live.
    ========================================================================== */
 
 K.coach = (() => {
@@ -33,68 +28,42 @@ K.coach = (() => {
   const coarse = () => matchMedia('(pointer: coarse)').matches;
   const reduced = () => (K.fx && K.fx.reduced ? K.fx.reduced() : matchMedia('(prefers-reduced-motion: reduce)').matches);
   let step = 0;
-  let veil = null, panels = [], ring = null, slip = null, arrow = null, lit = null, focus = null;
-  let pips = null, text = null, swapT = 0;
-  let arrows = [];             // step 4: one small arrow per width, in its colour
-  let pick = '';               // step 4 phase: 'wash' → 'choose' → 'chosen'
-  let seqT = [];               // step 4 timers
-  const later = (fn, ms) => { seqT.push(setTimeout(fn, ms)); };
+  let veil = null, ring = null, slip = null, lit = null, focus = null;
+  let pips = null, text = null, swapT = 0, typeT = 0, ro = null;
+  let chosen = null;           // step 2: the width tapped so far (null until the first tap)
   let onDone = null;
-
-  // The lit area grows rather than moves: the guess stays live (keep typing,
-  // fix a digit) while the width row, then Lock, join it. The ring marks the
-  // control the slip is about.
-  const entry = () => (coarse() ? [$('readout'), $('keypad')] : [$('readout')]);
-  const chipEl = (i) => document.querySelectorAll('#wbtns .wbtn')[i];
   const S = () => K.scoring;
-  const STEPS = {
-    1: { at: () => entry(), focus: () => (coarse() ? $('keypad') : $('readout')), tone: 'amber',
-      title: () => 'Type your best guess.', body: () => '<p>No clock on this one.</p>' },
-    2: { at: () => [...entry(), $('wbtns')], focus: () => chipEl(0), arrowAt: () => chipEl(0), tone: 'wide',
-      title: () => 'Tap Wide for the largest confidence interval.', body: () => '<p>Watch your range.</p>' },
-    3: { at: () => [...entry(), $('wbtns')], focus: () => chipEl(4), arrowAt: () => chipEl(4), tone: 'pinpoint',
-      title: () => 'Now tap Pinpoint, for when you know the answer exactly.', body: () => '' },
-    4: { at: () => [...entry(), $('wbtns'), $('btn-lock')], focus: () => (pick === 'chosen' ? $('btn-lock') : $('wbtns')), tone: 'amber',
-      title: () => (pick === 'chosen' ? 'Now lock it in.' : 'How sure are you? Pick one.'),
-      body: () => (pick === 'chosen' ? '' : scale()) },
-  };
-  const LAST = 4;
+  const LAST = 2;
 
-  /* Step 4's explanation as a small scale rather than a paragraph:
-       ● Wide ─ ● ─ ● ─ ● ─ Pinpoint ●
-       unsure            know it exactly
-       reward +2 km               reward +20 km
-     Same facts (unsure → exact, the more sure the higher the climb and the
-     tighter the range), read in a glance. Climbs follow the player's units. */
-  function scale() {
-    const C = S().CHIPS, climb = (i) => K.units.climbText(S().kmOf(S().legPoints(i)));
-    const dots = C.map((c) => `<i style="--c: var(--c-${c.key})"></i>`).join('');
-    return `<div class="coach-scale">
-      <div class="cs-row cs-names"><b>${C[0].name}</b><span class="cs-track" aria-hidden="true">${dots}</span><b>${C[4].name}</b></div>
-      <div class="cs-row cs-when"><span>unsure</span><span>know it exactly</span></div>
-      <div class="cs-row cs-what"><span>reward <em>${climb(0)}</em></span><span>reward <em>${climb(4)}</em></span></div>
-    </div>`;
+  const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const entry = () => (coarse() ? $('keypad') : $('readout'));
+
+  /** The live sentence for a tapped width: both outcomes, in the player's units. */
+  function outcome(chip) {
+    const rs = K.round.ranges();
+    if (!rs || chip == null) return '';
+    const r = rs[chip];
+    return `<p class="coach-live">If it's <b>${esc(r.words)}</b>, you climb <b>${esc(r.climb)}</b>. If not, nothing.</p>`;
   }
 
-  /* ---------------------------------------------------------- layout */
+  const STEPS = {
+    1: { lit: () => [entry()], focus: () => entry(), tone: 'amber',
+      title: () => 'Type your best guess.', body: () => '<p>No rush: the clock is paused.</p>' },
+    2: { lit: () => [$('wbtns'), $('btn-lock')], focus: () => (chosen != null ? $('btn-lock') : $('wbtns')), tone: () => (chosen != null ? S().CHIPS[chosen].key : 'amber'),
+      title: () => 'How sure are you? Tap a box.',
+      body: () => (chosen != null ? outcome(chosen) : '<p>Wider is safer. Narrower climbs more.</p>') },
+  };
+
+  /* ---------------------------------------------------------------- layout */
   const R = (el) => el.getBoundingClientRect();
 
   function place() {
-    if (!slip || !lit || !lit.length) return;
-    const rs = lit.map(R), pad = 6, W = window.innerWidth, H = window.innerHeight;
-    const r = { left: Math.min(...rs.map((q) => q.left)), top: Math.min(...rs.map((q) => q.top)), right: Math.max(...rs.map((q) => q.right)), bottom: Math.max(...rs.map((q) => q.bottom)) };
-    const hole = { l: r.left - pad, t: r.top - pad, r: r.right + pad, b: r.bottom + pad };
-    const f = focus ? R(focus) : r;
-    const ringBox = { l: f.left - pad, t: f.top - pad, r: f.right + pad, b: f.bottom + pad };
-    // four blocking panels around the hole
-    const [top, left, right, bottom] = panels;
-    Object.assign(top.style, { left: 0, top: 0, width: `${W}px`, height: `${Math.max(0, hole.t)}px` });
-    Object.assign(bottom.style, { left: 0, top: `${hole.b}px`, width: `${W}px`, height: `${Math.max(0, H - hole.b)}px` });
-    Object.assign(left.style, { left: 0, top: `${hole.t}px`, width: `${Math.max(0, hole.l)}px`, height: `${hole.b - hole.t}px` });
-    Object.assign(right.style, { left: `${hole.r}px`, top: `${hole.t}px`, width: `${Math.max(0, W - hole.r)}px`, height: `${hole.b - hole.t}px` });
-    Object.assign(ring.style, { left: `${ringBox.l}px`, top: `${ringBox.t}px`, width: `${ringBox.r - ringBox.l}px`, height: `${ringBox.b - ringBox.t}px` });
+    if (!slip || !focus) return;
+    const pad = 6, W = window.innerWidth, H = window.innerHeight;
+    const f = R(focus);
+    Object.assign(ring.style, { left: `${f.left - pad}px`, top: `${f.top - pad}px`, width: `${f.width + pad * 2}px`, height: `${f.height + pad * 2}px` });
     // The slip hangs above the card (over the sky), centred on it and anchored
-    // at its foot, so it only ever grows upward and never covers the keys.
+    // at its foot, so it only ever grows upward and never covers the question.
     const dock = $('dock');
     const d = dock ? R(dock) : { left: 0, width: W, top: H * 0.55 };
     const w = Math.min(336, W - 32);
@@ -102,44 +71,14 @@ K.coach = (() => {
     slip.style.width = `${w}px`;
     slip.style.left = `${x}px`;
     slip.style.bottom = `${Math.max(12, H - d.top + 14)}px`;
-    // the arrow over the width to tap; it glides from one to the next
-    const s = STEPS[step];
-    const target = s && s.arrowAt ? s.arrowAt() : null;
-    if (target) {
-      const a = R(target);
-      arrow.style.left = `${a.left + a.width / 2}px`;
-      arrow.style.top = `${a.top - 3}px`;   // its tip rests on the ring; the bounce taps down, never up into the readout
-      arrow.classList.add('on');
-    } else arrow.classList.remove('on');
-    // step 4: an arrow over every width while the player chooses
-    arrows.forEach((a, i) => {
-      const c = chipEl(i);
-      if (!c) return;
-      const b = R(c);
-      a.style.left = `${b.left + b.width / 2}px`;
-      a.style.top = `${b.top - pad - 1}px`;
-    });
   }
 
-  /* ---------------------------------------------------------- dom */
+  /* ---------------------------------------------------------------- dom */
   function ensureDom() {
     if (veil) return;
     veil = document.createElement('div');
     veil.className = 'coach-veil';
-    panels = ['top', 'left', 'right', 'bottom'].map((k) => { const d = document.createElement('div'); d.className = `coach-panel coach-${k}`; veil.appendChild(d); return d; });
     ring = document.createElement('div'); ring.className = 'coach-ring'; veil.appendChild(ring);
-    arrow = document.createElement('div'); arrow.className = 'coach-arrow';
-    arrow.innerHTML = '<svg viewBox="0 0 22 28" aria-hidden="true"><path d="M8 1.5h6v12h5.5L11 26.5 2.5 13.5H8z" stroke-width="1.6" stroke-linejoin="round"/></svg>';
-    veil.appendChild(arrow);
-    arrows = S().CHIPS.map((c, i) => {
-      const a = document.createElement('div');
-      a.className = 'coach-arrow coach-mini';
-      a.style.setProperty('--ac', `var(--c-${c.key})`);
-      a.style.setProperty('--hl-delay', `${i * 140}ms`);
-      a.innerHTML = '<svg viewBox="0 0 22 28" aria-hidden="true"><path d="M8 1.5h6v12h5.5L11 26.5 2.5 13.5H8z" stroke-width="1.8" stroke-linejoin="round"/></svg>';
-      veil.appendChild(a);
-      return a;
-    });
     slip = document.createElement('div');
     slip.className = 'coach-slip';
     slip.setAttribute('role', 'status');
@@ -149,9 +88,9 @@ K.coach = (() => {
     slip.querySelector('.coach-skip').addEventListener('click', skip);
     veil.appendChild(slip);
     document.body.appendChild(veil);
-    // the panels swallow taps so nothing else moves while a slip is up
-    panels.forEach((p) => ['pointerdown', 'click', 'touchstart'].forEach((ev) => p.addEventListener(ev, (e) => { e.stopPropagation(); e.preventDefault(); }, { passive: false })));
     window.addEventListener('resize', place);
+    // the card changes height (a clue, a longer sentence): the slip and ring follow
+    if (window.ResizeObserver) { ro = new ResizeObserver(() => place()); const d = $('dock'); if (d) ro.observe(d); }
   }
 
   /** The slip's words: crossfade the text and ease the height, in place. */
@@ -181,16 +120,18 @@ K.coach = (() => {
     }, 150);
   }
 
+  function tone(s) { return typeof s.tone === 'function' ? s.tone() : s.tone; }
+
   function show(n) {
     const first = !veil;
     ensureDom();
     step = n;
     const s = STEPS[n];
     if (lit) lit.forEach((e) => e && e.classList.remove('coach-lit'));
-    lit = s.at().filter(Boolean);
-    focus = s.focus ? s.focus() : null;
+    lit = s.lit().filter(Boolean);
+    focus = s.focus();
     lit.forEach((e) => e.classList.add('coach-lit'));
-    veil.dataset.tone = s.tone;
+    veil.dataset.tone = tone(s);
     slip.dataset.step = String(n);
     pips.forEach((p, i) => { p.classList.toggle('done', i < n - 1); p.classList.toggle('now', i === n - 1); });
     setText(s, first);
@@ -199,86 +140,74 @@ K.coach = (() => {
     requestAnimationFrame(place);
   }
 
-  /** A highlighter stroke under `els` in a width's colour, then it fades.
-      Restarts cleanly if tapped again mid-stroke. stagger: ms between items. */
-  function mark(els, colorOf, stagger = 0, cls = 'coach-hl') {
+  /** The width row: unprinted in step 1, printed in (left to right) for step 2. */
+  function blank(on) {
+    const w = $('wbtns');
+    if (!w) return;
+    if (on) { w.classList.add('coach-blank'); w.classList.remove('coach-print'); return; }
+    if (!w.classList.contains('coach-blank')) return;
+    w.classList.remove('coach-blank');
+    if (!reduced()) { void w.offsetWidth; w.classList.add('coach-print'); setTimeout(() => w.classList.remove('coach-print'), 1400); }
+  }
+
+  /** A highlighter stroke under the range numbers in the width's colour, then it fades. */
+  function markRange(chip) {
     if (reduced()) return;
-    els.forEach((e, i) => {
-      if (!e) return;
-      e.classList.remove(cls);
-      e.style.setProperty('--hl', colorOf(i));
-      e.style.setProperty('--hl-delay', `${i * stagger}ms`);
+    document.querySelectorAll('#readout .r-num').forEach((e) => {
+      e.classList.remove('coach-hl');
+      e.style.setProperty('--hl', `var(--hl-${S().CHIPS[chip].key})`);
       void e.offsetWidth;
-      e.classList.add(cls);
+      e.classList.add('coach-hl');
     });
   }
-  const chipColor = (i) => `var(--hl-${S().CHIPS[i].key})`;
-  const markRange = (chip) => mark([...document.querySelectorAll('#readout .r-num')], () => chipColor(chip));
-  const widthEls = () => [...document.querySelectorAll('#wbtns .wbtn')];
 
-  /** Step 4, in order: Pinpoint's range holds a beat → every width is unselected
-      → a slow wash crosses the five boxes → an arrow bobs over each box, each
-      breathing its tint, until the player picks. */
-  function toChoose() {
-    pick = 'wash';
-    later(() => {
-      if (step !== 3) return;
-      K.round.clearChip();
-      show(4);
-      mark(widthEls(), chipColor, 230, 'coach-box');
-      later(() => {
-        if (step !== 4 || pick !== 'wash') return;
-        pick = 'choose';
-        widthEls().forEach((b, i) => { b.style.setProperty('--hl', chipColor(i)); b.style.setProperty('--hl-delay', `${i * 140}ms`); b.classList.add('coach-breathe'); });
-        place();
-        arrows.forEach((a) => a.classList.add('on'));
-      }, reduced() ? 0 : 230 * 4 + 1500);
-    }, reduced() ? 300 : 1600);
+  /* ---------------------------------------------------------------- hooks */
+  /** game.js hands over what is already on the card (a reload mid-guide). */
+  function start(saved = {}) {
+    chosen = saved.chip != null ? saved.chip : null;
+    if (saved.entry) { blank(false); show(2); }
+    else { blank(true); show(1); }
   }
-  function chosen(chip) {
-    const firstPick = pick !== 'chosen';
-    pick = 'chosen';
-    seqT.forEach(clearTimeout); seqT = [];
-    arrows.forEach((a) => a.classList.remove('on'));
-    widthEls().forEach((b) => b.classList.remove('coach-breathe', 'coach-box'));
-    markRange(chip);
-    focus = $('btn-lock');
-    if (slip && firstPick) setText(STEPS[4]);
-    place();
-  }
-
-  /* ---------------------------------------------------------- hooks */
-  function start() { pick = ''; show(1); }
 
   /** round.js reports keypad / width changes through game.js. */
-  // Step 1 waits for a pause in the typing (not the first digit), so a full
-  // number goes in before the slip changes; the keypad stays live either way.
-  let typeT = 0;
   function input(entry, chip, kind) {
     if (!step) return;
     clearTimeout(typeT);
-    if (step === 1 && entry) typeT = setTimeout(() => { if (step === 1) show(2); }, 1100);
-    else if (kind === 'chip' && step === 4) chosen(chip);
-    else if (kind === 'chip' && step === 3 && pick === 'wash') { /* Pinpoint is holding its beat */ }
-    else {
-      if (step >= 2 && kind === 'chip') markRange(chip);
-      if (step === 2 && kind === 'chip' && chip === 0) show(3);
-      else if (step === 3 && kind === 'chip' && chip === 4) toChoose();
-      else requestAnimationFrame(place);
+    if (step === 1) {
+      if (kind === 'chip' && chip != null) { K.round.clearChip(); return; }   // (keyboard arrows) the row is not printed yet
+      // Wait for a pause in the typing (not the first digit), so a whole number
+      // goes in before the row prints; the keypad stays live either way.
+      if (entry) typeT = setTimeout(() => { if (step === 1) { blank(false); show(2); } }, 1100);
+      return;
     }
+    if (kind === 'chip' && chip != null) {
+      const firstPick = chosen == null;
+      chosen = chip;
+      markRange(chip);
+      const s = STEPS[2];
+      veil.dataset.tone = tone(s);
+      focus = s.focus();
+      if (firstPick) setText(s);
+      else { slip.querySelector('.coach-body').innerHTML = s.body(); }
+      place();
+      return;
+    }
+    // more digits: the ranges on the card change; the sentence follows
+    if (chosen != null) slip.querySelector('.coach-body').innerHTML = STEPS[2].body();
+    requestAnimationFrame(place);
   }
 
   function skip() { stop(); if (onDone) onDone('skipped'); }
 
   function stop() {
     clearTimeout(typeT); clearTimeout(swapT);
-    seqT.forEach(clearTimeout); seqT = [];
-    step = 0; pick = '';
-    document.querySelectorAll('.coach-breathe').forEach((e) => e.classList.remove('coach-breathe'));
+    step = 0; chosen = null;
+    blank(false);
     if (lit) lit.forEach((e) => e && e.classList.remove('coach-lit'));
     lit = null; focus = null;
-    document.querySelectorAll('.coach-hl, .coach-box').forEach((e) => e.classList.remove('coach-hl', 'coach-box'));
-    if (veil) { window.removeEventListener('resize', place); const v = veil; veil = null; panels = []; ring = slip = arrow = pips = text = null; arrows = []; v.classList.remove('on'); setTimeout(() => v.remove(), 260); }
+    document.querySelectorAll('.coach-hl').forEach((e) => e.classList.remove('coach-hl'));
+    if (ro) { ro.disconnect(); ro = null; }
+    if (veil) { window.removeEventListener('resize', place); const v = veil; veil = null; ring = slip = pips = text = null; v.classList.remove('on'); setTimeout(() => v.remove(), 260); }
   }
 
   return { start, input, stop, skip, set onDone(fn) { onDone = fn; }, get active() { return step > 0; }, get paused() { return step > 0; } };

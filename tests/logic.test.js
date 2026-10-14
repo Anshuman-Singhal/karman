@@ -192,6 +192,11 @@ section('Cloud save merge');
   const a = M({ v: 1, launch: '2026-10-7' }); a.days[3] = flight(3, 150);
   const b = M({ v: 1, launch: '2026-10-7' }); b.days[3] = flight(3, 350);
   check(K.sync.merge(a, b).days[3].pts === 350, 'same day on two devices: the better flight is kept');
+  // Guide v4: every pilot gets the guided first leg once more, nothing else touched.
+  const old = M({ v: 1, launch: '2026-10-7', guideV: 3, tutored: true, streak: { cur: 4, best: 4, lastDay: 6, thermals: 1 } });
+  check(old.tutored === false && old.guideV === 4 && old.streak.cur === 4, 'a guideV 3 save gets the new guide once; streak untouched');
+  const done = M({ v: 1, launch: '2026-10-7', guideV: 4, tutored: true });
+  check(done.tutored === true, 'a save that has seen guide v4 is not guided again');
 }
 
 /* ---- per-leg climbs always add up to the total shown ---- */

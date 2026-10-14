@@ -47,14 +47,17 @@ K.round = (() => {
       pad: $('keypad'), controls: $('round-controls'), result: $('round-result'),
     };
 
-    // Width buttons: one tap picks how sure you are.
+    // Width buttons: one tap picks how sure you are. Each shows the range it
+    // would give the typed guess (top) and its climb (below); before a guess
+    // the top line says how sure that width is for, in everyday words.
     els.wbtnEls = S.CHIPS.map((c, i) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'wbtn';
       b.setAttribute('role', 'radio');
       b.style.setProperty('--c', `var(--c-${c.key})`);
-      b.innerHTML = `<span>${c.name}</span><b></b>`;
+      b.style.setProperty('--i', String(i));   // the guide prints the row in left to right
+      b.innerHTML = `<span class="wb-range"></span><b class="wb-climb"></b>`;
       b.addEventListener('click', () => selectChip(i));
       els.wbtns.appendChild(b);
       return b;
@@ -98,7 +101,7 @@ K.round = (() => {
     onChange = opts.onChange;
     locked = false;
 
-    els.card.classList.remove('is-locked', 'is-revealed', 't-mid', 't-low', 'clued', 'show-ruler');
+    els.card.classList.remove('is-locked', 'is-revealed', 't-mid', 't-low', 'clued', 'show-ruler', 'paused');
     els.band.className = 'band';
     els.needle.hidden = true;
     els.needle.className = 'needle';
@@ -353,6 +356,45 @@ K.round = (() => {
     return `${+v.toPrecision(3)}`;
   }
 
+  /* ---- the range a width gives, in words and on the buttons ---- */
+  /** What each width is for, before there is a guess to turn into numbers. */
+  const SURE = ['no idea', 'rough idea', 'ballpark', 'close', 'know it'];
+  /** A range edge for a button: 3 significant figures, commas to 9,999, then 12k · 1.1M · 2.4B. */
+  function edgeShort(vMetric) {
+    if (fact.scale === 'year') return view.fmt(vMetric);
+    const v = view.toDisp(vMetric);
+    const g = Number(v.toPrecision(3)), a = Math.abs(g);
+    if (a >= 1e9) return `${+(g / 1e9).toPrecision(3)}B`;
+    if (a >= 1e6) return `${+(g / 1e6).toPrecision(3)}M`;
+    if (a >= 1e4) return `${+(g / 1e3).toPrecision(3)}k`;
+    return g.toLocaleString('en-US', { maximumFractionDigits: a < 10 ? 2 : 1 });
+  }
+  /** "33–75" for a button, "7" when the width is exact on a small count. */
+  function rangeShort(r) {
+    const lo = edgeShort(r.lo), hi = edgeShort(r.hi);
+    return lo === hi ? lo : `${lo}–${hi}`;
+  }
+  /** The same range in a sentence: "between 33 and 75 meters" / "exactly 7 dots" / "between 1890 and 1980". */
+  /** A range edge in a sentence: "1.5 million" rather than "1,500,000". */
+  function edgeWords(vMetric) {
+    if (fact.scale === 'year') return view.fmt(vMetric);
+    const a = Math.abs(view.toDisp(vMetric));
+    if (a >= 1e9) return `${+(view.toDisp(vMetric) / 1e9).toPrecision(3)} billion`;
+    if (a >= 1e6) return `${+(view.toDisp(vMetric) / 1e6).toPrecision(3)} million`;
+    return view.fmt(vMetric);
+  }
+  function rangeWords(r, noUnit) {
+    const unit = view.unit && !noUnit ? ` ${view.unit}` : '';
+    const lo = edgeWords(r.lo), hi = edgeWords(r.hi);
+    return lo === hi ? `exactly ${lo}${unit}` : `between ${lo} and ${hi}${unit}`;
+  }
+  /** The ranges every width would give the current guess, for the guide's live line. null with no guess. */
+  function ranges() {
+    const g = guessValue();
+    if (g == null) return null;
+    return S.CHIPS.map((c, i) => { const r = S.range(fact, g, i); return { lo: r.lo, hi: r.hi, short: rangeShort(r), words: rangeWords(r), climb: K.units.climbText(S.kmOf(S.legPointsFor(i, Boolean(ctx.clueHere)))) }; });
+  }
+
   function drawTicks(r) {
     els.ticks.innerHTML = '';
     const add = (v, major, text) => {
@@ -410,8 +452,8 @@ K.round = (() => {
     if (guess != null && !none) {
       const r = S.range(fact, guess, state.chip);
       // wrapped so the guide can run a highlighter under just the number
-      els.lo.innerHTML = `<span class="r-num">${view.fmt(r.lo)}</span>`;
-      els.hi.innerHTML = `<span class="r-num">${view.fmt(r.hi)}</span>`;
+      els.lo.innerHTML = `<span class="r-num">${edgeShort(r.lo)}</span>`;
+      els.hi.innerHTML = `<span class="r-num">${edgeShort(r.hi)}</span>`;
     } else {
       els.lo.textContent = '—';
       els.hi.textContent = '—';
@@ -427,13 +469,32 @@ K.round = (() => {
       els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `Lock it in for ${K.units.climbText(S.kmOf(bet))}`);
     }
 
-    // Width buttons: the chosen one lights up; values halve when the clue is on.
+    // Width buttons: the chosen one lights up; each shows the range it would
+    // give this guess (or what it is for, before a guess); climbs halve when
+    // the clue is on.
     els.wbtnEls.forEach((b, i) => {
-      const full = S.legPoints(i);
+      const climb = K.units.climbText(S.kmOf(S.legPointsFor(i, Boolean(ctx.clueHere))));
+      const r = guess != null ? S.range(fact, guess, i) : null;
       b.classList.toggle('on', i === state.chip);
       b.setAttribute('aria-checked', String(i === state.chip));
-      b.querySelector('b').textContent = K.units.climbText(S.kmOf(S.legPointsFor(i, Boolean(ctx.clueHere))));
+      const short = r ? rangeShort(r) : SURE[i];
+      b.querySelector('.wb-range').textContent = short;
+      b.classList.toggle('long', Boolean(r) && short.length >= 9);   // "144M–156M": a size down so it stays whole
+      b.querySelector('.wb-climb').textContent = climb;
+      b.setAttribute('aria-label', r ? `${S.CHIPS[i].name}: ${rangeWords(r)}, climb ${climb}` : `${S.CHIPS[i].name}: ${SURE[i]}, climb ${climb}`);
     });
+  }
+
+  /** The guided leg: the dial shows a pause glyph instead of a count. */
+  function setPaused(on) {
+    els.card.classList.toggle('paused', Boolean(on));
+    if (on) {
+      els.timerNum.textContent = '';
+      els.timer.setAttribute('aria-label', 'Clock paused');
+    } else {
+      els.timerNum.textContent = String(lastSec);
+      els.timer.setAttribute('aria-label', `${lastSec} seconds left`);
+    }
   }
 
   /* ------------------------------------------------------------ timer */
@@ -520,23 +581,31 @@ K.round = (() => {
 
     let d;
     const climb = ptsAfter != null ? K.units.legText(S.kmOf(ptsAfter - delta), S.kmOf(ptsAfter)) : K.units.climbText(S.kmOf(delta));
+    const plain = Boolean(args.plain) && guess != null;   // first week: the rule in a sentence (the line below says "no climb")
     if (hit) d = `${climb}${clue ? ' (clue: half)' : ''}`;
-    else d = guess == null ? (timedOut ? 'No climb' : 'No climb') : `No climb · ${offByText(guess)}`;
+    else d = guess == null ? (timedOut ? 'No climb' : 'No climb') : plain ? offByText(guess) : `No climb · ${offByText(guess)}`;
     const vd = els.result.querySelector('.verdict-delta');
     vd.textContent = d;
     vd.classList.toggle('gain', Boolean(hit));      // the climb is the headline on a hit
 
+    const ans = `<strong>${view.fmt(fact.answer, true)}${unit}</strong>`;
+    const said = { lo, hi };
     els.result.querySelector('.result-line').innerHTML = guess == null
-      ? `Answer <strong>${view.fmt(fact.answer, true)}${unit}</strong>`
-      : `Answer <strong>${view.fmt(fact.answer, true)}${unit}</strong> · you said ${view.fmt(lo)}–${view.fmt(hi)}`;
+      ? `Answer ${ans}`
+      : plain
+        ? (hit
+          ? `The answer, ${ans}, was ${rangeWords(said, true)}, so you climbed <strong>${climb}</strong>.`
+          : `The answer, ${ans}, wasn't ${rangeWords(said, true)}, so no climb.`)
+        : `Answer ${ans} · you said ${view.fmt(lo)}–${view.fmt(hi)}`;
     const hs = els.result.querySelector('.result-hind');
     const h = args.hindsight;
     hs.hidden = !h;
     if (h) {
       const name = S.CHIPS[h.chip].name;
       hs.style.setProperty('--c', `var(--c-${S.CHIPS[h.chip].key})`);
-      // One line, same voice as the answer line: a width pip, the width, the climb.
-      hs.innerHTML = `<i></i><b>${name}</b> would've ${h.hit ? 'hit too' : 'caught it'}.`;
+      // One line, same voice as the answer line: a width pip, the width, its range, the climb.
+      const hr = S.range(fact, guess, h.chip);
+      hs.innerHTML = `<i></i><b>${name}</b> <span class="hind-range">(${rangeShort(hr)})</span> would've ${h.hit ? 'hit too' : 'caught it'}.`;
     }
     els.result.querySelector('.result-fact').textContent = K.units.hint(fact.card);
     const nb = els.result.querySelector('#btn-next');
@@ -584,7 +653,7 @@ K.round = (() => {
 
   return {
     init, render, advance, setUnits, setTimer, lockVisual, dropNeedle, markOutcome, bandPoint, showResult,
-    renderLegs, selectChip, clearChip, key, guessValue, offByText,
+    renderLegs, selectChip, clearChip, key, guessValue, offByText, ranges, setPaused,
     get locked() { return locked; },
     get state() { return state; },
   };
