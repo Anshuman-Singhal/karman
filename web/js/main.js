@@ -225,6 +225,18 @@
   }));
   if (document.readyState === 'complete') reveal(); else window.addEventListener('load', reveal, { once: true });
   K.stats.hit();
+  // karman.day/?fps : a small frame-rate counter, to check smoothness on a real device.
+  if (/[?&]fps\b/.test(location.search)) {
+    const m = document.createElement('div');
+    m.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:10000;padding:4px 8px;border-radius:6px;background:rgba(10,13,28,.8);color:#9f9;font:600 12px/1 ui-monospace,monospace;pointer-events:none';
+    document.body.appendChild(m);
+    let n = 0, t0 = performance.now(), worst = 0, last = t0;
+    (function tick(t) {
+      n++; worst = Math.max(worst, t - last); last = t;
+      if (t - t0 >= 1000) { m.textContent = `${Math.round((n * 1000) / (t - t0))} fps · worst ${Math.round(worst)} ms`; n = 0; t0 = t; worst = 0; }
+      requestAnimationFrame(tick);
+    })(t0);
+  }
   // Access first (a purchase coming back from Stripe), then the cloud copy.
   K.access.refresh().finally(() => K.access.afterSignIn());
   document.addEventListener('visibilitychange', () => { if (document.hidden && K.sync) K.sync.now(); });
