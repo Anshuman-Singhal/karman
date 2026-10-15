@@ -214,6 +214,9 @@
   });
 
   K.game.boot();
+  // First paint: the card was held invisible and unanimated until the game had
+  // put the right screen in it (no empty square resizing into place on load).
+  requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove('booting')));
   K.stats.hit();
   // Access first (a purchase coming back from Stripe), then the cloud copy.
   K.access.refresh().finally(() => K.access.afterSignIn());

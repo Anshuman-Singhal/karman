@@ -4541,3 +4541,12 @@ body:has(#screen-round.paused) #hud .round-timer b::before {
 #screen-results .keep-ticket .kt-main small { font-size: 13px; font-weight: 500; }
 #screen-results .keep-ticket.owned { --cut: 72%; }
 #screen-results .keep-ticket.owned .kt-stub { font-size: 15px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+/* Page load: hold the card (and its size animation) until main.js has booted
+   the right screen into it, so it never flashes as an empty square first. */
+html.booting #dock, html.booting #dock * { transition: none !important; animation: none !important; }
+html.booting #dock { visibility: hidden; }
+/* the whole scene settles out of sight too, then everything fades in together */
+#app { transition: opacity 280ms ease; }
+html.booting #app { opacity: 0; }
+html { background: #0B1030; }
