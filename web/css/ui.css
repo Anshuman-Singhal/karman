@@ -3765,6 +3765,19 @@ body.climb-open #rail .rail-tick:last-child span, body.climb-open #rail .rail-ti
   #screen-round.round { position: relative; inset: auto; box-sizing: border-box; min-height: calc(var(--round-h) + env(safe-area-inset-bottom, 0px)); }
   #screen-round.round[hidden] { display: none; }
 }
+/* Desktop and tablets: the same rule. The floating card had one fixed height, so
+   a long reveal (a three-line question, the first-week sentence, the hindsight
+   line and a two-line fact) pushed Next leg below the card's edge, where it
+   could only be reached by scrolling inside the card. The card now keeps its
+   height and only grows, upward, by the lines a reveal needs. */
+@media (min-width: 720px) {
+  body[data-screen="round"] #dock { height: auto; min-height: var(--round-h); max-height: calc(100svh - 40px); }
+  #screen-round.round { position: relative; inset: auto; box-sizing: border-box; min-height: var(--round-h); max-height: calc(100svh - 40px); }
+  #screen-round.round[hidden] { display: none; }
+}
+/* Last resort on any screen: if a reveal is ever taller than the screen itself,
+   the card scrolls but Next leg stays pinned to its bottom edge. */
+#screen-round .result #btn-next { position: sticky; bottom: 0; z-index: 2; }
 
 /* The clue tag floats beside the question: it must sit above the question's box so taps reach it */
 #screen-round .clue-tag { position: relative; z-index: 3; }
