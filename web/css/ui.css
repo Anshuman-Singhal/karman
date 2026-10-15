@@ -4546,7 +4546,7 @@ body:has(#screen-round.paused) #hud .round-timer b::before {
    the right screen into it, so it never flashes as an empty square first. */
 html.booting #dock, html.booting #dock * { transition: none !important; animation: none !important; }
 html.booting #dock { visibility: hidden; }
-/* the whole scene settles out of sight too, then everything fades in together */
-#app { transition: opacity 280ms ease; }
-html.booting #app { opacity: 0; }
-html { background: #0B1030; }
+/* The scene settles out of sight under a plain cover that then fades away.
+   Fading a solid layer is cheap (GPU only); fading the whole scene was not. */
+#boot-veil { position: fixed; inset: 0; z-index: 9999; background: #0B1030; pointer-events: none; opacity: 0; transition: opacity 320ms ease-out; will-change: opacity; }
+html.booting #boot-veil { opacity: 1; transition: none; }

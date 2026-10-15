@@ -216,7 +216,14 @@
   K.game.boot();
   // First paint: the card was held invisible and unanimated until the game had
   // put the right screen in it (no empty square resizing into place on load).
-  requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove('booting')));
+  // Reveal once the scenery images are in (so the fade never competes with
+  // decoding and first paint), two frames after the screen is booted.
+  const reveal = () => requestAnimationFrame(() => requestAnimationFrame(() => {
+    document.documentElement.classList.remove('booting');
+    const v = document.getElementById('boot-veil');
+    if (v) setTimeout(() => v.remove(), 400);
+  }));
+  if (document.readyState === 'complete') reveal(); else window.addEventListener('load', reveal, { once: true });
   K.stats.hit();
   // Access first (a purchase coming back from Stripe), then the cloud copy.
   K.access.refresh().finally(() => K.access.afterSignIn());
