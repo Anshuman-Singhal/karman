@@ -31,7 +31,7 @@ K.units = (() => {
      question whose unit looks metric but has no imperial twin here, so a
      player in imperial can always answer in their own units. */
   const METRIC_UNITS = Object.keys(MAP);
-  const SHORT = { mm: 'mm', cm: 'cm', inches: 'in', liters: 'L', litres: 'L', gallons: 'gal', 'square km': 'sq km', 'square miles': 'sq mi', meters: 'm', metres: 'm', feet: 'ft', 'km per second': 'km/s', 'miles per second': 'mi/s', 'm per second': 'm/s', 'feet per second': 'ft/s', 'km per hour': 'km/h', 'miles per hour': 'mph', pounds: 'lb' };
+  const SHORT = { mm: 'mm', cm: 'cm', inches: 'in', ounces: 'oz', 'fluid ounces': 'fl oz', miles: 'mi', tons: 'tons', liters: 'L', litres: 'L', gallons: 'gal', 'square km': 'sq km', 'square miles': 'sq mi', meters: 'm', metres: 'm', feet: 'ft', 'km per second': 'km/s', 'miles per second': 'mi/s', 'm per second': 'm/s', 'feet per second': 'ft/s', 'km per hour': 'km/h', 'miles per hour': 'mph', pounds: 'lb' };
 
   /* ---- altitude (the score) in the player's units ----
      Scored and stored in km; shown as km or miles. Ceiling 140 km ≈ 87 mi. */
@@ -78,18 +78,59 @@ K.units = (() => {
   }
   const convertible = (fact) => Boolean(MAP[fact.unit]);
 
+  /* ---- the unit a person would actually say, by size ----
+     A fact is stored and scored in the unit it was written in (saves keep
+     guesses in that unit, so it never changes). What the player SEES is picked
+     by the size of the answer: a rim 0.457 m across reads "45.7 cm" or
+     "18 inches", not "1.5 feet"; a 300 g phone reads "10.6 ounces", not
+     "0.66 pounds". Lengths, weights and volumes; other units use MAP as is. */
+  const FAMILY = {
+    mm: ['len', 0.001], cm: ['len', 0.01], meters: ['len', 1], metres: ['len', 1], km: ['len', 1000],
+    kg: ['mass', 1], tonnes: ['mass', 1000],
+    liters: ['vol', 1], litres: ['vol', 1],
+  };
+  const SIZE = {   // one of each display unit, in the family's base unit (m, kg, L)
+    len: { mm: 0.001, cm: 0.01, meters: 1, km: 1000, inches: 0.0254, feet: 0.3048, miles: 1609.344 },
+    mass: { kg: 1, tonnes: 1000, ounces: 0.028349523125, pounds: 0.45359237, tons: 907.18474 },
+    vol: { liters: 1, 'fluid ounces': 0.0295735295625, gallons: 3.785411784 },
+  };
+  /** { metric, imperial } display units for a value of `size` in `unit`, or null. */
+  function bestUnits(unit, size) {
+    const f = FAMILY[unit];
+    if (!f || !Number.isFinite(size)) return null;
+    const [fam, k] = f;
+    const s = Math.abs(size) * k;
+    let met = unit === 'metres' ? 'meters' : unit === 'litres' ? 'liters' : unit;
+    let imp;
+    if (fam === 'len') {
+      if (met === 'meters' && s < 1) met = s < 0.01 ? 'mm' : 'cm';
+      imp = s < 1 ? 'inches' : unit === 'km' && s >= SIZE.len.miles ? 'miles' : 'feet';
+    } else if (fam === 'mass') {
+      imp = s < SIZE.mass.pounds ? 'ounces' : unit === 'tonnes' ? 'tons' : 'pounds';
+    } else {
+      imp = s < 1 ? 'fluid ounces' : 'gallons';
+    }
+    const conv = (to) => ({ unit: to, to: (v) => (v * k) / SIZE[fam][to], from: (v) => (v * SIZE[fam][to]) / k });
+    return { metric: conv(met), imperial: conv(imp) };
+  }
+
   /** A display view of one fact in the current system. */
   function view(fact) {
+    const best = bestUnits(fact.unit, fact.answer);
     const m = MAP[fact.unit];
     const imperial = Boolean(m) && system() === 'imperial';
-    const toDisp = (v) => (imperial ? m.to(v) : v);
-    const toMetric = (v) => (imperial ? m.from(v) : v);
-    const unit = imperial ? m.imp : fact.unit || '';
+    const d = best ? (imperial ? best.imperial : best.metric)
+      : imperial ? { unit: m.imp, to: m.to, from: m.from }
+      : { unit: fact.unit || '', to: (v) => v, from: (v) => v };
+    const toDisp = d.to;
+    const toMetric = d.from;
+    const unit = d.unit;
+    const asWritten = !imperial && unit === (fact.unit === 'metres' ? 'meters' : fact.unit === 'litres' ? 'liters' : fact.unit || '');
 
     /** Format a metric value for display. exact = the true answer. */
     function fmt(vMetric, exact) {
       if (fact.scale === 'year') { const y = Math.round(vMetric); return y < 1 ? `${1 - y} BC` : String(y); }
-      if (exact && !imperial) return K.scoring.formatExact(fact, vMetric);
+      if (exact && asWritten) return K.scoring.formatExact(fact, vMetric);
       const v = toDisp(vMetric);
       const a = Math.abs(v);
       if (exact) return v.toLocaleString('en-US', { maximumFractionDigits: a >= 100 ? 0 : a >= 10 ? 1 : 2 });
@@ -108,7 +149,7 @@ K.units = (() => {
   function hint(text) {
     return String(text || '').replace(TOKEN_RE, (_, num, u) => {
       const v = Number(num.replace(/,/g, ''));
-      const vw = view({ unit: TOKEN_UNITS[u], scale: 'log' });
+      const vw = view({ unit: TOKEN_UNITS[u], scale: 'log', answer: v });   // sized like the fact: {0.4 m} → 40 cm / 16 in
       const imp = vw.imperial;
       // °C/°F stay exact-ish; small imperial lengths keep a decimal.
       let shown;
@@ -123,5 +164,5 @@ K.units = (() => {
     }).replace(/\{=([^}]*)\}/g, '$1');      // {=100 m}: a name ("the 100 m dash"), never converted
   }
 
-  return { altUnit, altVal, altNum, altText, altShown, legText, climbText, view, system, setSystem, convertible, defaultSystem, hint, METRIC_UNITS, TOKEN_UNITS };
+  return { altUnit, altVal, altNum, altText, altShown, legText, climbText, view, bestUnits, system, setSystem, convertible, defaultSystem, hint, METRIC_UNITS, TOKEN_UNITS };
 })();

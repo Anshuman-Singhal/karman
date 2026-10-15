@@ -119,6 +119,18 @@ check(Math.round(K.units.view(sun).toDisp(100)) === 212, '°C → °F');
 check(!K.units.view(titanic).convertible, 'years have no unit toggle');
 K.storage.data.prefs.units = 'metric';
 check(K.units.view(eiffel).unit === 'meters', 'metric view');
+// The unit a person would say, by size; the stored unit (and saved guesses) never change.
+const rim = { id: 't-rim', unit: 'meters', answer: 0.457, scale: 'log', min: 0.01, max: 100 };
+const vr = K.units.view(rim);
+check(vr.unit === 'cm' && Math.abs(vr.toDisp(0.457) - 45.7) < 1e-9 && Math.abs(vr.toMetric(45.7) - 0.457) < 1e-12, 'small meters read as cm');
+K.storage.data.prefs.units = 'imperial';
+const vri = K.units.view(rim);
+check(vri.unit === 'inches' && Math.round(vri.toDisp(0.457)) === 18 && Math.abs(vri.toMetric(18) - 0.4572) < 1e-12, 'small lengths read as inches, not feet');
+check(K.units.view({ unit: 'kg', answer: 0.2, scale: 'log' }).unit === 'ounces', 'light things in ounces');
+check(K.units.view({ unit: 'km', answer: 0.8, scale: 'log' }).unit === 'feet' && K.units.view({ unit: 'km', answer: 42.195, scale: 'log' }).unit === 'miles', 'short km in feet, long in miles');
+check(K.units.hint('{0.4 m} across') === '16 in across', 'hint tokens sized too');
+K.storage.data.prefs.units = 'metric';
+check(K.units.hint('{0.4 m} across') === '40 cm across', 'metric hint tokens sized too');
 
 /* ---- misses described in words ---- */
 check(S.offBy(titanic, 1865, false) === '47 years too early', `offBy years: ${S.offBy(titanic, 1865, false)}`);
