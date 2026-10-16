@@ -22,7 +22,7 @@ K.round = (() => {
   const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
   const MAX_DIGITS = 9;
   /** What each width is for, in everyday words: the tag on every width box. */
-  const SURE = ['no idea', 'rough idea', 'ballpark', 'close', 'know it'];
+  const SURE = ['no idea', 'rough idea', 'ballpark', 'close', 'pinpoint'];
 
   let els;
   let fact = null;

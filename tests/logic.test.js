@@ -131,6 +131,20 @@ check(K.units.view({ unit: 'km', answer: 0.8, scale: 'log' }).unit === 'feet' &&
 check(K.units.hint('{0.4 m} across') === '16 in across', 'hint tokens sized too');
 K.storage.data.prefs.units = 'metric';
 check(K.units.hint('{0.4 m} across') === '40 cm across', 'metric hint tokens sized too');
+// What you see is what's scored: an answer shown sitting on an edge counts.
+// (A rim stored as 0.457 m reads "18 inches"; a guess whose range read "18 and 40.5" missed it.)
+{
+  const S = K.scoring;
+  const rimOld = { ...rim, answer: 0.457 };
+  const edge = 18 * 0.0254;                       // the player's range started at exactly 18 in
+  check(S.isHit(rimOld, { lo: edge, hi: 40.5 * 0.0254 }), 'answer shown on the low edge is a hit');
+  check(S.isHit(rimOld, { lo: 0.2, hi: 0.4568 }), 'answer shown on the high edge is a hit');
+  check(!S.isHit(rimOld, { lo: 0.47, hi: 0.9 }), 'a clear miss still misses');
+  const yr = { scale: 'year', answer: 1969 };
+  check(S.isHit(yr, { lo: 1969, hi: 1975 }) && !S.isHit(yr, { lo: 1970, hi: 1975 }), 'years stay exact');
+  const cnt = { int: true, answer: 9, scale: 'log' };
+  check(S.isHit(cnt, { lo: 9, hi: 19 }) && !S.isHit(cnt, { lo: 10, hi: 19 }), 'counts stay exact');
+}
 
 /* ---- misses described in words ---- */
 check(S.offBy(titanic, 1865, false) === '47 years too early', `offBy years: ${S.offBy(titanic, 1865, false)}`);

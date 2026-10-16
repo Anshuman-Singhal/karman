@@ -115,7 +115,17 @@ K.scoring = (() => {
     return { lo, hi };
   }
 
-  const isHit = (fact, r) => fact.answer >= r.lo && fact.answer <= r.hi;
+  /* A hit is judged the way the player sees it. Range edges are shown to three
+     significant figures and the answer is shown converted (a rim 0.457 m across
+     reads "18 inches"), so an answer that LOOKS like it sits on an edge
+     ("18 inches, wasn't between 18 and 40.5") must count. Edges of measured
+     facts get a half-percent of grace, under what three figures can show;
+     years and whole-number counts are exact. */
+  const EDGE_GRACE = 0.005;
+  const isHit = (fact, r) => {
+    if (fact.scale === 'year' || fact.int) return fact.answer >= r.lo && fact.answer <= r.hi;
+    return fact.answer >= r.lo - Math.abs(r.lo) * EDGE_GRACE && fact.answer <= r.hi + Math.abs(r.hi) * EDGE_GRACE;
+  };
 
   /* ---- points and altitude ---- */
   const legPoints = (chipIdx) => CHIPS[chipIdx].pts;

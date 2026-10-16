@@ -4333,7 +4333,7 @@ body.climb-open .site-tag { opacity: 0; transform: translate(-50%, -8px); }
 
    1  Width boxes carry the range they give the typed guess (Big Shoulders,
       ink) over the climb; before a guess, what each width is for, in the
-      placeholder's serif voice (no idea … know it). The names Wide … Pinpoint
+      placeholder's serif voice (no idea … pinpoint). The names Wide … Pinpoint
       come off the boxes. Boxes are a touch taller; the card follows.
    2  The dial on the guided leg: a pause glyph, no count.
    3  The guide: no veil panels; the width row is unprinted for step 1 and
@@ -4439,7 +4439,7 @@ body:has(#screen-round.paused) #hud .round-timer b::before {
 @media (max-width: 374.98px) { #screen-round .wbtn.long .wb-range { font-size: 12.5px; } }
 
 /* ---------------------------------------------------------------- v24 · iteration 2 */
-/* The width box, three lines: the everyday word on top (no idea … know it), the
+/* The width box, three lines: the everyday word on top (no idea … pinpoint), the
    range as the hero, the climb below; the colour swatch at the foot. Before a
    guess the range line is empty and the word and climb sit together. */
 :root { --wbh: 60px; }

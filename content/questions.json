@@ -4628,7 +4628,7 @@
     "cat": "Sports",
     "q": "How wide is a basketball hoop’s rim, measured across the inside?",
     "unit": "meters",
-    "answer": 0.457,
+    "answer": 0.4572,
     "scale": "log",
     "min": 0.01,
     "max": 100,
