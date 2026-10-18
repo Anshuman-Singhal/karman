@@ -63,10 +63,22 @@ K.units = (() => {
   /** A width's nominal climb (before a leg is flown): "+10 km" / "+6 mi". */
   const climbText = (km) => (system() === 'imperial' ? `+${Math.round(km * KM_TO_MI)} mi` : `+${Math.round(km * 10) / 10} km`);
 
-  /** Everyone starts in metric (scores read cleanly: Pinpoint +20 km); the
-      menu switch or the unit chip flips it. storage.js keeps imperial for
-      pilots who were already seeing it before this default changed. */
-  function defaultSystem() { return 'metric'; }
+  /** A new pilot starts in the system of where they are: imperial in the US,
+      metric everywhere else. Where = the device's time zone (set by the
+      phone/computer, no permission prompt, nothing sent anywhere); a device
+      with no real zone (UTC) falls back to its language (en-US = imperial).
+      The menu switch or the unit chip flips it, and that choice is kept.
+      storage.js pins whatever existing pilots were already seeing. */
+  const US_ZONE = /^(America\/(New_York|Chicago|Denver|Phoenix|Los_Angeles|Anchorage|Adak|Boise|Detroit|Juneau|Sitka|Yakutat|Nome|Metlakatla|Menominee|Indiana\/.+|Kentucky\/.+|North_Dakota\/.+|Indianapolis|Louisville|Puerto_Rico)|Pacific\/(Honolulu|Guam|Saipan|Pago_Pago)|US\/.+)$/;
+  function defaultSystem() {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+      if (US_ZONE.test(tz)) return 'imperial';
+      if (tz && !/^(UTC|Etc\/|GMT)/.test(tz)) return 'metric';
+    } catch (e) { /* fall through to the language */ }
+    try { if (/^en-US$/i.test(navigator.language)) return 'imperial'; } catch (e) { /* metric */ }
+    return 'metric';
+  }
 
   function system() {
     const p = K.storage.data && K.storage.data.prefs;
