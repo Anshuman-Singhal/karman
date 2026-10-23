@@ -3,16 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>KÁRMÁN</title>
+<title>Karman – The Daily Number Guessing Game | KÁRMÁN</title>
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-96.png" sizes="96x96" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="description" content="A free daily estimation game. Guess seven numbers, choose how sure you are, and fly your balloon 100 km to the edge of space. New flight every day.">
+<meta name="description" content="Karman is a free daily guessing game. Answer 7 number trivia questions, bet on how sure you are, and fly your balloon 100 km to the edge of space. New game every day, no sign-up.">
+<meta name="robots" content="index, follow, max-image-preview:large">
 <meta name="theme-color" content="#0A0D1C">
-<meta property="og:title" content="KÁRMÁN">
-<meta property="og:description" content="Seven guesses, one flight a day. How close to space can you get?">
+<meta property="og:title" content="KÁRMÁN – the daily number guessing game">
+<meta property="og:description" content="Seven number guesses, one balloon, a new flight every day. How close to space can you get?">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://karman.day/">
 <meta property="og:site_name" content="KÁRMÁN">
@@ -22,7 +23,11 @@
 <meta property="og:image:alt" content="KÁRMÁN: a hot-air balloon rising toward the Kármán line">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="https://karman.day/">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"KÁRMÁN","alternateName":"Karman","url":"https://karman.day/","description":"A free daily estimation game: seven number guesses, one hot-air balloon, climb 100 km to the edge of space."}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[
+{"@type":"WebSite","@id":"https://karman.day/#website","name":"KÁRMÁN","alternateName":["Karman","Karman game","karman.day"],"url":"https://karman.day/","description":"A free daily number guessing game: seven trivia estimates, bet on how sure you are, climb 100 km to the edge of space."},
+{"@type":"VideoGame","@id":"https://karman.day/#game","name":"KÁRMÁN","alternateName":["Karman","Karman daily game"],"url":"https://karman.day/","image":"https://karman.day/og.png","description":"Karman is a free daily guessing game. Each day brings seven number trivia questions. Type a guess, choose how sure you are, and every hit climbs your hot-air balloon toward the Kármán line, 100 km up, where space begins.","genre":["Trivia","Estimation","Puzzle","Daily game"],"gamePlatform":"Web browser","applicationCategory":"Game","operatingSystem":"Any","inLanguage":"en","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@id":"https://karman.day/#org"}},
+{"@type":"Organization","@id":"https://karman.day/#org","name":"KÁRMÁN","url":"https://karman.day/","logo":"https://karman.day/icon-512.png","email":"hello@karman.day"}
+]}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Mono:wght@500&family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@1&display=swap">
@@ -112,7 +117,7 @@
       </div>
       <div class="home-main">
         <div class="home-text">
-          <h1 class="home-title" id="home-h">Flight <span id="home-flight"></span></h1>
+          <h1 class="home-title" id="home-h"><span class="sr-only">Karman, the daily number guessing game. </span>Flight <span id="home-flight"></span></h1>
           <p class="home-lede" id="home-lede">Seven guesses. Climb 100 km to the Kármán line, where space begins.</p>
           <div class="home-status" id="home-status"></div>
         </div>

@@ -150,7 +150,8 @@ K.ui = (() => {
     const short = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
     const un = mode === 'unlimited';
     $('home-meta').textContent = un ? `Unlimited · Flight #${flight.flightNo || flight.run}` : mode === 'archive' ? `Archive · ${short}` : `${short} · ${flight.weather.name}`;
-    $('home-h').innerHTML = un ? 'Unlimited <span>∞</span>' : `Flight <span>#${flight.n}</span>`;
+    // The visually hidden lead names the game for search engines and screen readers (the page's one h1).
+    $('home-h').innerHTML = '<span class="sr-only">Karman, the daily number guessing game. </span>' + (un ? 'Unlimited <span>∞</span>' : `Flight <span>#${flight.n}</span>`);
     $('home-lede').textContent = un ? 'Seven new questions. No streak on the line, but stamps still count.'
       : mode === 'archive' ? 'A past daily flight. It won’t touch your streak.'
       : `Seven guesses. Climb ${K.units.altText(100)} to the Kármán line, where space begins.`;
