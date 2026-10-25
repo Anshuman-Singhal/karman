@@ -68,7 +68,7 @@
 
   <header id="topbar">
     <div class="brand">
-      <span class="wordmark">KÁRMÁN</span>
+      <span class="wordmark">KÁRMÁN<span class="wm-tld">.day</span></span>
       <span class="flight-no" id="flight-no"></span>
     </div>
     <div class="top-actions">
@@ -82,12 +82,6 @@
     </div>
   </header>
 
-  <!-- Where to play: shown on the home and results screens (so viewers of a
-       stream can find the game), hidden in flight and in the climb view. -->
-  <div id="site-tag" class="site-tag" role="note" aria-label="Play at karman.day">
-    <svg viewBox="0 0 16 20" aria-hidden="true"><path d="M8 1.2c3.6 0 6.3 2.7 6.3 6.1 0 2.8-2 4.9-3.7 6.6l-.6 1.7H6l-.6-1.7C3.7 12.2 1.7 10.1 1.7 7.3 1.7 3.9 4.4 1.2 8 1.2z" fill="currentColor"/><path d="M8 1.4c-1.6 1.6-2.3 3.8-2.3 6.1 0 2.2.6 4.5 1.2 7.9M8 1.4c1.6 1.6 2.3 3.8 2.3 6.1 0 2.2-.6 4.5-1.2 7.9" fill="none" stroke="var(--stock-hi, #FAF4E8)" stroke-width="1.1" opacity=".55"/><rect x="6.1" y="16.6" width="3.8" height="2.6" rx=".7" fill="var(--ink, #14213D)"/></svg>
-    <span>karman<b>.</b>day</span>
-  </div>
 
   <div id="altimeter">
     <span class="alt-label">Altitude</span>
@@ -148,7 +142,7 @@
       <div class="readout" id="readout">
         <span class="r-edge r-lo" id="r-lo"></span>
         <span class="r-mid">
-          <span class="guess" id="guess-value"></span>
+          <span class="g-row"><span class="guess" id="guess-value"></span><button type="button" class="guess-del" id="guess-del" aria-label="Delete the last digit" title="Delete (Backspace)" tabindex="-1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h11v14H9l-6-7z"/><path d="m12 9 5 6M17 9l-5 6"/></svg><span>delete</span></button></span>
           <button type="button" class="unit-toggle" id="unit-toggle"><span></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
         </span>
         <span class="r-edge r-hi" id="r-hi"></span>
@@ -196,7 +190,7 @@
                 <span class="ds-top">Airmail</span>
                 <svg class="ds-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2c-4.1 0-6.6 3-6.6 6.6 0 2.8 2.2 5 4 6.4h5.2c1.8-1.4 4-3.6 4-6.4 0-3.6-2.5-6.6-6.6-6.6z"/><path d="M12 3.2c-1.6 1.7-2.3 4.1-2.3 6.6 0 2.6.5 4.9 1 6.4M12 3.2c1.6 1.7 2.3 4.1 2.3 6.6 0 2.6-.5 4.9-1 6.4"/><rect x="10" y="18.3" width="4" height="2.7" rx=".6"/></svg>
                 <b class="ds-main">Help it fly</b>
-                <span class="ds-sub" id="dare-sub">Made by one person. Every share counts.</span>
+                <span class="ds-sub" id="dare-sub">Put people on. Every share counts.</span>
                 <span class="ds-cta">Tap to share</span>
                 <span class="ds-cancel" aria-hidden="true"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44"/><circle cx="50" cy="50" r="35"/><path id="ds-arc" d="M20 50a30 30 0 0 1 60 0" fill="none" stroke="none"/><text><textPath href="#ds-arc" startOffset="50%">KÁRMÁN</textPath></text><text class="big" x="50" y="58">THANKS</text></svg></span>
               </span>

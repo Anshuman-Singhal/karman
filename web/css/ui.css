@@ -4563,3 +4563,25 @@ html.booting #dock { visibility: hidden; }
    Fading a solid layer is cheap (GPU only); fading the whole scene was not. */
 #boot-veil { position: fixed; inset: 0; z-index: 9999; background: #0B1030; pointer-events: none; opacity: 0; transition: opacity 320ms ease-out; will-change: opacity; }
 html.booting #boot-veil { opacity: 1; transition: none; }
+
+/* ================= v19 · desktop delete key, KÁRMÁN.day wordmark ================= */
+/* The typed guess gets a small delete key on its right (desktop only: phones have the keypad's ⌫).
+   It hangs outside the number's box so the guess stays centred. */
+.g-row { position: relative; display: inline-flex; align-items: center; }
+.guess-del { display: none; }
+@media (pointer: fine) {
+  #screen-round .guess-del {
+    position: absolute; left: 100%; top: 50%; margin-left: 12px; transform: translateY(-50%);
+    display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 9px 0 7px;
+    border: 1.5px solid rgba(20, 33, 61, 0.18); border-radius: 7px; background: rgba(255, 255, 255, 0.45);
+    color: rgba(20, 33, 61, 0.6); font: 600 12px/1 var(--f-ui); letter-spacing: 0.02em; cursor: pointer;
+    transition: opacity 160ms ease, background 160ms ease, color 160ms ease, border-color 160ms ease;
+  }
+  #screen-round .guess-del svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+  #screen-round .guess-del:hover { background: #fff; color: var(--ink); border-color: rgba(20, 33, 61, 0.35); }
+  #screen-round .guess-del.tap { animation: delTap 220ms ease-out; }
+  #screen-round.empty .guess-del, #screen-round.is-locked .guess-del, #screen-round.is-revealed .guess-del { opacity: 0; pointer-events: none; }
+}
+@keyframes delTap { 0% { transform: translateY(-50%) scale(1); background: #fff; } 40% { transform: translateY(-50%) scale(0.9); background: rgba(255, 181, 71, 0.45); } 100% { transform: translateY(-50%) scale(1); } }
+@media (prefers-reduced-motion: reduce) { #screen-round .guess-del.tap { animation: none; } }
+.wordmark .wm-tld { letter-spacing: 0.03em; text-transform: lowercase; color: var(--amber); margin-left: -0.12em; }

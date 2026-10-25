@@ -858,6 +858,18 @@ K.scene = (() => {
   }
 
   /* ========================================================== rail */
+  /* Where the world sits relative to the craft. On the ground the meadow is
+     under the basket, and lift-off drops it by liftPx so take-off reads as a
+     climb. Aloft, the world must line up with the craft itself, or every
+     landmark is passed early: with the ground drop still applied, the
+     Kármán line met the balloon at ~60 km instead of 100. So between 1 and
+     6 km the drop eases out and the reference moves to the craft's middle;
+     from there up, a thing at X km crosses the balloon exactly at X km. */
+  function worldShift() {
+    const k = clamp((fOf(cam.km) - fOf(1)) / (fOf(6) - fOf(1)), 0, 1);
+    const e = k * k * (3 - 2 * k);
+    return liftPx * (1 - e) - balloonPx * 0.5 * e;
+  }
   const railFrac = (km) => clamp(fOf(km) / fOf(142), 0, 1);
 
   function buildRail() {
@@ -999,8 +1011,9 @@ K.scene = (() => {
 
     // World items
     const fc = fOf(cam.km);
+    const shift = worldShift();
     for (const it of items) {
-      const y = anchorY + liftPx + (fc - fOf(it.km)) * span;
+      const y = anchorY + shift + (fc - fOf(it.km)) * span;
       const visible = y > -H * 0.8 && y < H * 1.8;
       if (visible !== it.visible) {
         it.el.style.visibility = visible ? 'visible' : 'hidden';
@@ -1211,7 +1224,7 @@ K.scene = (() => {
     init, reset, climbTo, setChip, setLift, liftOff, inflate, flare, setFlameTarget,
     setAnchor, planAnchor, point, svgPoint, dropSandbag, fOf, skyAt,
     /** Screen y of a given altitude right now (for ambient effects). */
-    yOf: (km) => anchorY + liftPx + (fOf(cam.km) - fOf(km)) * span,
+    yOf: (km) => anchorY + worldShift() + (fOf(cam.km) - fOf(km)) * span,
     set onCross(fn) { onCross = fn; },
     get km() { return cam.km; },
     get balloonPx() { return balloonPx; },

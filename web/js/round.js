@@ -78,6 +78,10 @@ K.round = (() => {
       b.addEventListener('click', () => press(b.dataset.k, b));
       els.pad.appendChild(b);
     });
+    // Desktop has no keypad: a small delete key beside the number shows that
+    // a typed guess can be fixed (Backspace works too, and flashes this key).
+    const del = document.getElementById('guess-del');
+    if (del) del.addEventListener('click', () => press('del', del));
     const lock = document.createElement('button');
     lock.type = 'button';
     lock.id = 'btn-lock';
@@ -257,7 +261,7 @@ K.round = (() => {
     if (locked) return false;
     if (/^[0-9]$/.test(e.key)) { press(e.key); return true; }
     if (e.key === '.' || e.key === ',') { press('.'); return true; }
-    if (e.key === 'Backspace') { press('del'); return true; }
+    if (e.key === 'Backspace') { press('del', document.getElementById('guess-del')); return true; }
     if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { selectChip(state.chip == null ? 0 : Math.max(0, state.chip - 1)); return true; }
     if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { selectChip(state.chip == null ? 4 : Math.min(4, state.chip + 1)); return true; }
     return false;
