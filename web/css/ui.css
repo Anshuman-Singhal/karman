@@ -4585,3 +4585,83 @@ html.booting #boot-veil { opacity: 1; transition: none; }
 @keyframes delTap { 0% { transform: translateY(-50%) scale(1); background: #fff; } 40% { transform: translateY(-50%) scale(0.9); background: rgba(255, 181, 71, 0.45); } 100% { transform: translateY(-50%) scale(1); } }
 @media (prefers-reduced-motion: reduce) { #screen-round .guess-del.tap { animation: none; } }
 .wordmark .wm-tld { letter-spacing: 0.03em; text-transform: lowercase; color: var(--amber); margin-left: -0.12em; }
+
+/* ================= v19 · Take off: a key you can see, hover, press, and hit with Enter ================= */
+
+/* 1 · Label: one verb, one hint. The hint only shows where a mouse is the input. */
+#screen-home .launch-ticket .hold-idle { flex-direction: column; gap: 5px; }
+#screen-home .launch-ticket .hi-main { display: inline-flex; align-items: center; gap: 10px; }
+#screen-home .launch-ticket .hold-hint {
+  display: none;
+  font: 500 10px/1 var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(20, 33, 61, 0.62);
+}
+#screen-home .launch-ticket .hold-hint kbd {
+  display: inline-block; min-width: 18px; padding: 2px 4px 1px; margin: 0 1px;
+  border-radius: 3px; font: inherit; color: var(--ink, #14213D);
+  background: rgba(255, 244, 226, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.45), inset 0 -1.5px 0 1px rgba(20, 33, 61, 0.18);
+}
+@media (hover: hover) and (pointer: fine) {
+  #screen-home .launch-ticket .hold-hint { display: block; }
+}
+
+/* 2 · It's a key, not a picture of a ticket: a real bottom edge that you push down.
+       (The ticket is masked for its notches, so outer shadows are clipped:
+       all depth lives in inset shadows + translate.) */
+#screen-home .launch-ticket {
+  --edge: 3px;
+  touch-action: manipulation;                         /* was none: never block a scroll that starts on it */
+  transition: transform 140ms var(--ease-out), box-shadow 140ms var(--ease-out), filter 140ms;
+  box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.9), inset 0 2.5px 0 1.5px rgba(255, 244, 226, 0.28),
+              inset 0 calc(var(--edge) * -1) 0 1.5px rgba(150, 72, 16, 0.32);
+}
+@media (hover: hover) and (pointer: fine) {
+  #screen-home .launch-ticket:hover:not(:disabled) {
+    --edge: 5px;
+    transform: translateY(-2px);
+    filter: brightness(1.06) saturate(1.1);
+    box-shadow: inset 0 0 0 2px #14213D, inset 0 0 22px 2px rgba(255, 112, 40, 0.38),
+                inset 0 calc(var(--edge) * -1) 0 2px rgba(150, 72, 16, 0.36);   /* pilot light glows inside */
+  }
+  #screen-home .launch-ticket:hover:not(:disabled) .hold-idle svg { animation-duration: 0.42s; }   /* flame quickens */
+  #screen-home .launch-ticket:hover:not(:disabled)::after { border-left-color: #C2410C; border-left-width: 2px; }   /* "tear here" */
+  #screen-home .launch-ticket:hover:not(:disabled) .launch-stub { transform: rotate(1.6deg) translateX(1px); }
+}
+#screen-home .launch-stub { transition: transform 160ms var(--ease-spring); transform-origin: 0 100%; }
+
+/* 3 · Pressed: the key goes down; the fill (existing .hold-fill, --p) shows the burner. */
+#screen-home .launch-ticket.pressing { --edge: 1px; transform: translateY(2px); transition-duration: 70ms; }
+#screen-home .launch-ticket .hold-fill { transition: transform 90ms linear; }
+#screen-home .launch-ticket.holding .hold-live { color: #8A2C0E; }
+
+/* 4 · Launched: the stub tears off and falls (the old @keyframes tear only wiggled,
+       and .fired was never added, so the "tear to board" ritual never played). */
+#screen-home .launch-ticket.fired { transform: translateY(1px); }
+#screen-home .launch-ticket.fired .launch-stub { animation: stubOff 520ms var(--ease-in) both; }
+@keyframes stubOff {
+  0%   { transform: none; opacity: 1; }
+  30%  { transform: translate(4px, -3px) rotate(7deg); opacity: 1; }
+  100% { transform: translate(30px, 70px) rotate(26deg); opacity: 0; }
+}
+
+/* 5 · Idle glint: after 6 s on the home screen with no input, one light pass
+       across the ticket, repeated at most 3 times (ui.js adds/removes .glint). */
+#screen-home .launch-ticket::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 250, 238, 0.65) 50%, transparent 65%);
+  transform: translateX(-120%);
+}
+#screen-home .launch-ticket.glint::before { animation: glint 900ms var(--ease-out) both; }
+@keyframes glint { to { transform: translateX(120%); } }
+
+/* 6 · The balloon is a second door (pointer only; the button stays the a11y path). */
+body[data-screen="home"] #balloon-rig { pointer-events: auto; cursor: pointer; }
+
+/* Reduced motion: no lift, no tear, no glint; states change by colour only. */
+@media (prefers-reduced-motion: reduce) {
+  #screen-home .launch-ticket, #screen-home .launch-stub { transition: none; }
+  #screen-home .launch-ticket:hover:not(:disabled), #screen-home .launch-ticket.pressing { transform: none; }
+  #screen-home .launch-ticket:hover:not(:disabled) .launch-stub { transform: none; }
+  #screen-home .launch-ticket.fired .launch-stub, #screen-home .launch-ticket.glint::before { animation: none; }
+}

@@ -13,14 +13,55 @@
   K.ui.init();
   K.game.init();
 
-  /* Launch: one tap fires the burner. */
-  $('btn-launch').addEventListener('click', () => {
-    const btn = $('btn-launch');
-    if (btn.disabled) return;
-    btn.disabled = true;
-    btn.classList.add('holding');
+  /* Launch: one click, tap, Enter or Space fires the burner. New desktop
+     players didn't see the ticket as the way in, so it now says so (a
+     mouse-only hint), behaves like a key (hover lift, press), is focused on
+     arrival, answers Enter/Space from anywhere on the home screen, and the
+     balloon itself is a second door. After 6 s idle a light passes over it
+     (at most 3 times). The stub tears off on launch. */
+  const launchBtn = $('btn-launch');
+  const onHome = () => K.ui.current === 'home' && ![...document.querySelectorAll('.sheet-wrap')].some((w) => !w.hidden);
+  const takeOff = () => {
+    if (launchBtn.disabled || !onHome()) return;
+    launchBtn.disabled = true;
+    launchBtn.classList.remove('pressing', 'glint');
+    launchBtn.classList.add('holding', 'fired');
     K.game.launch();
+  };
+  launchBtn.addEventListener('click', takeOff);
+  launchBtn.addEventListener('pointerdown', (e) => { if (e.button === 0 && !launchBtn.disabled) launchBtn.classList.add('pressing'); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach((t) => launchBtn.addEventListener(t, () => launchBtn.classList.remove('pressing')));
+  document.addEventListener('keydown', (e) => {
+    if (!onHome() || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    if (e.target === launchBtn) return;                                   // the button clicks itself
+    if (e.target.closest && e.target.closest('button, a, input, textarea, select, [contenteditable]')) return;   // Enter on Archive opens Archive
+    e.preventDefault();
+    takeOff();
   });
+  $('balloon-rig').addEventListener('click', () => { if (onHome()) takeOff(); });
+  let glintT = 0, glints = 0;
+  const stopGlint = () => { clearTimeout(glintT); launchBtn.classList.remove('glint'); };
+  const armGlint = () => {
+    stopGlint();
+    if (K.fx.reduced() || glints >= 3) return;
+    const tick = () => {
+      if (!onHome() || launchBtn.disabled || glints >= 3) return;
+      launchBtn.classList.remove('glint'); void launchBtn.offsetWidth; launchBtn.classList.add('glint');
+      glints += 1; glintT = setTimeout(tick, 7000);
+    };
+    glintT = setTimeout(tick, 6000);
+  };
+  ['pointermove', 'keydown', 'wheel', 'touchstart'].forEach((t) => document.addEventListener(t, () => {
+    if (onHome() && glints < 3 && !launchBtn.disabled) armGlint();
+  }, { passive: true }));
+  const focusLaunch = (tries = 0) => {
+    if (!matchMedia('(hover: hover) and (pointer: fine)').matches || !onHome() || launchBtn.disabled) return;
+    // While the page is still booting the card is hidden and can't take focus: try again shortly.
+    if (document.documentElement.classList.contains('booting')) { if (tries < 20) setTimeout(() => focusLaunch(tries + 1), 150); return; }
+    if (document.activeElement === document.body || !document.activeElement) launchBtn.focus({ preventScroll: true });
+  };
+  K.ui.onHome = () => { glints = 0; armGlint(); focusLaunch(); };
 
   /* Round controls */
   $('btn-lock').addEventListener('click', () => K.game.lock());

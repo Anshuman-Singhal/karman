@@ -165,7 +165,8 @@ K.ui = (() => {
     $('home-status').innerHTML = parts.join('');
     const btn = $('btn-launch');
     btn.disabled = false;
-    btn.classList.remove('holding', 'fired');
+    btn.classList.remove('holding', 'fired', 'pressing', 'glint');
+    if (K.ui.onHome) requestAnimationFrame(() => K.ui.onHome());   // desktop focus + idle glint (main.js)
   }
 
   /* ------------------------------------------------------------ results: today's pilots
