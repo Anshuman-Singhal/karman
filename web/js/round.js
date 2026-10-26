@@ -604,14 +604,16 @@ K.round = (() => {
     vd.classList.toggle('gain', Boolean(hit));      // the climb is the headline on a hit
 
     const ans = `<strong>${view.fmt(fact.answer, true)}${unit}</strong>`;
-    const said = { lo, hi };
+    // A hit on the edge (the half-percent grace in scoring.isHit) must never read
+    // "56 m was between 56.3 and 74.4": stretch the shown range to the answer.
+    const said = hit && guess != null ? { lo: Math.min(lo, fact.answer), hi: Math.max(hi, fact.answer) } : { lo, hi };
     els.result.querySelector('.result-line').innerHTML = guess == null
       ? `Answer ${ans}`
       : plain
         ? (hit
           ? `The answer, ${ans}, was ${rangeWords(said, true)}, so you climbed <strong>${climb}</strong>.`
           : `The answer, ${ans}, wasn't ${rangeWords(said, true)}, so no climb.`)
-        : `Answer ${ans} · you said ${view.fmt(lo)}–${view.fmt(hi)}`;
+        : `Answer ${ans} · you said ${view.fmt(said.lo)}–${view.fmt(said.hi)}`;
     const hs = els.result.querySelector('.result-hind');
     const h = args.hindsight;
     hs.hidden = !h;
