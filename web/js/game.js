@@ -435,6 +435,7 @@ K.game = (() => {
   /* ------------------------------------------------------------ finish */
   function finish() {
     const prevBest = store.stats.bestAlt;
+    const prevStreak = streakNow().cur;      // the top-bar count flips from this during the landing
     const record = {
       n, mode, rounds: live.rounds, pts: live.pts, alt: live.alt, maxAlt: live.maxAlt, prevBest, done: true, at: Date.now(),
     };
@@ -460,26 +461,33 @@ K.game = (() => {
     save();
     refreshTopbar();
     if (mode === 'daily' || mode === 'unlimited') K.stats.submit(record);   // archive replays don't count
-    showResults(record, true);
+    showResults(record, true, { prevStreak });
   }
 
-  function showResults(record, isFresh) {
+  function showResults(record, isFresh, extra = {}) {
     K.fx.clearBanners();
     const st = streakNow();
     K.ui.results({
       record, n, mode, streak: st.cur, thermals: st.thermals,
       streakInfo: record.streakInfo, isFresh, prevBest: record.prevBest,
+      nextNo: today + 1,
     });
     K.ui.show('results');
     if (isFresh) {
       const pt = K.scene.point('burner');
       K.scene.flare(1.4);
       K.fx.embers(pt.x, pt.y, { count: 30, speed: 240 });
-      if (record.alt >= C.KARMAN_KM) {
+      // Kármán-line flights: the space burst fires with the tier stamp (landing reveal),
+      // or straight away when the reveal is skipped or motion is reduced.
+      const space = record.alt >= C.KARMAN_KM ? () => {
         const c = K.scene.point('envelope');
         K.fx.sparks(c.x, c.y, { count: 70, speed: 420 });
         K.fx.ringBurst(c.x, c.y, '#BFD6FF');
-      }
+      } : null;
+      K.ui.landing(record, {
+        prevStreak: mode === 'daily' && extra.prevStreak != null ? extra.prevStreak : null,
+        streak: st.cur, onStamp: space,
+      });
     }
   }
 
@@ -511,6 +519,8 @@ K.game = (() => {
       const ms = K.date.msToNextFlight();
       const el = document.getElementById('countdown');
       if (el) el.textContent = K.date.formatClock(ms);
+      const stub = document.getElementById('next-clock');   // the results' next-flight stub
+      if (stub) stub.textContent = K.date.formatClock(ms);
       if (ms < 1000 && devFlight == null && !live) setTimeout(() => boot(), 1500);
     };
     tick();

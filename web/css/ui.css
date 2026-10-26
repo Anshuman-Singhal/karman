@@ -4665,3 +4665,115 @@ body[data-screen="home"] #balloon-rig { pointer-events: auto; cursor: pointer; }
   #screen-home .launch-ticket:hover:not(:disabled) .launch-stub { transform: none; }
   #screen-home .launch-ticket.fired .launch-stub, #screen-home .launch-ticket.glint::before { animation: none; }
 }
+
+/* ==========================================================================
+   v5 · Before and after the flight (keep last)
+   1  Share first: SHARE FLIGHT is the apricot primary right under the score;
+      Copy image is an icon ticket on phones; Keep flying steps down to paper.
+   2  Next-flight stub: tomorrow's number, a live clock, tomorrow's sky and the
+      streak on the line (replaces the "Next flight in" footer line).
+   3  Landing reveal: classes set by ui.js landing(). Every end state is the
+      static layout, so skipping or reduced motion simply shows it.
+   4  Home stakes: today's legs (categories only) and the streak at stake.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- 1 · share first */
+#screen-results .ticket-row { margin-top: 14px; }
+#screen-results .ticket-row .ticket-btn#btn-share {
+  --cut: 74%; flex: 1 1 auto; height: 58px;
+  background: linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)), var(--apricot-print), var(--apricot-stock);
+  box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.9), inset 0 2.5px 0 1.5px rgba(255, 244, 226, 0.28), inset 0 -3px 0 1.5px rgba(150, 72, 16, 0.14);
+}
+#screen-results .ticket-row .ticket-btn#btn-share::after { border-left-color: rgba(20, 33, 61, 0.5); }
+#screen-results .ticket-row #btn-share .ticket-main { font: 800 21px/1 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; }
+#screen-results .ticket-row #btn-share .ticket-main svg { width: 19px; height: 19px; stroke-width: 2.2; }
+#screen-results .ticket-row #btn-share .ticket-stub { color: rgba(20, 33, 61, 0.78); }
+#screen-results .ticket-row .ticket-btn#btn-share:focus-visible { box-shadow: inset 0 0 0 3px #14213D, inset 0 0 0 5px #FFF4E2; }
+/* the light pass now crosses apricot stock */
+#screen-results .ticket-row .ticket-btn#btn-share.nudge {
+  background:
+    linear-gradient(105deg, transparent 0 38%, rgba(255, 246, 228, 0) 40%, rgba(255, 246, 228, 0.7) 50%, rgba(255, 246, 228, 0) 60%, transparent 62% 100%) 100% 0 / 260% 100% no-repeat,
+    linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)), var(--apricot-print), var(--apricot-stock);
+}
+#screen-results #btn-copy-img { height: 58px; }
+@media (max-width: 719.98px) {
+  /* icon ticket; the name stays in its aria-label */
+  #screen-results #btn-copy-img { --cut: 82%; flex: 0 0 58px; }
+  #screen-results #btn-copy-img .ticket-main { display: none; }
+  #screen-results #btn-copy-img .ticket-stub { flex: 1; }
+  #screen-results #btn-copy-img .ticket-stub svg { width: 20px; height: 20px; }
+}
+@media (min-width: 720px) {
+  #screen-results .ticket-row .ticket-btn#btn-share { flex: 1.7 1 0; }
+  #screen-results #btn-copy-img { flex: 1 1 0; }
+}
+
+/* Keep flying steps back: the same ticket, plain paper stock, below the tear */
+#screen-results .keep-ticket.secondary {
+  background: linear-gradient(90deg, transparent var(--cut), rgba(20, 33, 61, 0.05) var(--cut)), linear-gradient(180deg, #FFFDF8, #FBF5EA);
+  box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.28);
+  height: 52px;
+}
+#screen-results .keep-ticket.secondary::after { border-left-color: rgba(20, 33, 61, 0.3); }
+#screen-results .keep-ticket.secondary .kt-main b { font-size: 19px; }
+#screen-results .keep-ticket.secondary:focus-visible { box-shadow: inset 0 0 0 2px #14213D; }
+
+/* ---------------------------------------------------------------- 2 · next-flight stub */
+.next-stub {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 3px 12px;
+  margin-top: 14px; padding: 10px 14px; border-radius: 10px;
+  border: 1.5px dashed rgba(20, 33, 61, 0.35);
+  color: #14213D;
+}
+.next-stub .ns-k { grid-row: 1 / 3; display: flex; flex-direction: column; }
+.next-stub .ns-k b { font: 800 26px/0.9 var(--f-display); letter-spacing: 0.02em; }
+.next-stub .ns-k small { display: block; font: 500 9.5px/1 var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.6; margin-bottom: 4px; white-space: nowrap; }
+.next-stub .ns-clock { grid-column: 2; font: 500 13px/1.2 var(--f-ui); color: rgba(20, 33, 61, 0.8); white-space: nowrap; }
+.next-stub .ns-clock b { font: 500 16px/1 var(--f-mono); font-variant-numeric: tabular-nums; color: #14213D; margin-left: 2px; }
+.next-stub .ns-sky { grid-column: 2; font: italic 400 14px/1.15 var(--f-serif); color: rgba(20, 33, 61, 0.75); }
+.next-stub .ns-streak { grid-column: 3; grid-row: 1 / 3; white-space: nowrap; display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: rgba(194, 65, 12, 0.1); font: 700 13px/1 var(--f-ui); color: #9A3412; font-variant-numeric: tabular-nums; }
+.next-stub .ns-streak[hidden] { display: none; }
+.next-stub .ns-streak svg { width: 14px; height: 14px; fill: #C2410C; flex: none; }
+/* the old footer clock is now the stub's job */
+#screen-results .res-foot > .res-count { display: none; }
+
+/* ---------------------------------------------------------------- 3 · landing reveal */
+#screen-results.landing .res-alt { font-variant-numeric: tabular-nums; }
+#screen-results.landing .res-tier em { display: inline-block; opacity: 0; }
+#screen-results.landing.l-tier .res-tier em { animation: tierSlam 260ms var(--ease-spring) both; }
+@keyframes tierSlam { from { opacity: 0; transform: scale(1.7) rotate(-9deg); } to { opacity: 1; transform: none; } }
+#screen-results.landing .crowd-chart, #screen-results.landing .pctl,
+#screen-results.landing .ticket-row, #screen-results.landing .legstrip, #screen-results.landing .legstrip-note,
+#screen-results.landing .next-stub { opacity: 0; transform: translateY(8px); }
+#screen-results.landing.l-crowd .crowd-chart, #screen-results.landing.l-crowd .pctl { opacity: 1; transform: none; transition: opacity 240ms, transform 320ms var(--ease-out); }
+#screen-results.landing.l-act .ticket-row, #screen-results.landing.l-act .legstrip, #screen-results.landing.l-act .legstrip-note,
+#screen-results.landing.l-act .next-stub { opacity: 1; transform: none; transition: opacity 240ms, transform 320ms var(--ease-out); }
+#screen-results.landing.l-act .legstrip, #screen-results.landing.l-act .legstrip-note { transition-delay: 80ms; }
+#screen-results.landing.l-act .next-stub { transition-delay: 160ms; }
+/* skipped: the chart lands already drawn */
+#screen-results .crowd-chart.instant *, #screen-results .crowd-chart.instant .hist-v .h-bar { transition: none !important; animation-duration: 1ms !important; animation-delay: 0s !important; }
+/* the streak pill's count flips over (rotateX) with an ember ring */
+.streak-pill.flip #streak-count { display: inline-block; animation: flipNum 300ms var(--ease-out); }
+.streak-pill.flip { animation: emberRing 600ms var(--ease-out); }
+@keyframes flipNum { 0% { transform: rotateX(0); } 50% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
+@keyframes emberRing { 0% { box-shadow: 0 0 0 0 rgba(194, 65, 12, 0.55); } 100% { box-shadow: 0 0 0 9px rgba(194, 65, 12, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  #screen-results.landing * { animation: none !important; transition: none !important; opacity: 1 !important; transform: none !important; }
+  .streak-pill.flip, .streak-pill.flip #streak-count { animation: none; }
+}
+
+/* ---------------------------------------------------------------- 4 · home stakes */
+#screen-home .home-lede.today-legs {
+  max-width: 36em;
+  font: 500 10.5px/1.6 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(20, 33, 61, 0.72);
+}
+#screen-home .home-lede.today-legs small { font: inherit; color: #C2410C; margin-right: 4px; }
+#screen-home .home-lede.today-legs span { white-space: nowrap; }
+#screen-home .home-lede.today-legs span:not(:last-child)::after { content: " ·"; color: #C2410C; }
+/* the words print in one by one, like a departures board (opacity only: nothing moves) */
+#screen-home .home-lede.today-legs.print span { animation: printIn 160ms var(--ease-out) both; animation-delay: calc(var(--i) * 45ms + 260ms); }
+@keyframes printIn { from { opacity: 0; } to { opacity: 1; } }
+#screen-home .home-status .stake { display: inline-flex; align-items: baseline; gap: 6px; color: #9A3412; font-weight: 600; }
+#screen-home .home-status .stake svg { width: 13px; height: 13px; fill: #C2410C; flex: none; align-self: center; }
+#screen-home .home-status .stake b { color: inherit; }
+@media (prefers-reduced-motion: reduce) { #screen-home .home-lede.today-legs.print span { animation: none; } }

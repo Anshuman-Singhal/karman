@@ -29,6 +29,8 @@ K.ui = (() => {
   };
   const icon = (id) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[id]}</svg>`;
   const milestone = (id) => S.MILESTONES.find((m) => m.id === id);
+  /* The streak flame, same drawing as the top bar's pill. */
+  const FLAME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 3.5 5 5.6 5 10.5A5 5 0 0 1 7 12.6c0-2 1-3.6 2.3-4.6.1 1.7.9 3 2.2 3.4C11 8.3 11 5 12 2z"/></svg>';
 
   /** A round inked stamp; ink colour = tier (1 navy … 4 gold). */
   function ink(id, tier, opts = {}) {
@@ -152,21 +154,43 @@ K.ui = (() => {
     $('home-meta').textContent = un ? `Unlimited · Flight #${flight.flightNo || flight.run}` : mode === 'archive' ? `Archive · ${short}` : `${short} · ${flight.weather.name}`;
     // The visually hidden lead names the game for search engines and screen readers (the page's one h1).
     $('home-h').innerHTML = '<span class="sr-only">Karman, the daily number guessing game. </span>' + (un ? 'Unlimited <span>∞</span>' : `Flight <span>#${flight.n}</span>`);
-    $('home-lede').textContent = un ? 'Seven new questions. No streak on the line, but stamps still count.'
-      : mode === 'archive' ? 'A past daily flight. It won’t touch your streak.'
-      : `Seven guesses. Climb ${K.units.altText(100)} to the Kármán line, where space begins.`;
+    // What's at stake (v5). A pilot who has never flown gets the pitch and a time promise;
+    // a returning pilot gets today's seven legs (categories only) and the streak on the line.
+    const data = K.storage.data || {};
+    const sk = data.streak || {};
+    const isNew = sk.lastDay == null && !((data.stats && data.stats.flights) > 0);
+    const lede = $('home-lede');
+    lede.classList.remove('today-legs', 'print');
+    if (mode === 'daily' && !isNew && flight.facts && flight.facts.length) {
+      lede.classList.add('today-legs');
+      lede.innerHTML = '<small>Today’s legs</small> ' + flight.facts.map((f, i) => `<span style="--i:${i}">${esc(f.cat)}</span>`).join(' ');
+      if (!K.fx.reduced()) { void lede.offsetWidth; lede.classList.add('print'); }
+    } else {
+      lede.textContent = un ? 'Seven new questions. No streak on the line, but stamps still count.'
+        : mode === 'archive' ? 'A past daily flight. It won’t touch your streak.'
+        : `Seven guesses. Climb ${K.units.altText(100)} to the Kármán line, where space begins.`;
+    }
     $('launch-no').textContent = un ? '∞' : `#${flight.n}`;
     const td = K.date.dateOfFlight(Math.max(1, K.game.today));
     $('leaf-m').textContent = td.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase();
     $('leaf-d').textContent = td.getUTCDate();
     $('home-status').hidden = mode !== 'daily';
-    const parts = [`<span><b>${streak}</b> day streak</span>`, `<span title="Streak savers: earn one every 7 days in a row; each covers one missed day"><b>${thermals}</b> thermal${thermals === 1 ? '' : 's'}</span>`];
-    if (bestAlt > 0) parts.push(`<span>Best <b>${K.units.altText(bestAlt)}</b></span>`);
+    // Never a zero: no "0 day streak · 0 thermals".
+    const parts = [];
+    if (!isNew && streak > 0) {
+      const flownToday = sk.lastDay != null && sk.lastDay >= flight.n;
+      const covering = !flownToday && sk.lastDay != null && flight.n - sk.lastDay > 1;   // a thermal is holding the streak
+      const stake = flownToday ? 'flown today' : covering ? 'a thermal is covering you, fly today' : `fly today to make it ${streak + 1}`;
+      parts.push(`<span class="stake">${FLAME}<span><b>Day ${streak}</b> · ${stake}</span></span>`);
+    }
+    if (!isNew && bestAlt > 0) parts.push(`<span>Best <b>${K.units.altText(bestAlt)}</b></span>`);
+    if (!parts.length) parts.push('<span>About 3 minutes · no sign-up</span>');
     $('home-status').innerHTML = parts.join('');
     const btn = $('btn-launch');
     btn.disabled = false;
     btn.classList.remove('holding', 'fired', 'pressing', 'glint');
-    if (K.ui.onHome) requestAnimationFrame(() => K.ui.onHome());   // desktop focus + idle glint (main.js)
+    if (K.ui.onHome) requestAnimationFrame(() => K.ui.onHome());
+    requestAnimationFrame(fitHome);   // today's legs can run a line longer than the lede: grow the strip, never clip it   // desktop focus + idle glint (main.js)
   }
 
   /* ------------------------------------------------------------ results: today's pilots
@@ -407,12 +431,15 @@ K.ui = (() => {
     box.setAttribute('aria-label', said);
     $('pctl-txt').innerHTML = txt + (stats.sample ? ' <span class="sample">Sample</span>' : '');
     chart.innerHTML = histogram(record, stats, kind === 'first');
-    box.hidden = false;
-    void chart.offsetWidth;
-    chart.classList.add('draw');
-    if (kind === 'rank' && !K.fx.reduced()) {
-      const el = $('pctl-txt').querySelector('.pctl-inline');
-      if (!el) return;
+    box.hidden = false;                         // laid out now, so nothing shifts when it appears
+    const el = $('pctl-txt').querySelector('.pctl-inline');
+    // Landing reveal: the chart draws and the figure counts on the "compare" beat
+    // (or lands drawn at once if the reveal is skipped).
+    const play = (instant) => {
+      chart.classList.toggle('instant', instant === true);
+      void chart.offsetWidth;
+      chart.classList.add('draw');
+      if (instant === true || kind !== 'rank' || K.fx.reduced() || !el) { if (el) el.textContent = `${pct}%`; return; }
       const t0 = performance.now() + 150;
       const step = (now) => {
         const p = Math.min(1, Math.max(0, (now - t0) / 800));
@@ -421,7 +448,8 @@ K.ui = (() => {
       };
       el.textContent = '0%';
       requestAnimationFrame(step);
-    }
+    };
+    if (crowdGate) { if (el && kind === 'rank') el.textContent = '0%'; crowdGate.then(play); } else play(false);
   }
 
   /** Fetch today's crowd, then show the percentile. */
@@ -446,12 +474,14 @@ K.ui = (() => {
     btn.classList.remove('nudge'); tag.classList.remove('in');
     if (!on) return;
     // the light keeps passing over the ticket (every few seconds) until it is tapped
-    nudgeTimer = setTimeout(() => btn.classList.add('nudge'), 1800);   // the pass never scrolls on its own: the score stays in view
+    nudgeTimer = setTimeout(() => btn.classList.add('nudge'), 2400);   // after the landing reveal settles   // the pass never scrolls on its own: the score stays in view
     btn.addEventListener('click', () => { tag.classList.remove('in'); btn.classList.remove('nudge'); }, { once: true });
   }
 
-  function results({ record, n, mode = 'daily', streak, thermals, streakInfo, isFresh, prevBest }) {
-    lastRecord = { record, n, streak, mode, args: { record, n, mode, streak, thermals, streakInfo, isFresh: false, prevBest } };
+  function results({ record, n, mode = 'daily', streak, thermals, streakInfo, isFresh, prevBest, nextNo }) {
+    if (landingStop) landingStop();
+    if (nextNo == null) nextNo = (K.game.today || n) + 1;
+    lastRecord = { record, n, streak, mode, args: { record, n, mode, streak, thermals, streakInfo, isFresh: false, prevBest, nextNo } };
     $('dare-stamp').classList.remove('stamped');
     $('res-eyebrow').textContent = mode === 'unlimited' ? `Unlimited · Flight #${record.flightNo || record.run || ''}`
       : `${mode === 'archive' ? 'Archive · ' : ''}Flight #${n} · ${dayMonth(K.date.dateOfFlight(n))}`;
@@ -489,7 +519,106 @@ K.ui = (() => {
     else applyStats(record, mode === 'unlimited' ? `r${record.run}` : n);
 
     $('res-streak').textContent = `${streak}-day streak · ${thermals} thermal${thermals === 1 ? '' : 's'}`;
+    nextStub({ mode, streak, nextNo });
     if (K.climb) K.climb.set(record);          // the sky behind the pass can replay the climb
+  }
+
+  /* ------------------------------------------------------------ results: next flight
+     The come-back hook as an object: tomorrow's number, a live clock (game.js
+     startCountdown writes #next-clock), tomorrow's sky (deterministic, no spoiler)
+     and, on the daily flight, the streak on the line. */
+  function nextStub({ mode, streak, nextNo }) {
+    $('next-no').textContent = `#${nextNo}`;
+    const sky = K.daily.weatherFor(nextNo).name;
+    $('next-sky').textContent = `Tomorrow’s sky: ${sky.charAt(0).toLowerCase()}${sky.slice(1)}`;
+    const chip = $('next-streak');
+    chip.hidden = !(mode === 'daily' && streak > 0);
+    chip.innerHTML = chip.hidden ? '' : `${FLAME}<span aria-hidden="true">${streak} → ${streak + 1}</span><span class="sr-only">${streak}-day streak; fly tomorrow to make it ${streak + 1}</span>`;
+  }
+
+  /* ------------------------------------------------------------ results: landing reveal
+     A freshly finished flight lands in beats instead of one frame (~2.4 s):
+       0     the pass rises (existing screen entry)
+       420   count: the altitude rolls up from 0, a soft tick every 10
+       1300  name: the tier word stamps in (and a space flight's burst fires)
+       1560  compare: the crowd chart draws, the percentile counts up
+       1860  act: Share, the legs and the next-flight stub rise; the streak pill flips
+       2400  settled
+     Any pointerdown/keydown jumps to the final state without eating the event, so a
+     tap on Share both skips and shares. Reduced motion: final state at once. */
+  let landingStop = null;
+  let crowdGate = null;
+  function landing(record, { prevStreak = null, streak = 0, onStamp = null } = {}) {
+    if (landingStop) landingStop();
+    const s = $('screen-results'), alt = $('res-alt');
+    const pill = $('btn-streak'), count = $('streak-count');
+    const final = alt.textContent;
+    const to = Number(final) || 0;
+    let stamped = false;
+    const stamp = () => { if (stamped) return; stamped = true; if (onStamp) onStamp(); };
+    const flips = prevStreak != null && prevStreak !== streak;
+    if (K.fx.reduced()) { stamp(); return; }
+
+    let done = false, raf = 0, openGate = null;
+    const timers = [];
+    crowdGate = new Promise((r) => { openGate = r; });
+    const skip = (e) => {
+      if (e.type === 'keydown' && (e.repeat || ['Shift', 'Control', 'Alt', 'Meta'].includes(e.key))) return;
+      finish();   // no preventDefault, no stopPropagation: the tap still lands
+    };
+    function finish() {
+      if (done) return;
+      done = true;
+      timers.forEach(clearTimeout);
+      cancelAnimationFrame(raf);
+      document.removeEventListener('pointerdown', skip, true);
+      document.removeEventListener('keydown', skip, true);
+      alt.textContent = final;
+      s.classList.remove('landing', 'l-tier', 'l-crowd', 'l-act');
+      if (flips) count.textContent = streak;
+      stamp();
+      landingStop = null;
+      crowdGate = null;
+      openGate(true);
+    }
+    landingStop = finish;
+    document.addEventListener('pointerdown', skip, true);
+    document.addEventListener('keydown', skip, true);
+
+    s.classList.add('landing');
+    alt.textContent = '0';
+    if (flips) count.textContent = prevStreak;
+    const at = (ms, fn) => timers.push(setTimeout(() => { if (!done) fn(); }, ms));
+    at(420, () => {                                     // count
+      const t0 = performance.now();
+      let lastStep = 0;
+      const step = 10;
+      const f = (now) => {
+        if (done) return;
+        const p = Math.min(1, (now - t0) / 880);
+        const v = Math.round(to * (1 - Math.pow(1 - p, 3)));
+        alt.textContent = p < 1 ? String(v) : final;
+        if (Math.floor(v / step) > lastStep) { lastStep = Math.floor(v / step); if (K.audio.tick) K.audio.tick(); }
+        if (p < 1) raf = requestAnimationFrame(f);
+      };
+      raf = requestAnimationFrame(f);
+    });
+    at(1300, () => {                                    // name
+      s.classList.add('l-tier');
+      if (K.audio.stamp) K.audio.stamp();
+      if (K.fx.nudge) K.fx.nudge();
+      stamp();
+    });
+    at(1560, () => { s.classList.add('l-crowd'); openGate(false); });   // compare
+    at(1860, () => {                                    // act
+      s.classList.add('l-act');
+      if (flips) {
+        count.textContent = streak;
+        pill.classList.remove('flip'); void pill.offsetWidth; pill.classList.add('flip');
+        setTimeout(() => pill.classList.remove('flip'), 700);
+      }
+    });
+    at(2400, finish);
   }
 
   /** "8 October": the flight's date without the weekday. */
@@ -930,7 +1059,7 @@ K.ui = (() => {
   }
 
   return {
-    init, show, topbar, setAltitude, home, results, closed, prepareLaunch, dockReady, dockIn, refreshAccess, startGoogle, renderAccount,
+    init, show, topbar, setAltitude, home, results, landing, closed, prepareLaunch, dockReady, dockIn, refreshAccess, startGoogle, renderAccount,
     calStep(d) { calM += d; if (calM < 0) { calM = 11; calY -= 1; } if (calM > 11) { calM = 0; calY += 1; } renderArchive(); },
     openSheet, closeSheet, dev, anchorBalloon, renderMenu, refreshUnits,
     get lastRecord() { return lastRecord; },
