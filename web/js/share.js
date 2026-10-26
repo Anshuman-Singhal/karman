@@ -2,8 +2,8 @@
    KÁRMÁN · share.js
    The spoiler-free flight log people paste into group chats:
 
-     KÁRMÁN #12 🚀
-     54 km up
+     KÁRMÁN #12 · 54 km 🚀
+     Mesosphere · 5/7 hits · 🔥4
 
      🚀✈️💨🛰️🎈
 
@@ -22,13 +22,19 @@ K.share = (() => {
   const invite = () => ['🎈 KÁRMÁN: a daily game where you guess 7 numbers and bet on how sure you are.', 'Made by one person. Give it 3 minutes?', K.CONFIG.SHARE_URL].join('\n');
 
   /** The flight log. */
-  function text(record, _streak, opts = {}) {
+  function text(record, streak, opts = {}) {
     const legs = record.rounds.map((r) => (r.hit ? S.CHIPS[r.chip].glyph : S.MISS_GLYPH)).join('');
     const pts = record.pts != null ? record.pts : S.ptsOf(record.alt);
-    const title = record.mode === 'unlimited' ? 'KÁRMÁN Unlimited' : `KÁRMÁN #${record.n}`;
+    const daily = record.mode !== 'unlimited';
+    const title = daily ? `KÁRMÁN #${record.n}` : 'KÁRMÁN Unlimited';
     const km = S.kmOf(pts);
-    const lines = [`${title} 🚀`, `${Number.isInteger(km) ? km : km.toFixed(1)} km up`, '', legs, ''];
-    lines.push(K.CONFIG.SHARE_URL);
+    const hits = record.rounds.filter((r) => r.hit).length;
+    // Line 2 gives friends something to compare without spoiling an answer:
+    // the layer reached (or the Kármán line itself), hits, and a streak worth showing off.
+    const where = km >= K.CONFIG.KARMAN_KM ? 'I reached the Kármán line!' : S.tierName(km);
+    const tail = [where, `${hits}/${record.rounds.length} hits`];
+    if (daily && streak >= 3) tail.push(`🔥${streak}`);
+    const lines = [`${title} · ${Number.isInteger(km) ? km : km.toFixed(1)} km 🚀`, tail.join(' · '), '', legs, '', K.CONFIG.SHARE_URL];
     return lines.join('\n');
   }
 
