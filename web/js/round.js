@@ -250,6 +250,21 @@ K.round = (() => {
     onChange(state.entry, state.chip);
   }
 
+  /** Desktop delete key: the right range line's dashes start just after it, and a number long
+      enough to crowd the right edge gets the icon-only key. Measured, never reflowed. */
+  function fitDel() {
+    const del = document.getElementById('guess-del');
+    if (!del || !els.hi) return;
+    const shown = del.offsetParent && getComputedStyle(del).display !== 'none' && !els.card.classList.contains('empty');
+    if (!shown) { els.hi.style.setProperty('--del-gap', '0px'); del.classList.remove('tight'); return; }
+    del.classList.remove('tight');
+    const num = els.hi.querySelector('.r-num') || els.hi;
+    if (del.getBoundingClientRect().right + 6 > num.getBoundingClientRect().left) del.classList.add('tight');
+    const gap = Math.max(0, del.getBoundingClientRect().right + 6 - els.hi.getBoundingClientRect().left);
+    els.hi.style.setProperty('--del-gap', `${Math.round(gap)}px`);
+  }
+  window.addEventListener('resize', () => requestAnimationFrame(fitDel));
+
   function shake() {
     els.guess.classList.remove('nope');
     void els.guess.offsetWidth;
@@ -473,6 +488,7 @@ K.round = (() => {
       els.hi.textContent = '—';
       if (els.between) els.between.textContent = '';
     }
+    requestAnimationFrame(fitDel);
     els.lock.disabled = guess == null || none;
     els.lockMain.textContent = guess == null ? 'Type a guess' : none ? 'Pick one' : 'Lock it in';
     if (none) {
