@@ -15,6 +15,10 @@
      miss     a low, soft "bwoop" down
      stamp    a gentle bell for firsts and for space
      stage    the vehicle changing: seal (15 km), swap (21), ignite (45), separate (100)
+     countdown  the last five seconds: a soft clock tick stepping down C6 … D5
+     final    leg 7 arrives: a two-note pickup, G4 → C5
+     hair     "by a hair": a tiny high pluck after the hit chime
+     refuse / detent  (K.CONFIG.SOUND_PITCHED) a refused key, a width's detent
    Players can mute from the top bar; the choice is saved.
    ========================================================================== */
 
@@ -183,19 +187,86 @@ K.audio = (() => {
   }
 
 
-  /** Tiny wooden tick for key presses. */
-  function tick() {
+  /** Tiny wooden tick for key presses. With K.CONFIG.SOUND_PITCHED, `step`
+      (0 = a 1-digit number … 8 = 9 digits) raises it one C major degree per
+      digit place, so a bigger number sounds bigger; `dull` is the delete key's
+      version, lowpassed. Without the flag every key ticks the same, as before. */
+  const DEGREES = [0, 2, 4, 5, 7, 9, 11, 12, 14];   // C D E F G A B C D
+  function tick(step, dull) {
+    if (!ready()) return;
+    const t = ctx.currentTime;
+    const pitched = K.CONFIG.SOUND_PITCHED && step != null;
+    const k = pitched ? 2 ** (DEGREES[Math.max(0, Math.min(DEGREES.length - 1, step))] / 12) : 1;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(1500 * k, t);
+    o.frequency.exponentialRampToValueAtTime(900 * k, t + 0.04);
+    const g = ctx.createGain();
+    env(g, t, 0.002, 0.004, 0.05, 0.05);
+    if (pitched && dull) {
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 2000;
+      o.connect(lp).connect(g).connect(master);
+    } else o.connect(g).connect(master);
+    o.start(t);
+    o.stop(t + 0.08);
+  }
+
+  /** A refused key (an 11th digit, a second point): a soft wooden thock. */
+  function refuse() {
+    if (!ready()) return;
+    thunk(ctx.currentTime, 120, 0.05);
+  }
+
+  /** A width box's detent: 25 ms on the root its hit chime starts on (C5 … A5). */
+  const ROOTS = [523.25, 587.33, 659.25, 783.99, 880];
+  function detent(i) {
     if (!ready()) return;
     const t = ctx.currentTime;
     const o = ctx.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(1500, t);
-    o.frequency.exponentialRampToValueAtTime(900, t + 0.04);
+    o.type = 'triangle';
+    o.frequency.value = ROOTS[i] || ROOTS[2];
     const g = ctx.createGain();
-    env(g, t, 0.002, 0.004, 0.05, 0.05);
+    env(g, t, 0.003, 0.004, 0.025, 0.03);
     o.connect(g).connect(master);
     o.start(t);
-    o.stop(t + 0.08);
+    o.stop(t + 0.06);
+  }
+
+  /** The last five seconds: a soft wooden clock tick that steps down one
+      step of the game's pentatonic each second (n = 5 … 1: C6 A5 G5 E5 D5). */
+  const COUNT = [587.33, 659.25, 783.99, 880, 1046.5];
+  function countdown(n) {
+    if (!ready()) return;
+    const t = ctx.currentTime;
+    const f = COUNT[Math.max(1, Math.min(5, n)) - 1];
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f * 1.5, t);
+    o.frequency.exponentialRampToValueAtTime(f, t + 0.03);
+    const g = ctx.createGain();
+    env(g, t, 0.002, 0.006, 0.07, 0.04);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 2600;
+    o.connect(lp).connect(g).connect(master);
+    o.start(t);
+    o.stop(t + 0.12);
+  }
+
+  /** Leg 7 arrives: a two-note pickup, G4 then C5. */
+  function final() {
+    if (!ready()) return;
+    const t = ctx.currentTime + 0.01;
+    pluck(392, t, 0.06, 0.4);
+    pluck(523.25, t + 0.12, 0.06, 0.6);
+  }
+
+  /** "By a hair": one tiny high pluck (C7) after the hit chime. */
+  function hair() {
+    if (!ready()) return;
+    pluck(2093, ctx.currentTime, 0.04, 0.35, false);
   }
 
   /** Two-note chime, pitched by width (C5 … C6); Pinpoint adds a sparkle. */
@@ -209,7 +280,8 @@ K.audio = (() => {
     whoosh(0.25, t + 0.05);
   }
 
-  function miss() {
+  /** peak: 0.08, or softer (0.05) for a miss that was just outside the range. */
+  function miss(peak = 0.08) {
     if (!ready()) return;
     const t = ctx.currentTime;
     const o = ctx.createOscillator();
@@ -217,7 +289,7 @@ K.audio = (() => {
     o.frequency.setValueAtTime(330, t);
     o.frequency.exponentialRampToValueAtTime(196, t + 0.22);
     const g = ctx.createGain();
-    env(g, t, 0.01, 0.04, 0.3, 0.08);
+    env(g, t, 0.01, 0.04, 0.3, peak);
     o.connect(g).connect(master);
     o.start(t);
     o.stop(t + 0.4);
@@ -283,7 +355,7 @@ K.audio = (() => {
 
   /* Kept for older call sites: a burner blast is just a stronger whoosh. */
   const burner = (intensity = 1) => whoosh(intensity);
-  const puff = tick;
+  const puff = () => tick();
 
   function setEnabled(on) {
     K.storage.data.prefs = { ...(K.storage.data.prefs || {}), sound: on };
@@ -300,5 +372,5 @@ K.audio = (() => {
     ['pointerdown', 'keydown', 'touchend'].forEach((t) => document.addEventListener(t, wake, { capture: true, passive: true }));
   }
 
-  return { unlock, takeoff, whoosh, burner, tick, puff, hit, miss, stamp, stage, enabled, setEnabled, get state() { return ctx ? ctx.state : 'off'; } };
+  return { unlock, takeoff, whoosh, burner, tick, puff, refuse, detent, countdown, final, hair, hit, miss, stamp, stage, enabled, setEnabled, get state() { return ctx ? ctx.state : 'off'; } };
 })();

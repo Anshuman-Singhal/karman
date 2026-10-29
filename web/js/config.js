@@ -57,6 +57,15 @@ K.CONFIG = {
   /* localStorage key. Bump the suffix only with a migration in storage.js. */
   STORAGE_KEY: 'karman:v1',
 
+  /* Game-feel experiments, off until tried on real phones.
+     FX_GAIN_FLIES: on a hit, the "+15 km" pill flies from the band to the
+       altimeter, which only starts rolling when it lands.
+     SOUND_PITCHED: key ticks rise in pitch with the number's digit count,
+       delete and refused keys get their own sounds, and each width plays a
+       soft detent on the note its hit chime starts on. */
+  FX_GAIN_FLIES: false,
+  SOUND_PITCHED: false,
+
   /* Developer tools: flight picker + "wipe save" strip. On for local copies;
      on the live site only when you add ?dev to the address (karman.day/?dev). */
   DEV: !K.LIVE || (typeof location !== 'undefined' && /[?&]dev\b/.test(location.search)),
