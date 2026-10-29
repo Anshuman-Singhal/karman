@@ -258,6 +258,15 @@ K.game = (() => {
       onClue: () => { live.clueLeg = i; save(); },
       onChange: (entry, chip, kind) => { live.entry = entry; live.chip = chip; if (chip != null) store.lastChip = chip; saveSoon(); if (live.untimed) K.coach.input(entry, chip, kind); },
     };
+    // The final leg announces itself: as the card lands, the burner takes one
+    // long breath and a two-note pickup plays (the card itself says FINAL LEG).
+    if (i === C.LEGS - 1 && !resuming) {
+      setTimeout(() => {
+        if (!live || live.round !== i || live.phase !== 'round') return;
+        if (!K.fx.reduced()) K.scene.flare(1.0);
+        K.audio.final();
+      }, animate ? (K.fx.reduced() ? 120 : 200) + 160 : 160);
+    }
     if (animate) {
       await K.round.advance(opts);
       // Locked during the transition (Enter), or left the round? Then don't start a clock.
@@ -287,7 +296,15 @@ K.game = (() => {
     const loop = () => {
       const remaining = totalSec - (Date.now() - live.startedAt) / 1000;
       K.round.setTimer(remaining, totalSec);
-      if (remaining <= 0) { timerRaf = 0; lock({ timedOut: true }); return; }
+      if (remaining <= 0) {
+        timerRaf = 0;
+        if (K.round.guessValue() == null) {      // nothing typed: one grey puff of smoke from the burner
+          const pt = K.scene.point('burner');
+          K.fx.embers(pt.x, pt.y, { color: '#9AA3B5', speed: 60, count: 10 });
+        }
+        lock({ timedOut: true });
+        return;
+      }
       timerRaf = requestAnimationFrame(loop);
     };
     timerRaf = requestAnimationFrame(loop);
@@ -361,24 +378,36 @@ K.game = (() => {
 
     const pin = result.hit && result.chip === 4;
     const bp = K.round.bandPoint();
-    K.round.markOutcome(result.hit, result.chip);
+    const photo = K.round.photoFinish(result.guess, result.chip, result.hit);   // "by a hair" / "just outside"
+    K.round.markOutcome(result.hit, result.chip, photo);
+    let altDelay = 0;
 
     if (!replay) {
       if (result.hit) {
         await K.fx.hitstop(pin ? 240 : 110);
         const col = CHIP_HEX[result.chip];
         K.fx.embers(bp.x, bp.y, { count: pin ? 48 : 26, color: col, speed: pin ? 300 : 220 });
-        K.fx.floatText(bp.x, bp.y - 26, K.units.legText(S.kmOf(result.ptsAfter - result.delta), S.kmOf(result.ptsAfter)), col);
+        const gain = K.units.legText(S.kmOf(result.ptsAfter - result.delta), S.kmOf(result.ptsAfter));
+        const alt = C.FX_GAIN_FLIES && !K.fx.reduced() && document.getElementById('altimeter');
+        const ar = alt && alt.getBoundingClientRect();
+        if (ar && ar.width) {
+          // The gain flies to the altimeter, which starts rolling when it lands.
+          const ov = alt.querySelector('.alt-value') || alt;
+          const vr = ov.getBoundingClientRect();
+          altDelay = K.fx.flyTo(bp.x, bp.y - 10, vr.left + vr.width * 0.42, vr.top + vr.height / 2, gain, col, { trail: pin });
+        } else K.fx.floatText(bp.x, bp.y - 26, gain, col);
         if (pin) { K.fx.ringBurst(bp.x, bp.y); K.fx.sparks(bp.x, bp.y); K.fx.nudge(); }
         K.audio.hit(result.chip);
+        if (photo) setTimeout(() => K.audio.hair(), 260);
         const pt = K.scene.point('burner');
         K.fx.embers(pt.x, pt.y, { count: 20, speed: 200 });
         K.fx.haptic(pin ? 40 : 16);
       } else {
         K.scene.dropSandbag();
-        K.audio.miss();
+        K.audio.miss(photo ? 0.05 : 0.08);
       }
-      K.ui.setAltitude(live.pts);
+      if (altDelay) { const pts = live.pts; setTimeout(() => K.ui.setAltitude(pts), altDelay); }
+      else K.ui.setAltitude(live.pts);
       K.scene.climbTo(live.alt);
     }
 
@@ -388,7 +417,7 @@ K.game = (() => {
     K.round.showResult({
       hit: result.hit, chipIdx: result.chip, delta: result.delta, ptsAfter: result.ptsAfter, clue: result.clue,
       timedOut: result.timedOut, guess: result.guess, lo: result.lo, hi: result.hi,
-      hindsight: hindsight(fact, result),
+      hindsight: hindsight(fact, result), photo,
       plain: ((store.stats && store.stats.flights) || 0) < HINDSIGHT_FLIGHTS,   // first week: the rule in a sentence
       nextLabel: i < C.LEGS - 1 ? 'Next leg' : 'See your flight',
       nextStub: i < C.LEGS - 1 ? `Leg ${i + 2}` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,

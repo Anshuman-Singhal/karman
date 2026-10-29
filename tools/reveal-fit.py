@@ -26,7 +26,9 @@ JS=r"""(units)=>{
    const ans=`<strong>${v.fmt(f.answer,true)} ${v.unit}</strong>`;
    const lo=f.scale==='year'?f.answer-5:f.answer*0.62, hi=f.scale==='year'?f.answer+5:f.answer*0.81;
    line.innerHTML=`The answer, ${ans}, wasn't between ${v.fmt(lo)} and ${v.fmt(hi)}${v.unit?' '+v.unit:''}, so no climb.`;
-   vd.textContent='guess 1.4× too low';
+   // the widest result head: the longest verdict, a clued climb and the photo-finish words
+   document.querySelector('.verdict').textContent='Pinpoint';
+   vd.innerHTML='+12.5 km (clue: half) <em class="vd-hair">by a hair</em>';
    hind.hidden=false;hind.innerHTML=`<i></i><b>rough idea</b> <span class="hind-range">(${v.fmt(lo)}–${v.fmt(hi*1.5)})</span> would've caught it.`;
    fact.textContent=K.units.hint(f.card);
    const b=nb.getBoundingClientRect(),d=dock.getBoundingClientRect();

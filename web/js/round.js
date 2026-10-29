@@ -36,6 +36,10 @@ K.round = (() => {
   let ruler = null;
   let clueArmTimer = 0;
   let lastSec = 0;
+  let scorePts = 0;         // the flight's points before this leg (for the reach preview)
+  let isFinal = false;      // leg 7
+  let guttering = false;    // the burner turned down for the last five seconds
+  const REST_FLAME = 0.45;  // the burner's cruising level (scene.js liftOff)
   const reduce = matchMedia('(prefers-reduced-motion: reduce)');
 
   /* ------------------------------------------------------------ setup */
@@ -106,9 +110,14 @@ K.round = (() => {
     };
     onChange = opts.onChange;
     locked = false;
+    scorePts = opts.scorePts || 0;
+    isFinal = opts.index === K.CONFIG.LEGS - 1;
+    ungutter();
 
     els.card.classList.remove('is-locked', 'is-revealed', 't-mid', 't-low', 'clued', 'show-ruler', 'paused');
+    els.card.classList.toggle('final', isFinal);
     els.band.className = 'band';
+    if (els.gap) els.gap.hidden = true;
     els.needle.hidden = true;
     els.needle.className = 'needle';
     els.result.hidden = true;
@@ -120,9 +129,10 @@ K.round = (() => {
     els.timer.setAttribute('aria-label', `${lastSec} seconds left`);
 
     els.cat.innerHTML = '';
-    [['leg-no', `Leg ${opts.index + 1}`], ['leg-of', `/ ${K.CONFIG.LEGS}`], ['leg-cat', fact.cat]]
+    // Leg 7 announces itself: FINAL LEG in ember, and the "/ 7" drops away.
+    (isFinal ? [['leg-no', 'Final leg'], ['leg-cat', fact.cat]] : [['leg-no', `Leg ${opts.index + 1}`], ['leg-of', `/ ${K.CONFIG.LEGS}`], ['leg-cat', fact.cat]])
       .forEach(([c, t]) => { const s = document.createElement('span'); s.className = c; s.textContent = t; els.cat.appendChild(s); });
-    els.cat.setAttribute('aria-label', `Leg ${opts.index + 1} of ${K.CONFIG.LEGS}, ${fact.cat}`);
+    els.cat.setAttribute('aria-label', `${isFinal ? 'Final leg' : `Leg ${opts.index + 1}`} of ${K.CONFIG.LEGS}, ${fact.cat}`);
     els.q.textContent = K.units.hint(fact.q);
     lastResult = null;
     reveal = { guess: null, chip: 0 };
@@ -230,19 +240,22 @@ K.round = (() => {
       btn.classList.add('tap');
     }
     let e = state.entry;
-    if (k === 'del') e = e.slice(0, -1);
-    else if (k === '.') {
-      if (fact.scale === 'year' || e.includes('.') || e.length >= MAX_DIGITS) return shake();
+    const pitched = K.CONFIG.SOUND_PITCHED;
+    if (k === 'del') {
+      if (pitched && e) K.audio.tick(Math.max(0, intDigits(e) - 2), true);   // one degree down, duller
+      e = e.slice(0, -1);
+    } else if (k === '.') {
+      if (fact.scale === 'year' || e.includes('.') || e.length >= MAX_DIGITS) return refuse();
       e = (e || '0') + '.';
     } else {
-      if (e.includes('.') && e.split('.')[1].length >= 3) return shake();   // 3 decimals is plenty
-      if (e.length >= MAX_DIGITS) return shake();
+      if (e.includes('.') && e.split('.')[1].length >= 3) return refuse();   // 3 decimals is plenty
+      if (e.length >= MAX_DIGITS) return refuse();
       if (e === '0') e = '';
       e += k;
     }
     state.entry = e;
     K.fx.haptic(5);
-    if (k !== 'del') { K.scene.flare(0.55); K.audio.tick(); }
+    if (k !== 'del') { K.scene.flare(0.55); K.audio.tick(pitched ? intDigits(e) - 1 : undefined); }
     els.guess.classList.remove('roll');
     void els.guess.offsetWidth;
     els.guess.classList.add('roll');
@@ -264,6 +277,13 @@ K.round = (() => {
     els.hi.style.setProperty('--del-gap', `${Math.round(gap)}px`);
   }
   window.addEventListener('resize', () => requestAnimationFrame(fitDel));
+
+  /** Digits before the decimal point, at least 1 ("0.5" → 1, "12,400" → 5). */
+  function intDigits(e) { return Math.max(1, String(e).split('.')[0].replace(/^0+/, '').length); }
+  function refuse() {
+    if (K.CONFIG.SOUND_PITCHED) K.audio.refuse();
+    shake();
+  }
 
   function shake() {
     els.guess.classList.remove('nope');
@@ -297,6 +317,7 @@ K.round = (() => {
     state.chip = i;
     K.scene.setChip(i);
     K.fx.haptic(8);
+    if (K.CONFIG.SOUND_PITCHED && !(K.coach && K.coach.active)) K.audio.detent(i);
     const b = els.wbtnEls[i];
     b.classList.remove('pop');
     void b.offsetWidth;
@@ -490,15 +511,19 @@ K.round = (() => {
     }
     requestAnimationFrame(fitDel);
     els.lock.disabled = guess == null || none;
-    els.lockMain.textContent = guess == null ? 'Type a guess' : none ? 'Pick one' : 'Lock it in';
+    const lockWord = isFinal ? 'Last burn' : 'Lock it in';
+    els.lockMain.textContent = guess == null ? 'Type a guess' : none ? 'Pick one' : lockWord;
     if (none) {
       els.lockStub.innerHTML = '';
       els.lock.setAttribute('aria-label', 'Pick how sure you are first');
     } else {
       const bet = S.legPointsFor(state.chip, Boolean(ctx.clueHere));
       els.lockStub.innerHTML = `<i class="kl-pip"></i>${K.units.climbText(S.kmOf(bet))}`;
-      els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `Lock it in for ${K.units.climbText(S.kmOf(bet))}`);
+      els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `${lockWord} for ${K.units.climbText(S.kmOf(bet))}`);
     }
+    // Reach preview: the sky shows where this bet lands if it hits.
+    K.scene.preview(guess != null && !none && !locked ? S.kmOf(scorePts + S.legPointsFor(state.chip, Boolean(ctx.clueHere))) : null,
+      none ? null : `var(--c-${chip.key})`);
 
     // Width buttons: the chosen one lights up; each shows the range it would
     // give this guess (or what it is for, before a guess); climbs halve when
@@ -541,7 +566,18 @@ K.round = (() => {
     els.timer.setAttribute('aria-label', `${sec} seconds left`);
     els.card.classList.toggle('t-mid', sec <= 15 && sec > 5);
     els.card.classList.toggle('t-low', sec <= 5);
-    if (sec <= 5 && sec > 0) { els.timer.classList.remove('beat'); void els.timer.offsetWidth; els.timer.classList.add('beat'); }
+    if (sec <= 5 && sec > 0) {
+      els.timer.classList.remove('beat'); void els.timer.offsetWidth; els.timer.classList.add('beat');
+      // The last five seconds: the burner gutters and the pilot pumps the valve
+      // once a second; a soft clock tick steps down 5 … 1.
+      if (!els.card.classList.contains('paused')) {
+        if (!K.fx.reduced()) {
+          if (!guttering) { guttering = true; K.scene.setFlameTarget(0.25); }
+          K.scene.flare(0.6);
+        }
+        K.audio.countdown(sec);
+      }
+    }
     if (sec === 10 || sec === 5) els.timerLive.textContent = `${sec} seconds`;
   }
 
@@ -552,6 +588,13 @@ K.round = (() => {
     els.card.classList.add('is-locked');
     els.card.classList.remove('t-mid', 't-low');
     els.timer.classList.remove('beat');
+    ungutter();
+    K.scene.preview(null);
+  }
+  function ungutter() {
+    if (!guttering) return;
+    guttering = false;
+    if (Math.abs(K.scene.flameTarget - 0.25) < 1e-6) K.scene.setFlameTarget(REST_FLAME);
   }
 
   /** The ruler slides in; the needle hovers, then drops onto the answer. */
@@ -585,9 +628,42 @@ K.round = (() => {
     els.needle.classList.toggle('offscale', !!off);
   }
 
-  function markOutcome(hit, chipIdx) {
+  /** Photo finish. A hit in the outer 6 % of the range (in log space; the
+      edge grace counts) is "by a hair"; a miss within 15 % of an edge (at
+      least one step for whole counts and years) is "just outside".
+      Returns { kind: 'hair' | 'outside', side: 'l' | 'r' } or null. */
+  function photoFinish(guess, chipIdx, hit) {
+    if (!fact || guess == null || chipIdx == null) return null;
+    const r = S.range(fact, guess, chipIdx), a = fact.answer;
+    if (!(r.hi > r.lo)) return null;                       // "exactly 7": no edges to speak of
+    const linear = fact.scale === 'year' || r.lo <= 0 || a <= 0;
+    if (hit) {
+      const t = linear ? (a - r.lo) / (r.hi - r.lo) : Math.log(a / r.lo) / Math.log(r.hi / r.lo);
+      return t < 0.06 ? { kind: 'hair', side: 'l' } : t > 0.94 ? { kind: 'hair', side: 'r' } : null;
+    }
+    const step = fact.scale === 'year' || fact.int ? 1 : 0;
+    const near = (edge, off) => off > 0 && off <= Math.max(fact.scale === 'year' ? (r.hi - r.lo) * 0.15 : Math.abs(edge) * 0.15, step);
+    if (a > r.hi && near(r.hi, a - r.hi)) return { kind: 'outside', side: 'r' };
+    if (a < r.lo && near(r.lo, r.lo - a)) return { kind: 'outside', side: 'l' };
+    return null;
+  }
+
+  function markOutcome(hit, chipIdx, photo) {
     els.band.classList.add(hit ? 'hit' : 'miss');
     if (hit) els.band.style.setProperty('--c', `var(--c-${S.CHIPS[chipIdx].key})`);
+    if (!photo || !ruler) return;
+    if (photo.kind === 'hair') els.band.classList.add('hair', `edge-${photo.side}`);
+    else {
+      // the gap between the band's edge and the needle, hatched in ember
+      const disp = (v) => (fact.scale === 'year' ? v : view.toDisp(v));
+      const r = S.range(fact, reveal.guess, chipIdx);
+      const te = clamp(ruler.toT(disp(photo.side === 'r' ? r.hi : r.lo)), 0, 1);
+      const tn = clamp(ruler.toT(disp(fact.answer)), 0, 1);
+      if (!els.gap) { els.gap = document.createElement('div'); els.gap.className = 'gap'; els.track.insertBefore(els.gap, els.needle); }
+      els.gap.style.left = `${(Math.min(te, tn) * 100).toFixed(3)}%`;
+      els.gap.style.width = `${(Math.abs(tn - te) * 100).toFixed(3)}%`;
+      els.gap.hidden = false;
+    }
   }
 
   function bandPoint() {
@@ -606,7 +682,7 @@ K.round = (() => {
     const chip = S.CHIPS[chipIdx];
     const unit = view.unit ? ` ${view.unit}` : '';
     const verdict = els.result.querySelector('.verdict');
-    verdict.textContent = hit ? (chipIdx === 4 ? 'Pinpoint' : 'Hit') : guess == null ? (timedOut ? 'Ran out of time' : 'No answer') : 'Miss';
+    verdict.textContent = hit ? (chipIdx === 4 ? 'Pinpoint' : 'Hit') : guess == null ? (timedOut ? 'Time’s up' : 'No answer') : 'Miss';
     verdict.className = `verdict ${hit ? 'is-hit' : 'is-miss'}`;
     verdict.style.setProperty('--c', hit ? `var(--c-${chip.key})` : 'var(--c-miss)');
 
@@ -616,7 +692,16 @@ K.round = (() => {
     if (hit) d = `${climb}${clue ? ' (clue: half)' : ''}`;
     else d = guess == null ? (timedOut ? 'No climb' : 'No climb') : plain ? offByText(guess) : `No climb · ${offByText(guess)}`;
     const vd = els.result.querySelector('.verdict-delta');
-    vd.textContent = d;
+    // Photo finish: "by a hair" beside the climb; "just outside" instead of the miss margin.
+    const photo = args.photo;
+    vd.textContent = photo && photo.kind === 'outside' ? '' : d;
+    if (photo) {
+      const em = document.createElement('em');
+      em.className = 'vd-hair';
+      em.textContent = photo.kind === 'hair' ? 'by a hair' : 'just outside';
+      if (photo.kind === 'hair') vd.append(' ');
+      vd.appendChild(em);
+    }
     vd.classList.toggle('gain', Boolean(hit));      // the climb is the headline on a hit
 
     const ans = `<strong>${view.fmt(fact.answer, true)}${unit}</strong>`;
@@ -685,7 +770,7 @@ K.round = (() => {
   }
 
   return {
-    init, render, advance, setUnits, setTimer, lockVisual, dropNeedle, markOutcome, bandPoint, showResult,
+    init, render, advance, setUnits, setTimer, lockVisual, dropNeedle, markOutcome, photoFinish, bandPoint, showResult,
     renderLegs, selectChip, clearChip, key, guessValue, offByText, ranges, setPaused,
     get locked() { return locked; },
     get state() { return state; },
