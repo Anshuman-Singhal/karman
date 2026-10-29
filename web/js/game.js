@@ -380,7 +380,6 @@ K.game = (() => {
     const bp = K.round.bandPoint();
     const photo = K.round.photoFinish(result.guess, result.chip, result.hit);   // "by a hair" / "just outside"
     K.round.markOutcome(result.hit, result.chip, photo);
-    let altDelay = 0;
 
     if (!replay) {
       if (result.hit) {
@@ -388,14 +387,7 @@ K.game = (() => {
         const col = CHIP_HEX[result.chip];
         K.fx.embers(bp.x, bp.y, { count: pin ? 48 : 26, color: col, speed: pin ? 300 : 220 });
         const gain = K.units.legText(S.kmOf(result.ptsAfter - result.delta), S.kmOf(result.ptsAfter));
-        const alt = C.FX_GAIN_FLIES && !K.fx.reduced() && document.getElementById('altimeter');
-        const ar = alt && alt.getBoundingClientRect();
-        if (ar && ar.width) {
-          // The gain flies to the altimeter, which starts rolling when it lands.
-          const ov = alt.querySelector('.alt-value') || alt;
-          const vr = ov.getBoundingClientRect();
-          altDelay = K.fx.flyTo(bp.x, bp.y - 10, vr.left + vr.width * 0.42, vr.top + vr.height / 2, gain, col, { trail: pin });
-        } else K.fx.floatText(bp.x, bp.y - 26, gain, col);
+        K.fx.floatText(bp.x, bp.y - 26, gain, col);
         if (pin) { K.fx.ringBurst(bp.x, bp.y); K.fx.sparks(bp.x, bp.y); K.fx.nudge(); }
         K.audio.hit(result.chip);
         if (photo) setTimeout(() => K.audio.hair(), 260);
@@ -406,8 +398,7 @@ K.game = (() => {
         K.scene.dropSandbag();
         K.audio.miss(photo ? 0.05 : 0.08);
       }
-      if (altDelay) { const pts = live.pts; setTimeout(() => K.ui.setAltitude(pts), altDelay); }
-      else K.ui.setAltitude(live.pts);
+      K.ui.setAltitude(live.pts);
       K.scene.climbTo(live.alt);
     }
 

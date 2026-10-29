@@ -510,3 +510,10 @@ body:not([data-screen="round"]) .rail-reach, body.climb-open .rail-reach { opaci
 body:not([data-screen="round"]) .rail-tick.reach span::after { content: none; }
 @media (prefers-reduced-motion: reduce) { .rail-reach { transition: opacity 120ms linear; } }
 :root.calm .rail-reach { transition: opacity 120ms linear; }
+
+/* Labels are ink on top of the paint: a captioned landmark always sits above the
+   clouds of its own layer, so a puff never hides "BURJ KHALIFA" (the leader still
+   reads as behind nothing it shouldn't). Front-layer clouds stay in front of the
+   balloon for depth, but never over a label: they fade a little where captions are. */
+#world > .w-item.cloud-item { z-index: 0; }
+#world > .w-item:has(.cap) { z-index: 2; }

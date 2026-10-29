@@ -238,63 +238,10 @@ K.fx = (() => {
     setTimeout(() => el.remove(), 1600);
   }
 
-  /* The gain flies to the altimeter (K.CONFIG.FX_GAIN_FLIES): a pill in the
-     width's colour leaves the band on a quadratic arc whose control point sits
-     40 px above the higher end, lands with a small ring, and is gone.
-     Returns the flight time in ms (the caller starts the odometer then).
-     opts.trail: three small sparks follow the same path (Pinpoint). */
-  function bezierEase(x1, y1, x2, y2) {
-    const c = (a, b, t) => 3 * a * t * (1 - t) * (1 - t) + 3 * b * t * t * (1 - t) + t * t * t;
-    return (x) => {
-      let lo = 0, hi = 1, t = x;
-      for (let i = 0; i < 18; i++) { if (c(x1, x2, t) < x) lo = t; else hi = t; t = (lo + hi) / 2; }
-      return c(y1, y2, t);
-    };
-  }
-  const flyEase = bezierEase(0.5, 0, 0.3, 1);
-  function flyTo(x0, y0, x1, y1, text, color, opts = {}) {
-    const dur = window.innerWidth < 700 ? 420 : 520;
-    const cx = x0 + (x1 - x0) * 0.3, cy = Math.min(y0, y1) - 40;
-    const at = (t) => { const u = 1 - t; return [u * u * x0 + 2 * u * t * cx + t * t * x1, u * u * y0 + 2 * u * t * cy + t * t * y1]; };
-    const pill = document.createElement('div');
-    pill.className = 'fly-pill';
-    pill.textContent = text;
-    if (color) pill.style.setProperty('--fc', color);
-    pill.style.transform = `translate3d(${x0}px, ${y0}px, 0) translate(-50%, -50%)`;
-    document.body.appendChild(pill);
-    const dots = opts.trail ? [0, 1, 2].map((i) => {
-      const d = document.createElement('i');
-      d.className = 'fly-spark';
-      if (color) d.style.setProperty('--fc', color);
-      document.body.appendChild(d);
-      return { el: d, lag: 0.09 * (i + 1) };
-    }) : [];
-    const t0 = performance.now();
-    const step = (now) => {
-      const k = Math.max(0, Math.min(1, (now - t0) / dur));
-      const [x, y] = at(flyEase(k));
-      const sc = 1 - 0.25 * k;
-      pill.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%) scale(${sc.toFixed(3)})`;
-      pill.style.opacity = k > 0.88 ? ((1 - k) / 0.12).toFixed(3) : '1';
-      for (const d of dots) {
-        const kk = Math.max(0, Math.min(1, (now - t0) / dur - d.lag));
-        const [dx, dy] = at(flyEase(kk));
-        d.el.style.transform = `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0)`;
-        d.el.style.opacity = kk >= 1 || kk <= 0 ? '0' : (1 - kk * 0.6).toFixed(3);
-      }
-      if (k >= 1 && pill.isConnected) { pill.remove(); ringBurst(x1, y1, '#FFB547', 0.5); }
-      if (k < 1 || dots.some((d) => (now - t0) / dur - d.lag < 1)) requestAnimationFrame(step);
-      else dots.forEach((d) => d.el.remove());
-    };
-    requestAnimationFrame(step);
-    return dur;
-  }
-
-  function ringBurst(x, y, color = '#FFD27A', scale = 1) {
+  function ringBurst(x, y, color = '#FFD27A') {
     if (reduced()) return;
     const el = document.createElement('div');
     el.className = 'ring-burst';
-    if (scale !== 1) { const px = 40 * scale; Object.assign(el.style, { width: `${px}px`, height: `${px}px`, margin: `${-px / 2}px 0 0 ${-px / 2}px` }); }
     el.style.left = `${x}px`;
     el.style.top = `${y}px`;
     el.style.setProperty('--ring', color);
@@ -342,7 +289,7 @@ K.fx = (() => {
 
   return {
     init, reduced, sleep,
-    embers, hush, sparks, Odometer, banner, clearBanners, floatText, flyTo, ringBurst,
+    embers, hush, sparks, Odometer, banner, clearBanners, floatText, ringBurst,
     hitstop, nudge, haptic, toast,
     get frozen() { return hitstopActive; },
   };

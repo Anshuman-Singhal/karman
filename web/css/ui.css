@@ -4848,3 +4848,7 @@ body:has(#screen-round.final) #hud .legs .leg:last-child { box-shadow: 0 0 0 1.5
   #screen-round .band.hair::after { display: none; }
 }
 :root.calm #screen-round .band.hair::after { display: none; }
+
+/* v20 · the category never truncates (round.js fitCat): the "/ 7" is the first thing to go */
+#hud .cat-tag.no-of .leg-of, .round .cat-tag.no-of .leg-of,
+#hud .cat-tag.no-no .leg-no, .round .cat-tag.no-no .leg-no { display: none; }

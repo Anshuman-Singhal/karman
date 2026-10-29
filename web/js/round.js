@@ -133,6 +133,7 @@ K.round = (() => {
     (isFinal ? [['leg-no', 'Final leg'], ['leg-cat', fact.cat]] : [['leg-no', `Leg ${opts.index + 1}`], ['leg-of', `/ ${K.CONFIG.LEGS}`], ['leg-cat', fact.cat]])
       .forEach(([c, t]) => { const s = document.createElement('span'); s.className = c; s.textContent = t; els.cat.appendChild(s); });
     els.cat.setAttribute('aria-label', `${isFinal ? 'Final leg' : `Leg ${opts.index + 1}`} of ${K.CONFIG.LEGS}, ${fact.cat}`);
+    requestAnimationFrame(fitCat);
     els.q.textContent = K.units.hint(fact.q);
     lastResult = null;
     reveal = { guess: null, chip: 0 };
@@ -262,6 +263,32 @@ K.round = (() => {
     update();
     onChange(state.entry, state.chip);
   }
+
+  /** The category is the one word that frames the question, so it never gets cut off:
+      on phones the "/ 7" goes (the seven pips already count), then the tag tightens its
+      letter-spacing and steps its size down until it fits (an ellipsis only as a last resort). */
+  function fitCat() {
+    const c = els.cat;
+    if (!c) return;
+    const cat = c.querySelector('.leg-cat'), no = c.querySelector('.leg-no');
+    if (!cat) return;
+    const clipped = () => cat.scrollWidth > cat.clientWidth + 1;
+    c.style.fontSize = ''; c.style.letterSpacing = '';
+    c.classList.remove('no-of', 'no-no');
+    if (no && no.dataset.full) no.textContent = no.dataset.full;
+    if (!clipped()) return;
+    c.classList.add('no-of');                                   // 1 · the "/ 7" (the pips count)
+    if (!clipped()) return;
+    c.style.letterSpacing = '0.02em';                           // 2 · tighter, then smaller
+    let size = parseFloat(getComputedStyle(c).fontSize);
+    while (clipped() && size > 11) { size -= 0.5; c.style.fontSize = `${size}px`; }
+    if (!clipped() || !no) return;
+    if (els.card.classList.contains('final')) {                  // 3 · "Final leg" → "Final"
+      no.dataset.full = no.dataset.full || no.textContent; no.textContent = 'Final';
+      if (clipped()) c.classList.add('no-no');                  //     (the halo'd 7th pip and "Last burn" still say it)
+    } else c.classList.add('no-no');                            //     or the leg number goes (dial + pips show it)
+  }
+  window.addEventListener('resize', () => requestAnimationFrame(fitCat));
 
   /** Desktop delete key: the right range line's dashes start just after it, and a number long
       enough to crowd the right edge gets the icon-only key. Measured, never reflowed. */
@@ -483,6 +510,10 @@ K.round = (() => {
     const tlo = clamp(ruler.toT(lo), 0, 1), thi = clamp(ruler.toT(hi), 0, 1);
     els.band.style.left = `${(tlo * 100).toFixed(3)}%`;
     els.band.style.width = `${((thi - tlo) * 100).toFixed(3)}%`;
+    // The grey mark sits in the middle of your range (the scale is not always centred
+    // on it: year scales stop at this year, so a fixed 50% mark drifted off the band).
+    const knob = document.getElementById('knob');
+    if (knob) knob.style.left = `${(((tlo + thi) / 2) * 100).toFixed(3)}%`;
     els.band.style.setProperty('--c', `var(--c-${S.CHIPS[chip].key})`);
   }
 
@@ -602,7 +633,7 @@ K.round = (() => {
     reveal = { guess: metricGuess, chip: state.chip };
     const answerD = fact.scale === 'year' ? fact.answer : view.toDisp(fact.answer);
     if (metricGuess != null) layoutRuler(metricGuess, state.chip);
-    else { ruler = makeRuler(answerD); drawTicks(ruler); els.band.style.width = '0'; }
+    else { ruler = makeRuler(answerD); drawTicks(ruler); els.band.style.width = '0'; const k = document.getElementById('knob'); if (k) k.style.left = '50%'; }
     els.card.classList.add('show-ruler');
     placeNeedle();
     await K.fx.sleep(K.fx.reduced() ? 60 : 260);
