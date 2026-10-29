@@ -438,6 +438,9 @@ K.climb = (() => {
     window.addEventListener('resize', () => { seatHandle(); if (open) { paint(); placeStubs(); } });
     if (window.ResizeObserver) new ResizeObserver(seatHandle).observe(dock);
     seatHandle();
+    // Reopening a finished day shows the pass during boot, before this runs: set() kept
+    // the legs but had nowhere to draw them, so the climb view opened with no leg cards.
+    if (record) paint();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 

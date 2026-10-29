@@ -57,11 +57,11 @@ K.CONFIG = {
   /* localStorage key. Bump the suffix only with a migration in storage.js. */
   STORAGE_KEY: 'karman:v1',
 
-  /* Game-feel experiment, off until the owner has heard it.
+  /* Pitched sounds (approved Oct 29).
      SOUND_PITCHED: key ticks rise in pitch with the number's digit count,
        delete and refused keys get their own sounds, and each width plays a
        soft detent on the note its hit chime starts on. */
-  SOUND_PITCHED: false,
+  SOUND_PITCHED: true,
 
   /* Developer tools: flight picker + "wipe save" strip. On for local copies;
      on the live site only when you add ?dev to the address (karman.day/?dev). */
