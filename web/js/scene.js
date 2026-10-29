@@ -79,7 +79,8 @@ K.scene = (() => {
 
   /* ---- DOM refs ---- */
   let skyEl, starsEl, deepEl = null, worldEl, frontEl, earthEl, rigEl, svgEl, sunEl, sceneEl, paperV = '';
-  let railEl, railBug, railFill, railGhost, railTicks = [];
+  let railEl, railBug, railFill, railGhost, railReach, railTicks = [];
+  let reach = null;          // the reach preview: { km, color } while a guess and a width are set
 
   /* ========================================================== world items */
   function addItem(km, html, cls, layer = worldEl) {
@@ -886,6 +887,40 @@ K.scene = (() => {
     railBug = railEl.querySelector('.rail-bug');
     railFill = railEl.querySelector('.rail-fill');
     railGhost = railEl.querySelector('.rail-ghost');
+    railReach = document.createElement('div');
+    railReach.className = 'rail-reach';
+    railReach.innerHTML = '<i></i>';
+    railEl.insertBefore(railReach, railBug);
+  }
+
+  /* Reach preview: where a hit would take you. A quiet column in the width's
+     colour from the plane up to the altitude a hit lands at, capped by a small
+     tick; the highest milestone worth naming inside it reads "in reach".
+     null hides it (no guess, no width, locked). The guide hides it too. */
+  const REACH_NAMED = new Set(['everest', 'airliners', 'ozone', 'skydive', 'stratopause', 'karman', 'orbit']);
+  let reachKey = '';
+  function preview(km, color) {
+    reach = km == null ? null : { km, color };
+  }
+  function paintReach() {
+    const on = Boolean(reach) && !(K.coach && K.coach.active) && reach.km > cam.km + 0.05;
+    let key = 'off';
+    if (on) key = `${reach.km.toFixed(3)}|${cam.km.toFixed(3)}|${reach.color}`;
+    if (key === reachKey) return;
+    reachKey = key;
+    railReach.classList.toggle('on', on);
+    let best = null;
+    if (on) {
+      const top = 1 - railFrac(reach.km), bottom = railFrac(cam.km);
+      railReach.style.top = `${(top * 100).toFixed(2)}%`;
+      railReach.style.bottom = `${(bottom * 100).toFixed(2)}%`;
+      railReach.style.setProperty('--rc', reach.color);
+      for (const t of railTicks) if (t.m.km > cam.km && t.m.km <= reach.km + 1e-6 && REACH_NAMED.has(t.m.id)) best = t;
+    }
+    for (const t of railTicks) {
+      t.el.classList.toggle('reach', t === best);
+      if (t === best) t.el.style.setProperty('--rc', reach.color);
+    }
   }
 
   /* ========================================================== colours */
@@ -950,7 +985,7 @@ K.scene = (() => {
       .filter((e) => e && !e.hidden && e.offsetParent !== null && e.getClientRects().length && (e.id !== 'banner' || e.textContent.trim()))
       .map((e) => e.getBoundingClientRect());
     // the rail's two printed labels (the next milestone, and Space) count as instruments too
-    railEl.querySelectorAll('.rail-tick.next span, .rail-tick:last-child span').forEach((s) => {
+    railEl.querySelectorAll('.rail-tick.next span, .rail-tick:last-child span, .rail-tick.reach span').forEach((s) => {
       const r = s.getBoundingClientRect();
       if (r.width) hud.push(r);
     });
@@ -1057,6 +1092,7 @@ K.scene = (() => {
       t.el.classList.toggle('lit', cam.km >= t.m.km);
       t.el.classList.toggle('next', t === nextTick);
     }
+    paintReach();
 
     requestAnimationFrame(frame);
   }
@@ -1119,6 +1155,7 @@ K.scene = (() => {
     document.documentElement.style.setProperty('--horizon', weather.horizon);
     document.documentElement.style.setProperty('--haze', weather.haze);
     buildWorld();
+    reach = null;
     railGhost.hidden = !(pbKm > 0.5);
     railGhost.style.top = `${((1 - railFrac(pbKm)) * 100).toFixed(2)}%`;
     cam.km = cam.from = cam.to = opts.km || 0;
@@ -1221,12 +1258,13 @@ K.scene = (() => {
 
   return { railFrac, fOf, refreshCaptions,
 
-    init, reset, climbTo, setChip, setLift, liftOff, inflate, flare, setFlameTarget,
+    init, reset, climbTo, setChip, setLift, liftOff, inflate, flare, setFlameTarget, preview,
     setAnchor, planAnchor, point, svgPoint, dropSandbag, fOf, skyAt,
     /** Screen y of a given altitude right now (for ambient effects). */
     yOf: (km) => anchorY + worldShift() + (fOf(cam.km) - fOf(km)) * span,
     set onCross(fn) { onCross = fn; },
     get km() { return cam.km; },
+    get flameTarget() { return flame.target; },
     get balloonPx() { return balloonPx; },
   };
 })();

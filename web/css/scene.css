@@ -482,3 +482,31 @@ body[data-screen="round"] .cap-sub:has(.cap-fig):not(:has(.cap-note)) { display:
   background: linear-gradient(to bottom, var(--haze) 0%, var(--haze) 100%);
   opacity: 0.52;
 }
+
+/* ---------------------------------------------------------------- reach preview (v6)
+   With a guess typed and a width chosen, a quiet column in the width's colour
+   runs from the plane up to where a hit would land, capped by a small tick.
+   The highest milestone worth naming inside it whispers "in reach".
+   scene.js preview() sets top/bottom and --rc; .on fades it in. */
+.rail-reach {
+  position: absolute; left: 2px; width: 5px; top: 100%; bottom: 0;
+  border-radius: 3px; opacity: 0;
+  background: linear-gradient(to top, color-mix(in srgb, var(--rc, #fff) 4%, transparent), color-mix(in srgb, var(--rc, #fff) 30%, transparent));
+  transition: opacity 200ms ease-out, top 180ms var(--ease-out), bottom 180ms var(--ease-out), background 180ms;
+}
+.rail-reach.on { opacity: 1; }
+.rail-reach i { /* the cap: where a hit lands */
+  position: absolute; left: -3px; top: -1px; width: 11px; height: 2px; border-radius: 1px;
+  background: var(--rc, #fff); box-shadow: 0 0 5px color-mix(in srgb, var(--rc, #fff) 70%, transparent);
+}
+.rail-tick.reach span { opacity: 0.62; color: rgba(255, 255, 255, 0.78); white-space: nowrap; text-shadow: 0 1px 6px rgba(5, 8, 25, 0.45); }
+.rail-tick.reach.next span { opacity: 1; }
+.rail-tick.reach span::after {
+  content: "in reach"; margin-left: 5px;
+  font: italic 400 11px/1 var(--f-serif); letter-spacing: 0.01em; text-transform: none;
+  color: color-mix(in srgb, var(--rc, #fff) 55%, rgba(255, 255, 255, 0.5));
+}
+body:not([data-screen="round"]) .rail-reach, body.climb-open .rail-reach { opacity: 0; }
+body:not([data-screen="round"]) .rail-tick.reach span::after { content: none; }
+@media (prefers-reduced-motion: reduce) { .rail-reach { transition: opacity 120ms linear; } }
+:root.calm .rail-reach { transition: opacity 120ms linear; }
