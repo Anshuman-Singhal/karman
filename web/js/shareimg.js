@@ -90,6 +90,7 @@ K.shareImage = (() => {
   const railY = (km) => RAIL.bottom - K.scene.fOf(Math.min(km, 120)) / K.scene.fOf(120) * (RAIL.bottom - RAIL.top);
 
   function rail(ctx, km, hide) {
+    const youY = railY(km);
     ctx.strokeStyle = 'rgba(255,255,255,0.28)';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -110,7 +111,7 @@ K.shareImage = (() => {
       if (m.id === 'stratopause' || m.id === 'everest') return; // keep the rail uncluttered
       const y = railY(m.km);
       if (hide && y > hide[0] && y < hide[1]) {
-        if (m.id === 'karman') { ctx.globalAlpha = 0.9; ctx.fillStyle = AMBER; ctx.textAlign = 'left'; ctx.fillText('100', RAIL.x + 70, y); ctx.globalAlpha = 1; }
+        if (m.id === 'karman' && Math.abs(y - youY) > 34) { ctx.globalAlpha = 0.9; ctx.fillStyle = AMBER; ctx.textAlign = 'left'; ctx.fillText('100', RAIL.x + 70, y); ctx.globalAlpha = 1; }
         return; // other ticks tucked behind the balloon stay hidden
       }
       const passed = km >= m.km;
@@ -126,6 +127,31 @@ K.shareImage = (() => {
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.textAlign = 'right';
     ctx.fillText('KM', RAIL.x - 24, RAIL.top - 34);
+  }
+
+  /** You are here: an amber tick across the rail at the true altitude, and a
+      small pill with the number, so the craft art never reads as a higher flight. */
+  function youAreHere(ctx, km) {
+    const y = railY(km);
+    const label = K.units.altNum(km, 0);
+    ctx.save();
+    ctx.fillStyle = AMBER;
+    ctx.shadowColor = 'rgba(255,181,71,0.7)';
+    ctx.shadowBlur = 12;
+    ctx.fillRect(RAIL.x - 18, y - 2.5, 36, 5);
+    ctx.shadowBlur = 0;
+    ctx.font = `800 32px ${DISPLAY}`;
+    const w = ctx.measureText(label).width + 22, h = 40, x = RAIL.x + 44;
+    roundRect(ctx, x, y - h / 2, w, h, 9);
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = 'rgba(20,33,61,0.85)';
+    ctx.stroke();
+    ctx.fillStyle = NAVY;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + 11, y + 2);
+    ctx.restore();
   }
 
   /* The craft: the live vehicle SVG (already at your final altitude's
@@ -223,14 +249,34 @@ K.shareImage = (() => {
     ctx.moveTo(405, STUB_Y + 124); ctx.lineTo(420, STUB_Y + 138); ctx.lineTo(405, STUB_Y + 152);
     ctx.stroke();
 
+    // The foot: the day's sky and date ("CLEAR DAWN · 26 OCT"), so each day's
+    // card is its own postcard, then the streak.
+    ctx.font = `800 40px ${DISPLAY}`;
+    const urlW = ctx.measureText(K.CONFIG.SHARE_URL.toUpperCase()).width;
+    const foot = [];
+    const wx = skyOf(record, n);
+    if (wx) foot.push(wx.toUpperCase());
+    if (record.mode !== 'unlimited') foot.push(K.date.dateOfFlight(n).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).toUpperCase());
+    if (streak > 1) foot.push(`${streak}-DAY STREAK`);
+    if (!foot.length) foot.push('ONE FLIGHT A DAY');
+    const footTxt = foot.join(' · ');
+    let size = 24;
+    ctx.font = `500 ${size}px ${MONO}`;
+    while (ctx.measureText(footTxt).width > W - 160 - urlW - 40 && size > 16) { size -= 1; ctx.font = `500 ${size}px ${MONO}`; }
     ctx.fillStyle = 'rgba(20,33,61,0.7)';
-    ctx.font = `500 24px ${MONO}`;
-    const streakTxt = streak > 1 ? `${streak}-DAY STREAK` : 'ONE FLIGHT A DAY';
-    ctx.fillText(streakTxt, 80, STUB_Y + 250);
+    ctx.fillText(footTxt, 80, STUB_Y + 250);
     ctx.textAlign = 'right';
     ctx.fillStyle = NAVY;
     ctx.font = `800 40px ${DISPLAY}`;
     ctx.fillText(K.CONFIG.SHARE_URL.toUpperCase(), W - 80, STUB_Y + 252);
+  }
+
+  /** The sky the flight was flown under (daily weather, or the Unlimited run's). */
+  function skyOf(record, n) {
+    try {
+      const w = record.mode === 'unlimited' ? K.daily.weatherFor(1000 + (record.run || 1)) : (K.daily.get(n) || {}).weather || K.daily.weatherFor(Math.max(1, n));
+      return w && w.name ? w.name : '';
+    } catch (e) { return ''; }
   }
 
   /** Shrink a line of text until it fits. */
@@ -262,6 +308,7 @@ K.shareImage = (() => {
       ctx.drawImage(craft, RAIL.x + 2 - 96, by - 240, 192, 240);
       ctx.restore();
     }
+    youAreHere(ctx, record.alt);
 
     // Header
     ctx.textBaseline = 'alphabetic';
@@ -293,9 +340,19 @@ K.shareImage = (() => {
     ctx.font = `800 96px ${DISPLAY}`;
     ctx.fillText(K.units.altUnit(), x0 + ctx.measureText(K.units.altNum(record.alt, 0)).width * 2.7 + 18, 560);
     ctx.restore();
+    // "Stratosphere  55 km to space": the layer, then the gap a friend can close.
+    const tier = S.tierName(record.alt);
     ctx.fillStyle = '#FFFFFF';
     ctx.font = `600 44px ${UI}`;
-    ctx.fillText(`${K.units.altText(record.alt, { decimals: 1 })} · ${S.tierName(record.alt)}`, x0 + 6, 640);
+    ctx.fillText(tier, x0 + 6, 640);
+    const tierW = ctx.measureText(tier).width;
+    const left = K.CONFIG.KARMAN_KM - record.alt;
+    const gap = karman ? 'past the Kármán line' : `${K.units.altText(left, { decimals: left < 1 ? 1 : 0 })} to space`;
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
+    let gs = 46;
+    ctx.font = `italic 400 ${gs}px "Instrument Serif", Georgia, serif`;
+    while (x0 + 24 + tierW + ctx.measureText(gap).width > W - 60 && gs > 30) { gs -= 2; ctx.font = `italic 400 ${gs}px "Instrument Serif", Georgia, serif`; }
+    ctx.fillText(gap, x0 + 6 + tierW + 18, 640);
 
     legs(ctx, record, x0, 760);
 
