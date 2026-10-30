@@ -97,6 +97,9 @@ K.game = (() => {
     return { n: today, facts, weather: K.daily.weatherFor(1000 + run), run, flightNo: (store.unlimitedCount || 0) + 1 };
   }
 
+  /** A non-daily run is resumed on a cold open only if its current leg began this recently. */
+  const RESUME_MS = 10 * 60 * 1000;
+
   /** Which in-progress slot a flight lives in: today's/an archive day by number, Unlimited as one. */
   function slotKey(m, num) { return m === 'unlimited' ? 'unlimited' : `${m}:${num}`; }
 
@@ -107,9 +110,13 @@ K.game = (() => {
     busy = false;
     store = K.storage.load();
     today = devFlight != null ? devFlight : K.date.flightNumber();
-    // Which flight? The one asked for, else a non-daily flight left in progress, else today.
+    // Which flight? The one asked for; else an Unlimited/archive flight you were in the
+    // middle of moments ago (a refresh mid-run); else TODAY. Opening the site cold always
+    // lands on today's flight: a run left hours or days ago stays parked (Menu → resume),
+    // instead of greeting a visitor with a leg whose clock ran out while they were away.
     const inProgress = store.live && store.live.mode && store.live.mode !== 'daily' ? store.live : null;
-    mode = opts.mode || (inProgress ? inProgress.mode : 'daily');
+    const justNow = inProgress && inProgress.startedAt > 0 && Date.now() - inProgress.startedAt < RESUME_MS;
+    mode = opts.mode || (justNow ? inProgress.mode : 'daily');
     n = mode === 'archive' ? (opts.n != null ? opts.n : inProgress.n) : today;
     // One flight per mode can be in progress. Leaving one for another (menu → Unlimited
     // mid-leg) parks it; coming back unparks it, clock still counting from where it was.
