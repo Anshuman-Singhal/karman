@@ -128,7 +128,7 @@ K.ui = (() => {
     tag.hidden = !info;
     document.body.classList.toggle('has-parked', Boolean(info));
     if (info) {
-      $('parked-leg').textContent = ` · Leg ${info.leg} of ${K.CONFIG.LEGS}`;
+      $('parked-leg').textContent = `Leg ${info.leg}/${K.CONFIG.LEGS}`;
       tag.setAttribute('aria-label', `Resume your Unlimited run, leg ${info.leg} of ${K.CONFIG.LEGS}`);
     }
   }

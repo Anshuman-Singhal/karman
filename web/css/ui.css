@@ -4853,26 +4853,28 @@ body:has(#screen-round.final) #hud .legs .leg:last-child { box-shadow: 0 0 0 1.5
 #hud .cat-tag.no-of .leg-of, .round .cat-tag.no-of .leg-of,
 #hud .cat-tag.no-no .leg-no, .round .cat-tag.no-no .leg-no { display: none; }
 
-/* v21 · resume tag: an Unlimited run left mid-flight, one tap back in. It sits where the
-   altimeter starts, under Menu, and the altimeter steps down to make room. Off-flight only. */
+/* v21 · resume tag: an Unlimited run left mid-flight. A small stub from the same ticket
+   as Streak · Menu (paper, torn ends, a perforation), hanging just under it; the altimeter
+   steps down to make room. Off-flight only. It lives in #topbar, so it shares its shadow. */
 .parked-tag {
-  position: absolute; z-index: 6; right: max(16px, env(safe-area-inset-right, 0px));
-  top: calc(env(safe-area-inset-top, 0px) + 60px);
-  display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 8px 0 6px;
-  border: 0; border-radius: 999px; cursor: pointer;
-  background: var(--stock-hi, #FAF4E8); color: var(--ink, #14213D);
-  box-shadow: 0 6px 18px rgba(2, 4, 14, 0.28), inset 0 0 0 1px rgba(20, 33, 61, 0.12);
-  font: 600 12.5px/1 var(--f-ui); letter-spacing: 0.01em;
-  animation: parkIn 320ms var(--ease-out) both;
+  position: absolute; right: 16px; top: calc(env(safe-area-inset-top, 0px) + 12px + 38px + 8px);
+  display: inline-flex; align-items: stretch; height: 30px; padding: 0 2px; border: 0; cursor: pointer;
+  border-radius: 4px; background: var(--fibre), var(--stock); color: var(--ink);
+  -webkit-mask: radial-gradient(circle at 0 50%, transparent 3.5px, #000 4px) left / 51% 100% no-repeat,
+                radial-gradient(circle at 100% 50%, transparent 3.5px, #000 4px) right / 51% 100% no-repeat;
+          mask: radial-gradient(circle at 0 50%, transparent 3.5px, #000 4px) left / 51% 100% no-repeat,
+                radial-gradient(circle at 100% 50%, transparent 3.5px, #000 4px) right / 51% 100% no-repeat;
+  animation: parkIn 360ms var(--ease-out) both;
 }
 .parked-tag[hidden] { display: none; }
-.parked-tag .pt-inf { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--amber); color: var(--on-amber, #14213D); font: 800 14px/1 var(--f-display); }
-.parked-tag small { font: inherit; font-weight: 500; color: rgba(20, 33, 61, 0.6); }
-.parked-tag svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.6; }
-.parked-tag:hover { background: #fff; }
-.parked-tag:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.parked-tag .pt-main, .parked-tag .pt-stub { display: inline-flex; align-items: center; padding: 0 10px; border-radius: 3px; }
+.parked-tag .pt-main { gap: 6px; font: 800 13px/1 var(--f-display); letter-spacing: 0.12em; text-transform: uppercase; }
+.parked-tag .pt-inf { font: 800 16px/1 var(--f-display); letter-spacing: 0; color: var(--ember-ink); margin-top: -1px; }
+.parked-tag .pt-stub { position: relative; font: 500 10.5px/1 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.parked-tag .pt-stub::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; border-left: 1.5px dashed var(--perf-c); }
+.parked-tag:hover .pt-main, .parked-tag:hover .pt-stub { background: rgba(20, 33, 61, 0.06); }
+.parked-tag:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
 body[data-screen="round"] .parked-tag, body.climb-open .parked-tag { display: none; }
-body.has-parked:not([data-screen="round"]) #altimeter { translate: 0 38px; }
-@keyframes parkIn { from { opacity: 0; transform: translateY(-6px); } }
-@media (max-width: 380px) { .parked-tag small { display: none; } }
+body.has-parked:not([data-screen="round"]) #altimeter { translate: 0 36px; }
+@keyframes parkIn { from { opacity: 0; transform: translateY(-5px); } }
 @media (prefers-reduced-motion: reduce) { .parked-tag { animation: none; } }
