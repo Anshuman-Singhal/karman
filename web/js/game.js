@@ -65,6 +65,8 @@ K.game = (() => {
 
   function refreshTopbar() {
     K.ui.topbar({ n, mode, streak: streakNow().cur });
+    const pk = mode !== 'unlimited' && store.parked && store.parked.unlimited;
+    K.ui.parked(pk ? { leg: Math.min(C.LEGS, (pk.round || 0) + 1) } : null);
   }
 
   /* ------------------------------------------------------------ unlimited

@@ -220,6 +220,7 @@
   $('cal-prev').addEventListener('click', () => K.ui.calStep(-1));
   $('cal-next').addEventListener('click', () => K.ui.calStep(1));
   $('btn-keep').addEventListener('click', () => K.game.keepFlying());
+  $('parked-tag').addEventListener('click', () => K.game.keepFlying());
   $('btn-today').addEventListener('click', () => K.game.boot({ mode: 'daily' }));
   $('btn-buy').addEventListener('click', () => K.ui.startGoogle('buy'));
   $('btn-restore').addEventListener('click', () => K.ui.startGoogle('restore'));

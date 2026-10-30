@@ -121,6 +121,17 @@ K.ui = (() => {
   }
 
   /* ------------------------------------------------------------ top bar */
+  /** The resume tag under Menu: shown off-flight whenever an Unlimited run is parked. */
+  function parked(info) {
+    const tag = $('parked-tag');
+    if (!tag) return;
+    tag.hidden = !info;
+    document.body.classList.toggle('has-parked', Boolean(info));
+    if (info) {
+      $('parked-leg').textContent = ` · Leg ${info.leg} of ${K.CONFIG.LEGS}`;
+      tag.setAttribute('aria-label', `Resume your Unlimited run, leg ${info.leg} of ${K.CONFIG.LEGS}`);
+    }
+  }
   function topbar({ n, mode, streak }) {
     $('flight-no').textContent = mode === 'unlimited' ? '∞' : n > 0 ? `#${n}` : '';
     $('streak-count').textContent = streak;
@@ -751,7 +762,8 @@ K.ui = (() => {
     const ar = document.querySelector('.menu-tile[data-menu="archive"]');
     un.classList.remove('locked');   // tiles look the same either way; the unlock page explains
     ar.classList.remove('locked');
-    $('mt-unlimited').outerHTML = `<span id="mt-unlimited">${cur === 'unlimited' ? '<span class="mt-meta">Flying</span>' : A.unlimited() ? '' : A.freeRunLeft() ? '<span class="mt-meta">1 free run</span>' : price}</span>`;
+    const pk = K.storage.data.parked && K.storage.data.parked.unlimited;
+    $('mt-unlimited').outerHTML = `<span id="mt-unlimited">${cur === 'unlimited' ? '<span class="mt-meta">Flying</span>' : pk ? `<span class="mt-meta">Resume · leg ${(pk.round || 0) + 1}</span>` : A.unlimited() ? '' : A.freeRunLeft() ? '<span class="mt-meta">1 free run</span>' : price}</span>`;
     $('mt-archive').outerHTML = `<span id="mt-archive">${cur === 'archive' ? '<span class="mt-meta">Flying</span>' : A.canArchive() ? '' : price}</span>`;
     $('menu-contact').href = $('contact-link').href;
     $('btn-units').setAttribute('aria-checked', String(K.units.system() !== 'imperial'));
@@ -1058,7 +1070,7 @@ K.ui = (() => {
     if (document.fonts) document.fonts.ready.then(fitHome);
   }
 
-  return {
+  return { parked,
     init, show, topbar, setAltitude, home, results, landing, closed, prepareLaunch, dockReady, dockIn, refreshAccess, startGoogle, renderAccount,
     calStep(d) { calM += d; if (calM < 0) { calM = 11; calY -= 1; } if (calM > 11) { calM = 0; calY += 1; } renderArchive(); },
     openSheet, closeSheet, dev, anchorBalloon, renderMenu, refreshUnits,

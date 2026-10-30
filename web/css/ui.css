@@ -4852,3 +4852,27 @@ body:has(#screen-round.final) #hud .legs .leg:last-child { box-shadow: 0 0 0 1.5
 /* v20 · the category never truncates (round.js fitCat): the "/ 7" is the first thing to go */
 #hud .cat-tag.no-of .leg-of, .round .cat-tag.no-of .leg-of,
 #hud .cat-tag.no-no .leg-no, .round .cat-tag.no-no .leg-no { display: none; }
+
+/* v21 · resume tag: an Unlimited run left mid-flight, one tap back in. It sits where the
+   altimeter starts, under Menu, and the altimeter steps down to make room. Off-flight only. */
+.parked-tag {
+  position: absolute; z-index: 6; right: max(16px, env(safe-area-inset-right, 0px));
+  top: calc(env(safe-area-inset-top, 0px) + 60px);
+  display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 8px 0 6px;
+  border: 0; border-radius: 999px; cursor: pointer;
+  background: var(--stock-hi, #FAF4E8); color: var(--ink, #14213D);
+  box-shadow: 0 6px 18px rgba(2, 4, 14, 0.28), inset 0 0 0 1px rgba(20, 33, 61, 0.12);
+  font: 600 12.5px/1 var(--f-ui); letter-spacing: 0.01em;
+  animation: parkIn 320ms var(--ease-out) both;
+}
+.parked-tag[hidden] { display: none; }
+.parked-tag .pt-inf { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--amber); color: var(--on-amber, #14213D); font: 800 14px/1 var(--f-display); }
+.parked-tag small { font: inherit; font-weight: 500; color: rgba(20, 33, 61, 0.6); }
+.parked-tag svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.6; }
+.parked-tag:hover { background: #fff; }
+.parked-tag:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+body[data-screen="round"] .parked-tag, body.climb-open .parked-tag { display: none; }
+body.has-parked:not([data-screen="round"]) #altimeter { translate: 0 38px; }
+@keyframes parkIn { from { opacity: 0; transform: translateY(-6px); } }
+@media (max-width: 380px) { .parked-tag small { display: none; } }
+@media (prefers-reduced-motion: reduce) { .parked-tag { animation: none; } }
