@@ -240,7 +240,7 @@ K.climb = (() => {
       }
       showStub(l.i, true);
       // Hold on every leg long enough to read it: the question, your guess, the answer.
-      await sleep(l.hit ? 1700 : 1100);
+      await sleep(l.hit ? 1150 : 750);
       if (!alive()) return;
     }
     stubs.forEach((x) => x.classList.remove('now'));
