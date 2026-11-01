@@ -149,21 +149,24 @@ K.climb = (() => {
     }
     stubs.forEach((s, i) => { s.style.top = `${Math.max(0, tops[i]).toFixed(1)}px`; });
   }
-  function showStub(i) {
+  function showStub(i, current) {
     const s = stubs[i];
     if (!s || s.classList.contains('in')) return;
     placeStubs();
     s.classList.add('in');
+    // During the replay, the leg being shown is lifted and the earlier ones step back.
+    if (current) stubs.forEach((x, j) => { x.classList.toggle('now', j === i); x.classList.toggle('past', j < i); });
     const m = marksEl.querySelector(`.climb-mark[data-i="${i}"]`);
     if (m) m.classList.add('lit');
   }
   function hideStubs() {
-    stubs.forEach((s) => s.classList.remove('in'));
+    stubs.forEach((s) => s.classList.remove('in', 'now', 'past'));
     marksEl.querySelectorAll('.climb-mark.lit').forEach((x) => x.classList.remove('lit'));
     allShown = false;
   }
   function revealAll(quiet) {
     allShown = true;
+    stubs.forEach((s) => s.classList.remove('now', 'past'));
     placeStubs();
     stubs.forEach((s, i) => { s.style.transitionDelay = quiet ? '' : `${i * 40}ms`; s.classList.add('in'); });
     marksEl.querySelectorAll('.climb-mark').forEach((x) => x.classList.add('lit'));
@@ -235,10 +238,12 @@ K.climb = (() => {
         await sleep(dur + 40);
         if (!alive()) return;
       }
-      showStub(l.i);
-      await sleep(l.hit ? 820 : 520);
+      showStub(l.i, true);
+      // Hold on every leg long enough to read it: the question, your guess, the answer.
+      await sleep(l.hit ? 1150 : 750);
       if (!alive()) return;
     }
+    stubs.forEach((x) => x.classList.remove('now'));
     touring = false;
     revealAll(true);
   }
