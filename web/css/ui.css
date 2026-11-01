@@ -4878,3 +4878,8 @@ body[data-screen="round"] .parked-tag, body.climb-open .parked-tag { display: no
 body.has-parked:not([data-screen="round"]) #altimeter { translate: 0 36px; }
 @keyframes parkIn { from { opacity: 0; transform: translateY(-5px); } }
 @media (prefers-reduced-motion: reduce) { .parked-tag { animation: none; } }
+
+/* v22 · the replay holds on each leg: the card being shown steps forward, earlier ones step back */
+.climb-stub.in.now { transform: translateX(6px) scale(1.04); z-index: 2; background: #FFFDF8; }
+.climb-stub.in.past { opacity: 0.62; }
+@media (prefers-reduced-motion: reduce) { .climb-stub.in.now { transform: none; } }
