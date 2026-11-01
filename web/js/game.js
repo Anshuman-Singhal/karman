@@ -154,11 +154,16 @@ K.game = (() => {
 
     S.useRules(S.rulesFor(mode, n));   // flights before RULES2_FROM keep the ranges they were flown with
     if (K.climb) K.climb.close({ instant: true, restore: false });   // a replay left open never carries into the next flight
+    // Yesterday's ghost: today's daily, if yesterday's daily was flown and
+    // landed more than 3 km under Best (read from the saved day, nothing new stored).
+    const yd = mode === 'daily' && !done && store.days[n - 1];
+    const ydayKm = yd && yd.done && (yd.mode || 'daily') === 'daily' && yd.alt > 0.5 && store.stats.bestAlt - yd.alt > 3 ? yd.alt : 0;
     K.scene.reset({
       weather: flight ? flight.weather : K.daily.weatherFor(Math.max(1, n)),
       km: startKm,
       flying: Boolean(done || live),
       pbKm: done ? 0 : store.stats.bestAlt,
+      ydayKm,
       stamps: store.stamps,
     });
     K.ui.setAltitude(startPts, { instant: true });
@@ -376,9 +381,10 @@ K.game = (() => {
 
   /** The reveal: anticipation → impact → outcome → climb. */
   async function playReveal(fact, result, replay) {
-    K.round.lockVisual();
+    // the ticket punch: a fresh lock with a guess (tapped, or the fuse at 0 s)
+    K.round.lockVisual({ punch: !replay && result.guess != null });
     K.fx.haptic(10);
-    await K.round.dropNeedle(result.guess);
+    await K.round.dropNeedle(result.guess, { quiet: replay });
 
     const pin = result.hit && result.chip === 4;
     const bp = K.round.bandPoint();
@@ -572,6 +578,8 @@ K.game = (() => {
         K.fx.sparks(c.x, c.y, { count: 60, speed: 380, color: '#BFD6FF' });
       }
       K.fx.haptic(12);
+    } else if (ev.type === 'yday') {   // one quiet line, no sound
+      K.fx.banner({ title: 'Past yesterday', tone: 'quiet', hold: 1100 });
     } else if (ev.type === 'pb') {
       K.fx.banner({ eyebrow: 'Personal best', title: 'Higher than you have ever flown', meta: `past ${K.units.altText(ev.km, { decimals: 1 })}`, tone: 'pb' });
     }

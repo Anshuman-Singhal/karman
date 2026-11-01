@@ -4883,3 +4883,53 @@ body.has-parked:not([data-screen="round"]) #altimeter { translate: 0 36px; }
 .climb-stub.in.now { transform: translateX(6px) scale(1.04); z-index: 2; background: #FFFDF8; }
 .climb-stub.in.past { opacity: 0.62; }
 @media (prefers-reduced-motion: reduce) { .climb-stub.in.now { transform: none; } }
+/* ================= v7 · small details (keep last) =================
+   9   The ticket punch: Lock presses, its stub is punched, the guess is stamped
+   17  The clue's price: old climbs struck through in ember, then flipped
+   19  The next visa reads as a goal (passport)                              */
+
+/* ---------------------------------------------------------------- 9 · the ticket punch */
+#screen-round .key-lock .kl-stub { position: relative; }
+#screen-round.punched .key-lock .kl-stub::after {   /* a 7 px hole through the stub, showing the card */
+  content: ""; position: absolute; top: 6px; right: 7px; width: 7px; height: 7px; border-radius: 50%;
+  background: #F3E9D6;
+  box-shadow: inset 0 1px 1.5px rgba(20, 33, 61, 0.7), inset 0 0 0 0.75px rgba(20, 33, 61, 0.35), 0 0.5px 0 rgba(255, 246, 224, 0.7);
+  animation: punchHole 90ms var(--ease-out) 40ms both;
+}
+#screen-round.punched .key-lock { animation: punchPress 190ms var(--ease-out); }
+#screen-round.punched .guess { animation: punchStamp 160ms ease-out; }
+@keyframes punchHole { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes punchPress { 0% { translate: 0 0; } 37% { translate: 0 2px; } 100% { translate: 0 0; } }
+@keyframes punchStamp { from { color: #F0A030; transform: scale(1.04); } to { color: var(--ink); transform: none; } }
+
+/* ---------------------------------------------------------------- 17 · the clue's price */
+#screen-round .wb-climb.struck s, #screen-round .kl-stub.struck s {
+  color: var(--ember-ink); text-decoration: line-through 2px var(--ember-ink);
+}
+#screen-round .wb-climb.flip, #screen-round .kl-stub.flip { animation: priceFlip 180ms var(--ease-out); }
+@keyframes priceFlip { from { transform: perspective(160px) rotateX(-80deg); opacity: 0.25; } to { transform: none; opacity: 1; } }
+#screen-round .wb-climb { display: inline-block; }
+/* the "costs half" stub tears off the tag (the leg-to-leg tearOut) */
+#screen-round .clue-tag .ct-stub.ct-torn {
+  pointer-events: none; transform-origin: 0 0; animation: tearOut 280ms var(--ease-in) both;
+  background: var(--amber-real, #FFB547); border-radius: 0 6px 6px 0; box-shadow: inset -1.5px 0 0 var(--ink), inset 0 1.5px 0 var(--ink), inset 0 -1.5px 0 var(--ink);
+}
+
+/* ---------------------------------------------------------------- 19 · the next visa as a goal */
+.sb-item.goal .sb-ghost { position: relative; color: rgba(30, 42, 85, 0.62); border-color: rgba(30, 42, 85, 0.45); }
+.sb-goal { position: absolute; inset: -6px; width: 84px; height: 84px; pointer-events: none; overflow: visible; }
+.sb-goal circle {
+  stroke: #E8932A; stroke-dasharray: var(--len) var(--c);
+  animation: goalArc 700ms var(--ease-out) 150ms both;
+}
+@keyframes goalArc { from { stroke-dasharray: 0 var(--c); } }
+.sb-item.goal .sb-name { color: rgba(30, 42, 85, 0.8); }
+.sb-item .sb-gap { color: #B8661A; opacity: 1; font-weight: 600; text-transform: uppercase; }
+
+@media (prefers-reduced-motion: reduce) {
+  #screen-round.punched .key-lock, #screen-round.punched .guess, #screen-round.punched .key-lock .kl-stub::after,
+  #screen-round .wb-climb.flip, #screen-round .kl-stub.flip, .sb-goal circle { animation: none; }
+  #screen-round .clue-tag .ct-stub.ct-torn { display: none; }
+}
+:root.calm #screen-round.punched .key-lock, :root.calm #screen-round.punched .guess,
+:root.calm #screen-round.punched .key-lock .kl-stub::after, :root.calm .sb-goal circle { animation: none; }

@@ -114,7 +114,8 @@ K.round = (() => {
     isFinal = opts.index === K.CONFIG.LEGS - 1;
     ungutter();
 
-    els.card.classList.remove('is-locked', 'is-revealed', 't-mid', 't-low', 'clued', 'show-ruler', 'paused');
+    els.card.classList.remove('is-locked', 'is-revealed', 't-mid', 't-low', 'clued', 'show-ruler', 'paused', 'punched');
+    clearPrice();
     els.card.classList.toggle('final', isFinal);
     els.band.className = 'band';
     if (els.gap) els.gap.hidden = true;
@@ -198,15 +199,61 @@ K.round = (() => {
       return;
     }
     clearTimeout(clueArmTimer);
+    const before = priceSnapshot();
+    const stub = c.querySelector('.ct-stub');
     ctx.clueUsed = true;
     ctx.clueHere = true;
-    renderClue();
+    if (stub && !K.fx.reduced()) {      // the "costs half" stub tears off, then the tag reads Clue on
+      stub.classList.add('ct-torn');
+      setTimeout(() => { if (c.querySelector('.ct-torn')) renderClue(); }, 280);
+    } else renderClue();
+    payPrice(before);
     els.hint.classList.add('swap');
     setTimeout(() => { renderHint(); els.hint.classList.remove('swap'); update(); }, 180);
     K.fx.haptic(10);
     if (ctx.onClue) ctx.onClue();
   }
 
+  /* The clue's price, paid in front of you: each width's climb shows the old
+     value struck through in ember, then flips to the halved one, left to
+     right; the Lock stub goes last. update() leaves a held climb alone. */
+  const held = new Set();     // width indices (and 'lock') still showing the old price
+  let priceTimers = [];
+  function priceSnapshot() {
+    return { w: els.wbtnEls.map((b) => b.querySelector('.wb-climb').textContent), lock: state.chip == null ? null : els.lockStub.innerHTML };
+  }
+  function payPrice(before) {
+    clearPrice();
+    const calm = K.fx.reduced();
+    const STRIKE = calm ? 300 : 220, STEP = calm ? 0 : 40;
+    const strike = (el, html) => { el.innerHTML = html; el.classList.add('struck'); };
+    const settle = (key) => {
+      held.delete(key);
+      update();
+      const el = key === 'lock' ? els.lockStub : els.wbtnEls[key].querySelector('.wb-climb');
+      el.classList.remove('struck');
+      if (!calm) { el.classList.remove('flip'); void el.offsetWidth; el.classList.add('flip'); }
+    };
+    els.wbtnEls.forEach((b, i) => {
+      held.add(i);
+      strike(b.querySelector('.wb-climb'), `<s>${before.w[i]}</s>`);
+      priceTimers.push(setTimeout(() => settle(i), STRIKE + i * STEP));
+    });
+    if (before.lock != null) {
+      held.add('lock');
+      strike(els.lockStub, before.lock.replace(/(<\/i>)(.*)$/, '$1<s>$2</s>'));
+      priceTimers.push(setTimeout(() => settle('lock'), STRIKE + els.wbtnEls.length * STEP));
+    }
+    priceTimers.push(setTimeout(() => [...els.wbtnEls.map((b) => b.querySelector('.wb-climb')), els.lockStub].forEach((el) => el.classList.remove('flip')), 900));
+  }
+  function clearPrice() {
+    priceTimers.forEach(clearTimeout);
+    priceTimers = [];
+    if (!held.size) return;
+    held.clear();
+    els.wbtnEls.forEach((b) => b.querySelector('.wb-climb').classList.remove('struck', 'flip'));
+    els.lockStub.classList.remove('struck', 'flip');
+  }
   function renderUnit() {
     els.unitBtn.hidden = !view.unit;
     els.unitBtn.disabled = !view.convertible;
@@ -549,7 +596,7 @@ K.round = (() => {
       els.lock.setAttribute('aria-label', 'Pick how sure you are first');
     } else {
       const bet = S.legPointsFor(state.chip, Boolean(ctx.clueHere));
-      els.lockStub.innerHTML = `<i class="kl-pip"></i>${K.units.climbText(S.kmOf(bet))}`;
+      if (!held.has('lock')) els.lockStub.innerHTML = `<i class="kl-pip"></i>${K.units.climbText(S.kmOf(bet))}`;
       els.lock.setAttribute('aria-label', guess == null ? 'Type a guess first' : `${lockWord} for ${K.units.climbText(S.kmOf(bet))}`);
     }
     // Reach preview: the sky shows where this bet lands if it hits.
@@ -567,7 +614,7 @@ K.round = (() => {
       const short = r ? rangeShort(r) : '';
       b.querySelector('.wb-range').textContent = short;
       b.classList.toggle('long', short.length >= 9);   // "144M–156M": a size down so it stays whole
-      b.querySelector('.wb-climb').textContent = climb;
+      if (!held.has(i)) b.querySelector('.wb-climb').textContent = climb;
       b.setAttribute('aria-label', r ? `${S.CHIPS[i].name}: ${rangeWords(r)}, climb ${climb}` : `${S.CHIPS[i].name}: ${SURE[i]}, climb ${climb}`);
     });
   }
@@ -613,9 +660,17 @@ K.round = (() => {
   }
 
   /* ------------------------------------------------------------ reveal visuals */
-  function lockVisual() {
+  /** opts.punch: the ticket punch (a fresh lock with a guess, tapped or at 0 s). */
+  function lockVisual(opts = {}) {
     locked = true;
     clearTimeout(clueArmTimer);
+    clearPrice();
+    els.card.classList.remove('punched');
+    if (opts.punch) {
+      void els.card.offsetWidth;   // restart the press / hole / stamp animations
+      els.card.classList.add('punched');
+      K.audio.punch();
+    }
     els.card.classList.add('is-locked');
     els.card.classList.remove('t-mid', 't-low');
     els.timer.classList.remove('beat');
@@ -629,9 +684,11 @@ K.round = (() => {
   }
 
   /** The ruler slides in; the needle hovers, then drops onto the answer. */
-  async function dropNeedle(metricGuess) {
+  async function dropNeedle(metricGuess, opts = {}) {
     reveal = { guess: metricGuess, chip: state.chip };
     const answerD = fact.scale === 'year' ? fact.answer : view.toDisp(fact.answer);
+    // a punched guess stays on the pass for the stamp (160 ms) before the ruler takes its place
+    if (els.card.classList.contains('punched') && !K.fx.reduced()) await K.fx.sleep(170);
     if (metricGuess != null) layoutRuler(metricGuess, state.chip);
     else { ruler = makeRuler(answerD); drawTicks(ruler); els.band.style.width = '0'; const k = document.getElementById('knob'); if (k) k.style.left = '50%'; }
     els.card.classList.add('show-ruler');
@@ -639,10 +696,13 @@ K.round = (() => {
     await K.fx.sleep(K.fx.reduced() ? 60 : 260);
     els.needle.hidden = false;
     els.needle.classList.add('hover');
-    await K.fx.sleep(K.fx.reduced() ? 120 : 560);
+    const hover = K.fx.reduced() ? 120 : 560;
+    if (!opts.quiet) K.audio.air(hover / 1000);
+    await K.fx.sleep(hover);
     els.needle.classList.remove('hover');
     els.needle.classList.add('drop');
     await K.fx.sleep(K.fx.reduced() ? 60 : 280);
+    if (!opts.quiet) K.audio.knock();   // the frame it lands: a low wooden knock
   }
 
   /** Needle on the answer, labelled in the player's units. */

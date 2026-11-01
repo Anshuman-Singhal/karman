@@ -259,6 +259,19 @@ body {
   font: 600 9.5px/1 var(--f-ui); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.7);
 }
 
+/* Yesterday's ghost: fainter than Best, and the only ghost that prints its name */
+.rail-ghost.yday { width: 16px; left: 1px; opacity: 0.5; background: repeating-linear-gradient(to right, #fff 0 1.5px, transparent 1.5px 4px); }
+.rail-ghost.yday span {
+  display: block; position: absolute; left: 21px; top: 50%; transform: translateY(-50%);
+  font: 700 9.5px/1 var(--f-display); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap;
+  color: #fff; opacity: 0.9; transition: opacity 300ms;   /* 45 % white, with the ghost's own 0.5 */
+}
+.rail-ghost.yday.hush span { opacity: 0; }
+.rail-ghost.yday.lit { opacity: 0.32; }
+/* the goal: the first visa not yet in the passport, marked in the logbook's amber */
+.rail-tick.goal i { background: #FFC872; }
+.rail-tick.goal.next span { color: #FFD9A0; }
+
 @media (max-height: 640px) { .rail-tick span { display: none; } }
 
 /* ---------------------------------------------------------------- sights on the way up */

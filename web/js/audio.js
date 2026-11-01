@@ -19,6 +19,9 @@
      final    leg 7 arrives: a two-note pickup, G4 → C5
      hair     "by a hair": a tiny high pluck after the hit chime
      refuse / detent  (K.CONFIG.SOUND_PITCHED) a refused key, a width's detent
+     punch    lock it in: a paper "tchk", the conductor's punch through the pass
+     air / knock  the reveal: faint rising air while the needle hovers, a low
+              wooden knock on the frame it lands
    Players can mute from the top bar; the choice is saved.
    ========================================================================== */
 
@@ -353,6 +356,38 @@ K.audio = (() => {
     }
   }
 
+  /** Lock it in: a conductor's punch through the pass, a paper "tchk". */
+  function punch() {
+    if (!ready()) return;
+    const t = ctx.currentTime;
+    burst(t, 0.03, 6000, 2500, 0.05);
+    thunk(t, 140, 0.05);
+  }
+
+  /** The needle hovering over the ruler: an almost inaudible rising breath of air. */
+  function air(dur = 0.56) {
+    if (!ready()) return;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuf;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.Q.value = 0.6;
+    lp.frequency.setValueAtTime(240, t);
+    lp.frequency.exponentialRampToValueAtTime(820, t + dur);
+    const g = ctx.createGain();
+    env(g, t, dur * 0.8, dur * 0.1, 0.12, 0.022);
+    src.connect(lp).connect(g).connect(master);
+    src.start(t, Math.random());
+    src.stop(t + dur + 0.2);
+  }
+
+  /** The needle lands on the answer: a low, soft wooden knock, the gavel. */
+  function knock() {
+    if (!ready()) return;
+    thunk(ctx.currentTime, 160, 0.07);
+  }
+
   /* Kept for older call sites: a burner blast is just a stronger whoosh. */
   const burner = (intensity = 1) => whoosh(intensity);
   const puff = () => tick();
@@ -372,5 +407,5 @@ K.audio = (() => {
     ['pointerdown', 'keydown', 'touchend'].forEach((t) => document.addEventListener(t, wake, { capture: true, passive: true }));
   }
 
-  return { unlock, takeoff, whoosh, burner, tick, puff, refuse, detent, countdown, final, hair, hit, miss, stamp, stage, enabled, setEnabled, get state() { return ctx ? ctx.state : 'off'; } };
+  return { unlock, takeoff, whoosh, burner, tick, puff, refuse, detent, countdown, final, hair, hit, miss, stamp, stage, punch, air, knock, enabled, setEnabled, get state() { return ctx ? ctx.state : 'off'; } };
 })();

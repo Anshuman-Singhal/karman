@@ -964,9 +964,21 @@ K.ui = (() => {
 
     // Passport
     const got = S.MILESTONES.filter((m) => counts[m.id]).length;
+    // The next visa reads as a goal: an amber arc filled to Best / its altitude,
+    // and how far past Best it sits (the rail marks the same visa in flight).
+    const goal = S.MILESTONES.find((m) => !counts[m.id]);
     const book = S.MILESTONES.map((m) => {
       const c = counts[m.id] || 0;
       const rot = (seeded(m.id) % 9);
+      if (!c && m === goal) {
+        const p = Math.max(0, Math.min(0.97, best / m.km));
+        const gap = m.km - best;
+        const gapText = K.units.altText(gap, K.units.altVal(gap) < 1 ? { decimals: 1 } : {});
+        const R = 39, C = 2 * Math.PI * R;
+        return `<div class="sb-item locked goal"><span class="sb-ghost">
+          <svg viewBox="0 0 84 84" class="sb-goal" aria-hidden="true"><circle cx="42" cy="42" r="${R}" fill="none" stroke-width="3" stroke-linecap="round" style="--len:${(C * p).toFixed(1)};--c:${C.toFixed(1)}" transform="rotate(-90 42 42)"/></svg>
+          ${kmLabel(m.km)}<small>km</small></span><span class="sb-name">${esc(m.name)}</span><span class="sb-meta sb-gap">${best > 0 ? `${esc(gapText)} past your best` : `${esc(gapText)} up`}</span></div>`;
+      }
       if (!c) return `<div class="sb-item locked"><span class="sb-ghost">${kmLabel(m.km)}<small>km</small></span><span class="sb-name">${esc(m.name)}</span></div>`;
       const tier = S.tierIndex(c), next = S.nextTier(c);
       const prevAt = S.STAMP_TIERS[tier - 1].at;

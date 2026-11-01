@@ -54,6 +54,7 @@ K.scene = (() => {
   let items = [];
   let crossed = new Set();
   let pbKm = 0, pbAnnounced = false;
+  let ydayKm = 0, ydayAnnounced = false;   // yesterday's daily altitude: a second, fainter ghost
   let weather = null;
   let onCross = () => {};
   const flame = { level: 0.2, target: 0.2, boost: 0 };
@@ -79,7 +80,7 @@ K.scene = (() => {
 
   /* ---- DOM refs ---- */
   let skyEl, starsEl, deepEl = null, worldEl, frontEl, earthEl, rigEl, svgEl, sunEl, sceneEl, paperV = '';
-  let railEl, railBug, railFill, railGhost, railReach, railTicks = [];
+  let railEl, railBug, railFill, railGhost, railYday, railReach, railTicks = [];
   let reach = null;          // the reach preview: { km, color } while a guess and a width are set
 
   /* ========================================================== world items */
@@ -887,6 +888,11 @@ K.scene = (() => {
     railBug = railEl.querySelector('.rail-bug');
     railFill = railEl.querySelector('.rail-fill');
     railGhost = railEl.querySelector('.rail-ghost');
+    railYday = document.createElement('div');
+    railYday.className = 'rail-ghost yday';
+    railYday.hidden = true;
+    railYday.innerHTML = '<span>Yday</span>';
+    railEl.insertBefore(railYday, railGhost.nextSibling);
     railReach = document.createElement('div');
     railReach.className = 'rail-reach';
     railReach.innerHTML = '<i></i>';
@@ -985,7 +991,7 @@ K.scene = (() => {
       .filter((e) => e && !e.hidden && e.offsetParent !== null && e.getClientRects().length && (e.id !== 'banner' || e.textContent.trim()))
       .map((e) => e.getBoundingClientRect());
     // the rail's two printed labels (the next milestone, and Space) count as instruments too
-    railEl.querySelectorAll('.rail-tick.next span, .rail-tick:last-child span, .rail-tick.reach span').forEach((s) => {
+    railEl.querySelectorAll('.rail-tick.next span, .rail-tick:last-child span, .rail-tick.reach span, .rail-ghost.yday:not([hidden]):not(.hush) span').forEach((s) => {
       const r = s.getBoundingClientRect();
       if (r.width) hud.push(r);
     });
@@ -1088,11 +1094,22 @@ K.scene = (() => {
     railBug.style.top = `${((1 - rf) * 100).toFixed(2)}%`;
     railFill.style.height = `${(rf * 100).toFixed(2)}%`;
     const nextTick = railTicks.find((t) => cam.km < t.m.km);
+    // the goal: the first visa not yet in the passport (the logbook's amber ring)
+    const goalTick = railTicks.find((t) => !stamped[t.m.id] && cam.km < t.m.km);
     for (const t of railTicks) {
       t.el.classList.toggle('lit', cam.km >= t.m.km);
       t.el.classList.toggle('next', t === nextTick);
+      t.el.classList.toggle('goal', t === goalTick);
     }
     paintReach();
+    if (ydayKm > 0.5) {
+      // YDAY steps back when a printed rail label sits on top of it
+      const y = railFrac(ydayKm), h = railEl.clientHeight;
+      const hush = railTicks.some((t) => (t === nextTick || t.el.classList.contains('reach') || t === railTicks[railTicks.length - 1])
+        && Math.abs(railFrac(t.m.km) - y) * h < 13);
+      railYday.classList.toggle('hush', hush);
+      railYday.classList.toggle('lit', cam.km >= ydayKm);
+    }
 
     requestAnimationFrame(frame);
   }
@@ -1108,6 +1125,10 @@ K.scene = (() => {
     if (pbKm > 0.5 && !pbAnnounced && prev < pbKm && now > pbKm) {
       pbAnnounced = true;
       onCross({ type: 'pb', km: pbKm });
+    }
+    if (ydayKm > 0.5 && !ydayAnnounced && prev <= ydayKm && now > ydayKm) {   // equalling yesterday isn't passing it
+      ydayAnnounced = true;
+      onCross({ type: 'yday', km: ydayKm });
     }
   }
 
@@ -1158,6 +1179,10 @@ K.scene = (() => {
     reach = null;
     railGhost.hidden = !(pbKm > 0.5);
     railGhost.style.top = `${((1 - railFrac(pbKm)) * 100).toFixed(2)}%`;
+    ydayKm = opts.ydayKm || 0;
+    ydayAnnounced = (opts.km || 0) > ydayKm;
+    railYday.hidden = !(ydayKm > 0.5);
+    railYday.style.top = `${((1 - railFrac(ydayKm)) * 100).toFixed(2)}%`;
     cam.km = cam.from = cam.to = opts.km || 0;
     cam.dur = 0;
     liftFrom = liftTo = liftPx = opts.flying ? flyPx() : 0;
