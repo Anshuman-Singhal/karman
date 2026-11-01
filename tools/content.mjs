@@ -127,6 +127,7 @@ function validateAll(questions, schedule, { newIds = new Set() } = {}) {
   for (let i = 0; i < list.length; i++) {
     for (let j = i + 1; j < list.length; j++) {
       const a = list[i], b = list[j];
+      if (a.pool === 'retired' || b.pool === 'retired') continue;   // pulled from play; never scheduled again
       if (!newIds.size || newIds.has(a.id) || newIds.has(b.id)) {
         const s = similarity(a.q, b.q);
         if (s >= 0.7) errors.push(`${a.id} ≈ ${b.id}: questions too similar (${s.toFixed(2)})`);
