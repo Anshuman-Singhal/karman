@@ -513,6 +513,15 @@ K.ui = (() => {
     if (prevBestPts > 0 && record.pts > prevBestPts) note = 'New personal best.';
     else if (isFresh && streakInfo && streakInfo.carried) note = 'A thermal saved your streak.';
     else if (isFresh && streakInfo && streakInfo.earnedThermal) note = 'Thermal earned.';
+    // Beat yesterday's daily: "↑ 12 km past yesterday" (the in-flight banner's words), under the tier
+    // (read from the saved day, nothing new stored).
+    let vs = '';
+    const yd = mode === 'daily' && K.storage.data.days && K.storage.data.days[n - 1];
+    if (yd && yd.done && (yd.mode || 'daily') === 'daily') {
+      const up = K.units.altShown(record.alt) - K.units.altShown(yd.alt);
+      if (up >= 1) vs = `<b>↑ ${Math.round(up)} ${K.units.altUnit()}</b> past yesterday`;
+    }
+    $('res-vs').innerHTML = vs;
     $('res-note').textContent = note;
 
     $('ticket-stub').innerHTML = `<small>#${n}</small>${K.units.altText(record.alt).toUpperCase()}`;

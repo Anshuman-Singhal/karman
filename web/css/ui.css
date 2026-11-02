@@ -4933,3 +4933,10 @@ body.has-parked:not([data-screen="round"]) #altimeter { translate: 0 36px; }
 }
 :root.calm #screen-round.punched .key-lock, :root.calm #screen-round.punched .guess,
 :root.calm #screen-round.punched .key-lock .kl-stub::after, :root.calm .sb-goal circle { animation: none; }
+
+/* Beat yesterday: one quiet amber line under the tier */
+#screen-results .res-vs { margin: 5px 0 0; font: 600 13px/1.2 var(--f-ui); letter-spacing: 0.01em; color: #B8661A; }
+#screen-results .res-vs:empty { display: none; }
+.res-lockup .res-vs { padding-right: 112px; }
+#screen-results .res-vs b { display: block; font-weight: 700; }
+@media (max-width: 719px) { .res-lockup .res-vs { padding-right: 92px; } }
