@@ -711,6 +711,39 @@ K.ui = (() => {
     });
   }
 
+  /* ------------------------------------------------------------ Unlimited hangar
+     New runs first (never a silent repeat), then every run this pilot has flown,
+     newest first, each with its best altitude and a "Fly again". */
+  function renderRuns() {
+    const d = K.storage.data;
+    const total = K.game.runsTotal(), left = K.game.runsLeft().length;
+    const byRun = new Map();
+    for (const r of d.runs || []) {
+      if (!r || !r.run) continue;
+      const hits = (r.rounds || []).filter((x) => x.hit).length;
+      const was = byRun.get(r.run);
+      byRun.set(r.run, {
+        run: r.run, at: Math.max(r.at || 0, was ? was.at : 0), times: (was ? was.times : 0) + 1,
+        best: was && was.best.alt >= r.alt ? was.best : { alt: r.alt || 0, hits },
+      });
+    }
+    const flown = [...byRun.values()].sort((a, b) => b.at - a.at);
+    $('runs-sub').textContent = `${total - left} OF ${total} RUNS FLOWN · NEW RUNS EVERY MONDAY`;
+    const day = (t) => (t ? new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
+    $('runs-body').innerHTML = `
+      ${left ? `<button type="button" class="buy-ticket runs-new" id="runs-new"><span class="bt-main">Fly a new run</span><span class="bt-stub"><b>${left}</b><small>NEW</small></span></button>`
+        : `<div class="runs-done"><b>You’ve flown every run.</b> New ones land every Monday. Pick any run below to fly it again.</div>`}
+      ${flown.length ? `<h3 class="lb-h runs-h">Your runs</h3><ul class="runs-list">${flown.map((x) => `<li>
+          <span class="rl-no"><small>RUN</small><b>${x.run}</b></span>
+          <span class="rl-text"><b>${esc(K.units.altText(x.best.alt))}</b> · ${x.best.hits}/${K.CONFIG.LEGS} hit<small>${esc(day(x.at))}${x.times > 1 ? ` · flown ${x.times}×` : ''}</small></span>
+          <button type="button" class="rl-go" data-run="${x.run}">Fly again</button></li>`).join('')}</ul>
+        <p class="cal-key">Flying a run again shows the same seven questions.</p>` : ''}`;
+    if ($('runs-new')) $('runs-new').onclick = () => { closeSheet('runs'); setTimeout(() => K.game.keepFlying(), K.fx.reduced() ? 0 : 200); };
+    $('runs-body').querySelectorAll('[data-run]').forEach((b) => {
+      b.onclick = () => { closeSheet('runs'); setTimeout(() => K.game.flyRun(Number(b.dataset.run)), K.fx.reduced() ? 0 : 200); };
+    });
+  }
+
   /* ------------------------------------------------------------ paywall */
   function renderPaywall() {
     $('pay-price').textContent = K.CONFIG.PRICE;
@@ -806,6 +839,7 @@ K.ui = (() => {
     if (name === 'account') renderAccount();
     if (name === 'help') renderHelp();
     if (name === 'archive') { calY = 0; renderArchive(); }
+    if (name === 'runs') renderRuns();
     if (name === 'paywall') renderPaywall();
     if (name === 'menu') { renderMenu(); menuTimer = setInterval(renderResume, 250); $('btn-menu').setAttribute('aria-expanded', 'true'); }
     el.hidden = false;

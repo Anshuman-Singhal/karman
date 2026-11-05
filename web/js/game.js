@@ -136,7 +136,9 @@ K.game = (() => {
       // Free pilots fly Run 1; paid pilots get a random run they haven't flown,
       // and only once they've flown them all does the deck reshuffle.
       let run = resuming ? resuming.run : 1;
-      if (!resuming && K.access.unlimited()) {
+      const runs0 = runs;
+      if (!resuming && K.access.unlimited() && opts.run >= 1 && opts.run <= runs0.length) run = opts.run;   // "Fly again" on a chosen run
+      else if (!resuming && K.access.unlimited()) {
         const done = new Set(store.runsDone || []);
         let left = runs.map((_, i) => i + 1).filter((k) => !done.has(k));
         if (!left.length) { store.runsDone = []; left = runs.map((_, i) => i + 1); }
@@ -594,7 +596,20 @@ K.game = (() => {
   function keepFlying() {
     if (store.parked && store.parked.unlimited) return boot({ mode: 'unlimited' });   // pick up the run you left
     if (!K.access.canKeepFlying()) return K.ui.openSheet('paywall');
+    // Every run flown: no silent repeats. The hangar says so and lets them pick one to fly again.
+    if (K.access.unlimited() && !runsLeft().length && runsTotal()) { K.ui.openSheet('runs'); return; }
     boot({ mode: 'unlimited', fresh: true });
+  }
+  /** Unlimited runs: how many exist, which this pilot hasn't flown, and fly one on purpose. */
+  const runsTotal = () => (K.SCHEDULE.runs || (K.SCHEDULE.freeRun ? [K.SCHEDULE.freeRun] : [])).length;
+  function runsLeft() {
+    const s = K.storage.data, done = new Set(s.runsDone || []);
+    return Array.from({ length: runsTotal() }, (_, i) => i + 1).filter((k) => !done.has(k));
+  }
+  function flyRun(k) {
+    if (!K.access.unlimited()) return K.ui.openSheet('paywall');
+    if (store.parked) delete store.parked.unlimited;
+    boot({ mode: 'unlimited', fresh: true, run: k });
   }
   /** Archive calendar → a past day. */
   function playDay(day) {
@@ -605,7 +620,7 @@ K.game = (() => {
   }
 
   return {
-    init, boot, launch, inflate, lock, next, streakNow, keepFlying, playDay,
+    init, boot, launch, inflate, lock, next, streakNow, keepFlying, playDay, runsLeft, runsTotal, flyRun,
     get mode() { return mode; },
     get today() { return today; },
     factById: (id) => factIndex.get(id),

@@ -106,7 +106,11 @@
     if (go === 'contact') { contact(e, t); return; }
     if (here && K.game.phase) return K.ui.closeSheet('menu');        // mid-flight in this mode: just resume
     if (go === 'today') return fromMenu(() => K.game.playDay(K.game.today))();
-    if (go === 'unlimited') return fromMenu(() => K.game.keepFlying())();
+    if (go === 'unlimited') {
+      const d = K.storage.data;
+      const hangar = K.access.unlimited() && !(d.parked && d.parked.unlimited) && (d.runsDone || []).length;
+      return fromMenu(() => (hangar ? K.ui.openSheet('runs') : K.game.keepFlying()))();   // runs list first, like the archive
+    }
     if (go === 'archive') return fromMenu(() => K.ui.openSheet('archive'))();   // calendar first; locked days open the paywall
     fromMenu(() => K.ui.openSheet(go))();                             // logbook | help
   }));

@@ -4940,3 +4940,23 @@ body.has-parked:not([data-screen="round"]) #altimeter { translate: 0 36px; }
 .res-lockup .res-vs { padding-right: 112px; }
 #screen-results .res-vs b { display: block; font-weight: 700; }
 @media (max-width: 719px) { .res-lockup .res-vs { padding-right: 92px; } }
+
+/* ---------------------------------------------------------------- Unlimited hangar */
+#sheet-runs .runs-new { margin: 6px 0 4px; }
+#sheet-runs .runs-done { margin: 6px 0 4px; padding: 14px 16px; border-radius: 12px; border: 1.5px dashed rgba(30, 42, 85, 0.28); font: 400 14px/1.45 var(--f-ui); color: var(--ink-2); }
+#sheet-runs .runs-done b { color: var(--ink); font-weight: 600; }
+#sheet-runs .runs-h { margin-top: 22px; }
+.runs-list { list-style: none; margin: 0; padding: 0; }
+.runs-list li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px dashed rgba(30, 42, 85, 0.18); }
+.runs-list li:last-child { border-bottom: 1px dashed rgba(30, 42, 85, 0.18); }
+.rl-no { flex: 0 0 46px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border-radius: 8px; background: rgba(30, 42, 85, 0.06); }
+.rl-no small { font: 500 8.5px/1 var(--f-mono); letter-spacing: 0.1em; opacity: 0.6; }
+.rl-no b { font: 800 20px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+.rl-text { flex: 1; min-width: 0; font: 500 14px/1.3 var(--f-ui); color: var(--ink-2); }
+.rl-text b { color: var(--ink); font-weight: 700; }
+.rl-text small { display: block; margin-top: 2px; font: 400 12.5px/1.2 var(--f-ui); color: var(--ink-3, rgba(30, 42, 85, 0.55)); }
+.rl-go { flex: 0 0 auto; height: 34px; padding: 0 14px; border-radius: 999px; border: 1.5px solid rgba(30, 42, 85, 0.3); background: transparent; color: var(--ink); font: 600 13px/1 var(--f-ui); cursor: pointer; }
+.rl-go:hover { border-color: rgba(214, 120, 40, 0.7); }
+.rl-go:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+#sheet-runs .runs-new { background: #FFC872; }
+#sheet-runs .runs-new::after { border-left-color: rgba(30, 42, 85, 0.4); }
