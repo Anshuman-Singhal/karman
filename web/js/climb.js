@@ -10,6 +10,10 @@
                you got, against the Kármán line, and how you compare.
      scrub     the rail is the scrollbar while the pass is down: drag its
                thumb, wheel or trackpad over the sky, arrow keys, or tap a stub.
+     card      tapping a stub also opens its full answer card (the same one
+               the pass shows): beside the stubs on desktop, a ticket along the
+               bottom on phones. ‹ › or ←/→ step legs; ✕, Esc, the same stub or
+               a tap on empty sky put it away.
                Everything eases through one requestAnimationFrame loop, so
                nothing jumps. Any scrub ends the replay and shows every stub.
      close()   the pass comes back up; the camera settles at your altitude.
@@ -30,6 +34,7 @@ K.climb = (() => {
   let record = null, legs = [], open = false, finalKm = 0, stats = null;
   let raf = 0, panId = 0, touring = false, allShown = false;
   let marksEl, railEl, handle, dock, pad, thumb, track, sum, stubs = [];
+  let card = null, openIdx = null, cardLeft = null;
 
   /* ------------------------------------------------------------ data */
   function set(rec) {
@@ -46,6 +51,7 @@ K.climb = (() => {
       prevKm = km;
       return l;
     });
+    closeCard(true);
     if (open) close({ instant: true });
     paint();
   }
@@ -123,17 +129,29 @@ K.climb = (() => {
       m.addEventListener('pointerdown', (e) => { e.stopPropagation(); goTo(l.km); });
       marksEl.appendChild(m);
 
-      const s = document.createElement('div');
+      const s = document.createElement('button');
+      s.type = 'button';
       s.className = `climb-stub${l.hit ? ' hit' : l.none ? ' none' : ' miss'}`;
+      if (l.fact) {
+        s.setAttribute('aria-expanded', 'false');
+        s.setAttribute('aria-controls', 'climb-card');
+        s.setAttribute('aria-label', `Leg ${l.i + 1}, ${climbWord(l)}: ${K.units.hint(l.fact.q)}`);
+      }
       s.style.setProperty('--c', l.hit ? `var(--c-${S.CHIPS[l.chip].key})` : 'var(--c-miss)');
       s.dataset.top = String(top);
       s.innerHTML = stubHTML(l);
       s.addEventListener('pointerdown', (e) => { e.stopPropagation(); });
-      s.addEventListener('click', () => goTo(l.km));
+      s.addEventListener('click', () => {
+        if (touring) skipTour();
+        goTo(l.km);
+        if (!l.fact) return;
+        if (openIdx === l.i) closeCard(); else openCard(l.i);
+      });
       marksEl.appendChild(s);
       stubs.push(s);
     });
     if (allShown) revealAll(true);
+    if (openIdx != null && stubs[openIdx]) { stubs[openIdx].classList.add('open'); stubs[openIdx].setAttribute('aria-expanded', 'true'); }
   }
   /** Stack the stubs up the rail so none overlaps the one below it. */
   function placeStubs() {
@@ -179,6 +197,122 @@ K.climb = (() => {
     thumb.setAttribute('aria-valuetext', K.units.altText(km));
   }
 
+  /* ------------------------------------------------------------ the full card */
+  const desk = () => window.matchMedia('(min-width: 720px)').matches;
+  function buildCard() {
+    card = document.createElement('section');
+    card.id = 'climb-card';
+    card.setAttribute('role', 'dialog');
+    card.setAttribute('aria-modal', 'false');
+    card.setAttribute('aria-labelledby', 'cc-label');
+    card.tabIndex = -1;
+    card.hidden = true;
+    const btn = (act, label, path) => `<button type="button" class="cc-btn" data-act="${act}" aria-label="${label}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${path}"/></svg></button>`;
+    card.innerHTML = `<div class="cc-paper"><div class="cc-head"><span class="cc-label" id="cc-label" aria-live="polite"></span><em class="cc-x"></em>
+        <span class="cc-nav">${btn('prev', 'Previous leg', 'M14.5 6 8.5 12l6 6')}${btn('next', 'Next leg', 'm9.5 6 6 6-6 6')}${btn('close', 'Close card', 'M6.5 6.5l11 11M17.5 6.5l-11 11')}</span></div>
+      <div class="cc-body"></div></div><i class="cc-tip" aria-hidden="true"></i>`;
+    ['pointerdown', 'wheel', 'touchstart'].forEach((ev) => card.addEventListener(ev, (e) => e.stopPropagation(), { passive: true }));
+    card.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-act]');
+      if (!b) return;
+      if (b.dataset.act === 'close') closeCard(false, true); else step(b.dataset.act === 'next' ? 1 : -1, true);
+    });
+    // Phones: swipe sideways to step legs, pull the head down to put the card away.
+    let sw = null;
+    card.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') sw = { x: e.clientX, y: e.clientY, head: Boolean(e.target.closest('.cc-head')) }; });
+    card.addEventListener('pointerup', (e) => {
+      if (!sw) return;
+      const dx = e.clientX - sw.x, dy = e.clientY - sw.y, s0 = sw; sw = null;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);
+      else if (s0.head && dy > 60) closeCard();
+    });
+    card.addEventListener('pointercancel', () => { sw = null; });
+    $('app').appendChild(card);
+  }
+  /** The legs that have a card (a missing fact has none). */
+  const cardLegs = () => legs.filter((l) => l.fact).map((l) => l.i);
+  function fillCard(i, dir) {
+    const l = legs[i];
+    const ids = cardLegs(), k = ids.indexOf(i);
+    card.querySelector('.cc-label').textContent = `Leg ${i + 1} of ${legs.length}`;
+    const x = card.querySelector('.cc-x');
+    x.textContent = l.crossed.length ? (l.crossed.length === 1 ? l.crossed[0].name : l.crossed.map((m) => m.short).join(' · ')) : '';
+    card.querySelector('[data-act="prev"]').disabled = k <= 0;
+    card.querySelector('[data-act="next"]').disabled = k >= ids.length - 1;
+    card.style.setProperty('--c', l.hit ? `var(--c-${S.CHIPS[l.chip].key})` : 'var(--c-miss)');
+    const body = card.querySelector('.cc-body');
+    const html = `<div class="recap${K.fx.reduced() ? '' : ' reveal-seq'}">${K.ui.answerRow(record, i, { order: 0 })}</div>`;
+    if (dir && !K.fx.reduced()) {
+      body.style.setProperty('--dx', `${dir * 6}px`);
+      body.classList.remove('swap'); void body.offsetWidth; body.classList.add('swap');
+    }
+    body.innerHTML = html;
+    body.scrollTop = 0;
+  }
+  function placeCard() {
+    if (!card || card.hidden || openIdx == null) return;
+    const s = stubs[openIdx];
+    card.classList.toggle('desk', desk());
+    if (!desk()) { card.style.left = card.style.top = ''; return; }
+    if (cardLeft == null) {
+      const mr = marksEl.getBoundingClientRect();
+      cardLeft = Math.round(Math.max(...stubs.map((x) => x.getBoundingClientRect().right), mr.left + 180) + 14);
+    }
+    const H = card.offsetHeight, top0 = marksEl.getBoundingClientRect().top;
+    const sr = s ? s.getBoundingClientRect() : null;
+    const cy = sr ? sr.top + sr.height / 2 : window.innerHeight / 2;
+    let top = clamp(cy - H / 2, top0, window.innerHeight - (STRIP + 20) - 16 - H);
+    const sm = sum && sum.classList.contains('in') ? sum.getBoundingClientRect() : null;
+    if (sm && cardLeft + card.offsetWidth > sm.left - 8 && top < sm.bottom + 12 && top + H > sm.top) top = sm.bottom + 12;
+    top = Math.max(8, top);
+    card.style.left = `${cardLeft}px`;
+    card.style.top = `${Math.round(top)}px`;
+    const oy = cy - top;
+    card.style.setProperty('--oy', `${clamp(oy, 16, H - 16).toFixed(0)}px`);
+    card.classList.toggle('tipless', oy < 16 || oy > H - 16);
+  }
+  let cardTimer = 0, lastFocus = null;
+  function openCard(i, dir) {
+    if (!record || !legs[i] || !legs[i].fact) return;
+    if (!card) buildCard();
+    clearTimeout(cardTimer);
+    const was = openIdx;
+    openIdx = i;
+    stubs.forEach((x, j) => { x.classList.toggle('open', j === i); if (x.hasAttribute('aria-expanded')) x.setAttribute('aria-expanded', String(j === i)); });
+    fillCard(i, was != null ? (dir || (i > was ? 1 : -1)) : 0);
+    if (was == null) {
+      lastFocus = stubs[i];
+      cardLeft = null;
+      card.hidden = false;
+      card.classList.remove('in');
+      placeCard();
+      void card.offsetWidth;
+      card.classList.add('in');
+      card.focus({ preventScroll: true });
+    } else placeCard();
+  }
+  function closeCard(instant, focusBack) {
+    if (openIdx == null) return;
+    const i = openIdx;
+    openIdx = null;
+    stubs.forEach((x) => { x.classList.remove('open'); if (x.hasAttribute('aria-expanded')) x.setAttribute('aria-expanded', 'false'); });
+    if (!card) return;
+    card.classList.remove('in');
+    clearTimeout(cardTimer);
+    if (instant || K.fx.reduced()) card.hidden = true;
+    else cardTimer = setTimeout(() => { if (openIdx == null) card.hidden = true; }, 180);
+    if (focusBack && stubs[i]) stubs[i].focus({ preventScroll: true });
+  }
+  function step(d, keepFocus) {
+    if (openIdx == null) return;
+    const ids = cardLegs(), k = ids.indexOf(openIdx) + d;
+    if (k < 0 || k >= ids.length) return;
+    const i = ids[k];
+    goTo(legs[i].km);
+    openCard(i, d);
+    if (!keepFocus) card.focus({ preventScroll: true });
+  }
+
   /* ------------------------------------------------------------ the camera */
   /* One loop while open: the scrub eases toward its target, the altimeter and
      the thumb follow the camera, and (during the replay) stubs appear as the
@@ -222,6 +356,7 @@ K.climb = (() => {
   /* ------------------------------------------------------------ the replay */
   async function tour() {
     const id = ++panId;
+    closeCard(true);
     scrub = null;
     hideStubs();
     touring = true;
@@ -276,6 +411,7 @@ K.climb = (() => {
     if (!padDrag) return;
     const d = padDrag; padDrag = null;
     if (!d.moved && e.type !== 'pointercancel' && touring) skipTour();   // a tap on the sky skips the replay
+    else if (!d.moved && e.type !== 'pointercancel' && openIdx != null) closeCard();   // or puts the open card away
   }
   /* The thumb: drag it along the rail. The track: click to jump. */
   let thumbDrag = null;
@@ -287,6 +423,10 @@ K.climb = (() => {
   function onKey(e) {
     if (!open || e.altKey || e.metaKey || e.ctrlKey) return;
     if (document.querySelector('.sheet-wrap:not([hidden])')) return;
+    if (openIdx != null) {
+      if (e.key === 'Escape') { e.preventDefault(); closeCard(false, true); return; }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); step(e.key === 'ArrowRight' ? 1 : -1); return; }
+    }
     const steps = { ArrowUp: 0.04, ArrowDown: -0.04, PageUp: 0.15, PageDown: -0.15 };
     if (e.key in steps) { e.preventDefault(); scrubByPx(-steps[e.key] * railH()); }
     else if (e.key === 'Home') { e.preventDefault(); goTo(0); }
@@ -322,6 +462,7 @@ K.climb = (() => {
     panId++;
     touring = false;
     scrub = null;
+    closeCard(true);
     hideStubs();
     if (sum) sum.classList.remove('in');
     setOpen(false, Boolean(opts.instant) || K.fx.reduced());
@@ -440,7 +581,7 @@ K.climb = (() => {
     grab($('res-eyebrow'));
     handle.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
     document.addEventListener('keydown', onKey);
-    window.addEventListener('resize', () => { seatHandle(); if (open) { paint(); placeStubs(); } });
+    window.addEventListener('resize', () => { seatHandle(); if (open) { paint(); placeStubs(); cardLeft = null; placeCard(); } });
     if (window.ResizeObserver) new ResizeObserver(seatHandle).observe(dock);
     seatHandle();
     // Reopening a finished day shows the pass during boot, before this runs: set() kept

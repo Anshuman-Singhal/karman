@@ -1151,7 +1151,7 @@ K.ui = (() => {
     if (document.fonts) document.fonts.ready.then(fitHome);
   }
 
-  return { parked,
+  return { parked, answerRow,
     init, show, topbar, setAltitude, home, results, landing, closed, prepareLaunch, dockReady, dockIn, refreshAccess, startGoogle, renderAccount,
     calStep(d) { calM += d; if (calM < 0) { calM = 11; calY -= 1; } if (calM > 11) { calM = 0; calY += 1; } renderArchive(); },
     openSheet, closeSheet, dev, anchorBalloon, renderMenu, refreshUnits,

@@ -2218,61 +2218,61 @@ body[data-screen="results"] #dock::before, body[data-screen="results"] #dock::af
 #screen-results .legstrip-note { color: var(--ink-3); }
 
 /* One answer row, on paper */
-#screen-results .ans-q, #screen-results .recap .ans-q { color: var(--ink); }
-#screen-results .ans.none .ans-q { color: var(--ink-3); }
-#screen-results .ans-pts { color: var(--amber-ink); }
-#screen-results .ans.miss .ans-pts, #screen-results .ans.none .ans-pts { color: var(--ink-3); }
-#screen-results .ans-track { background: rgba(20, 33, 61, 0.18); }
-#screen-results .ans-track.dash { background: repeating-linear-gradient(90deg, rgba(20, 33, 61, 0.32) 0 4px, transparent 4px 8px); }
-#screen-results .ans-range { background: var(--c); box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.5); }
-#screen-results .ans.hit .ans-range { box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.55), 0 1px 0 rgba(20, 33, 61, 0.12); }
-#screen-results .ans.miss .ans-range { opacity: 1; background: color-mix(in srgb, var(--c) 40%, var(--stock)); box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.3); }
-#screen-results .ans-gmark { border-top-color: var(--ink); }
-#screen-results .ans.miss .ans-gmark { border-top-color: var(--ink-3); }
-#screen-results .ans-pin { background: var(--ink); box-shadow: 0 0 0 2px var(--stock); }
+:is(#screen-results, #climb-card) .ans-q, :is(#screen-results, #climb-card) .recap .ans-q { color: var(--ink); }
+:is(#screen-results, #climb-card) .ans.none .ans-q { color: var(--ink-3); }
+:is(#screen-results, #climb-card) .ans-pts { color: var(--amber-ink); }
+:is(#screen-results, #climb-card) .ans.miss .ans-pts, :is(#screen-results, #climb-card) .ans.none .ans-pts { color: var(--ink-3); }
+:is(#screen-results, #climb-card) .ans-track { background: rgba(20, 33, 61, 0.18); }
+:is(#screen-results, #climb-card) .ans-track.dash { background: repeating-linear-gradient(90deg, rgba(20, 33, 61, 0.32) 0 4px, transparent 4px 8px); }
+:is(#screen-results, #climb-card) .ans-range { background: var(--c); box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.5); }
+:is(#screen-results, #climb-card) .ans.hit .ans-range { box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.55), 0 1px 0 rgba(20, 33, 61, 0.12); }
+:is(#screen-results, #climb-card) .ans.miss .ans-range { opacity: 1; background: color-mix(in srgb, var(--c) 40%, var(--stock)); box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.3); }
+:is(#screen-results, #climb-card) .ans-gmark { border-top-color: var(--ink); }
+:is(#screen-results, #climb-card) .ans.miss .ans-gmark { border-top-color: var(--ink-3); }
+:is(#screen-results, #climb-card) .ans-pin { background: var(--ink); box-shadow: 0 0 0 2px var(--stock); }
 /* YOU above, ANSWER below: ink type, the bar carries the colour */
-#screen-results .ans-you { color: var(--ink); }
-#screen-results .ans.miss .ans-you { color: var(--ink-2); }
-#screen-results .ans-you em { color: var(--ink-3); opacity: 1; }
-#screen-results .ans-you.none { color: var(--ink-3); }
-#screen-results .ans-val { color: var(--ink); }
-#screen-results .ans-val em { color: var(--ink-3); }
-#screen-results .ans-val small { color: var(--ink-2); }
-#screen-results .ans-end { background: var(--stock); color: var(--ink-2); }
-#screen-results .ans-off { color: var(--ink-3); }
-#screen-results .ans-fact, #screen-results .recap .ans-fact, #screen-results .leg-detail .ans-fact {
+:is(#screen-results, #climb-card) .ans-you { color: var(--ink); }
+:is(#screen-results, #climb-card) .ans.miss .ans-you { color: var(--ink-2); }
+:is(#screen-results, #climb-card) .ans-you em { color: var(--ink-3); opacity: 1; }
+:is(#screen-results, #climb-card) .ans-you.none { color: var(--ink-3); }
+:is(#screen-results, #climb-card) .ans-val { color: var(--ink); }
+:is(#screen-results, #climb-card) .ans-val em { color: var(--ink-3); }
+:is(#screen-results, #climb-card) .ans-val small { color: var(--ink-2); }
+:is(#screen-results, #climb-card) .ans-end { background: var(--stock); color: var(--ink-2); }
+:is(#screen-results, #climb-card) .ans-off { color: var(--ink-3); }
+:is(#screen-results, #climb-card) .ans-fact, :is(#screen-results, #climb-card) .recap .ans-fact, :is(#screen-results, #climb-card) .leg-detail .ans-fact {
   font: italic 400 15px/20px var(--f-serif); color: rgba(20, 33, 61, 0.66);
 }
-#screen-results .leg-detail .ans { border-top-color: var(--ink-rule); }
+:is(#screen-results, #climb-card) .leg-detail .ans { border-top-color: var(--ink-rule); }
 
 /* Desktop answers: a ruled ledger. Every leg opens on a full-width hairline;
    its waypoint number sits ON the rule at the left, its points ON the rule at
    the right, so each entry is bounded and the eye can't slip between two. */
-#screen-results .recap::before { display: none; }
-#screen-results .recap .ans, #screen-results .recap .ans:first-child { padding: 0 0 26px; border: 0; }
-#screen-results .recap .ans:first-child { margin-top: 16px; }
-#screen-results .recap .ans-top {
+:is(#screen-results, #climb-card) .recap::before { display: none; }
+:is(#screen-results, #climb-card) .recap .ans, :is(#screen-results, #climb-card) .recap .ans:first-child { padding: 0 0 26px; border: 0; }
+:is(#screen-results, #climb-card) .recap .ans:first-child { margin-top: 16px; }
+:is(#screen-results, #climb-card) .recap .ans-top {
   display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; grid-template-areas: "no rule pts" "q q q";
   gap: 0 10px; align-items: center;
 }
-#screen-results .recap .ans-top::before {   /* the rule between number and points */
+:is(#screen-results, #climb-card) .recap .ans-top::before {   /* the rule between number and points */
   content: ""; grid-area: rule; height: 0; border-top: 1px solid rgba(20, 33, 61, 0.22);
 }
-#screen-results .recap .ans-no {
+:is(#screen-results, #climb-card) .recap .ans-no {
   grid-area: no; position: static; display: grid; place-items: center; width: 26px; height: 26px; margin: 0;
   border-radius: 50%; outline: 0; background: transparent;
   box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.45);
   font: 800 14px/1 var(--f-display); color: var(--ink);
 }
-#screen-results .recap .ans.hit .ans-no { background: var(--c); box-shadow: inset 0 0 0 1.5px var(--ink); }
-#screen-results .recap .ans.none .ans-no { box-shadow: none; outline: 1.5px dashed rgba(20, 33, 61, 0.4); outline-offset: -1.5px; color: var(--ink-3); }
-#screen-results .recap .ans-pts { grid-area: pts; font-size: 21px; line-height: 21px; }
-#screen-results .recap .ans.miss .ans-pts, #screen-results .recap .ans.none .ans-pts { font-size: 18px; }
-#screen-results .recap .ans-q { grid-area: q; margin: 12px 0 0; font: 500 15.5px/22px var(--f-ui); max-width: 54ch; }
-#screen-results .recap .ans-line, #screen-results .recap .ans-fact { margin-left: 0; }
-#screen-results .recap .ans-line { margin-top: 14px; }
-#screen-results .recap-head { padding-left: 0; }
-#screen-results .recap-head h3 { color: var(--ink-2); }
+:is(#screen-results, #climb-card) .recap .ans.hit .ans-no { background: var(--c); box-shadow: inset 0 0 0 1.5px var(--ink); }
+:is(#screen-results, #climb-card) .recap .ans.none .ans-no { box-shadow: none; outline: 1.5px dashed rgba(20, 33, 61, 0.4); outline-offset: -1.5px; color: var(--ink-3); }
+:is(#screen-results, #climb-card) .recap .ans-pts { grid-area: pts; font-size: 21px; line-height: 21px; }
+:is(#screen-results, #climb-card) .recap .ans.miss .ans-pts, :is(#screen-results, #climb-card) .recap .ans.none .ans-pts { font-size: 18px; }
+:is(#screen-results, #climb-card) .recap .ans-q { grid-area: q; margin: 12px 0 0; font: 500 15.5px/22px var(--f-ui); max-width: 54ch; }
+:is(#screen-results, #climb-card) .recap .ans-line, :is(#screen-results, #climb-card) .recap .ans-fact { margin-left: 0; }
+:is(#screen-results, #climb-card) .recap .ans-line { margin-top: 14px; }
+:is(#screen-results, #climb-card) .recap-head { padding-left: 0; }
+:is(#screen-results, #climb-card) .recap-head h3 { color: var(--ink-2); }
 
 /* ---------------------------------------------------------------- 5 · tickets, passport, foot */
 /* Phone: the pass tears here; the actions below are its stub. */
@@ -4992,3 +4992,86 @@ body.has-parked:not([data-screen="round"]) #altimeter { translate: 0 36px; }
 #sheet-runs .fs-stub b { color: var(--ink); font-variant-numeric: tabular-nums; }
 #sheet-runs .lb-note { color: var(--ink-2); font: italic 400 15px/1.4 var(--f-serif); margin-top: 12px; }
 @media (prefers-reduced-motion: reduce) { #sheet-runs .fstrip.rs { transition: none; } #sheet-runs .fstrip.rs:hover { transform: none; } }
+
+/* ---------------------------------------------------------------- the climb's full card
+   Tap a stub on the rail and its full answer card comes off it: the same
+   ledger entry the pass shows, on the stub's paper, with the width's colour
+   down its left edge and a perforated head (Leg 3 of 7 · milestone · ‹ › ✕).
+   Desktop: beside the stubs, pointing at the one it came from. Phone: a
+   ticket along the bottom, above the parked pass. */
+button.climb-stub { display: block; border: 0; margin: 0; text-align: left; font: 500 11px/1.25 var(--f-ui); -webkit-appearance: none; appearance: none; }
+.climb-stub:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+.climb-stub.in.open { background: #FFFDF8; translate: 4px 0; opacity: 1;
+  box-shadow: inset 3px 0 0 var(--c), inset 4px 0 0 rgba(20, 33, 61, 0.45), 0 0 0 1.5px var(--ink), 0 4px 10px rgba(2, 4, 14, 0.32); }
+
+#climb-card {
+  --c: var(--c-miss); --hh: 38px; --oy: 50%;
+  position: fixed; z-index: 6; left: 16px; right: 16px; bottom: calc(64px + 14px + env(safe-area-inset-bottom, 0px));
+  max-width: 420px; margin: 0 auto; box-sizing: border-box;
+  display: flex; flex-direction: column;
+  max-height: calc(100svh - env(safe-area-inset-top, 0px) - 210px - 78px);
+  filter: drop-shadow(0 1px 0 rgba(150, 118, 66, 0.45)) drop-shadow(0 2px 4px rgba(2, 4, 14, 0.22)) drop-shadow(0 14px 22px rgba(2, 4, 14, 0.38));
+  opacity: 0; transform: translateY(24px); transform-origin: 50% 100%;
+  transition: opacity 160ms cubic-bezier(.4, 0, 1, 1), transform 160ms cubic-bezier(.4, 0, 1, 1);
+  outline: none;
+}
+#climb-card .cc-paper {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+  background: var(--stock); color: var(--ink); border-radius: 4px;
+  box-shadow: inset 4px 0 0 var(--c), inset 5px 0 0 rgba(20, 33, 61, 0.45), inset 0 0 0 0.5px rgba(20, 33, 61, 0.25);
+  -webkit-mask: radial-gradient(circle at 0 var(--hh), transparent 6px, #000 6.5px) left / 51% 100% no-repeat, radial-gradient(circle at 100% var(--hh), transparent 6px, #000 6.5px) right / 51% 100% no-repeat;
+          mask: radial-gradient(circle at 0 var(--hh), transparent 6px, #000 6.5px) left / 51% 100% no-repeat, radial-gradient(circle at 100% var(--hh), transparent 6px, #000 6.5px) right / 51% 100% no-repeat;
+}
+#climb-card.in { opacity: 1; transform: none; transition: opacity 220ms ease, transform 300ms var(--ease-out); }
+#climb-card.desk {
+  right: auto; bottom: auto; margin: 0; width: 440px; max-width: calc(100vw - 32px);
+  max-height: calc(100svh - 64px - 20px - 32px);
+  transform: translateX(-12px) scale(0.96); transform-origin: 0 var(--oy);
+}
+#climb-card.desk.in { transform: none; transition: opacity 200ms ease, transform 260ms var(--ease-out), top 280ms var(--ease-out); }
+@media (max-width: 1023.98px) { #climb-card.desk { width: 380px; } }
+@media (min-width: 720px) and (max-height: 700px) { #climb-card.desk { width: 400px; } }
+body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; }
+
+/* the head: the stub end of the ticket, torn along a perforation */
+#climb-card .cc-head {
+  position: relative; flex: none; height: var(--hh); display: flex; align-items: center; gap: 10px; padding: 0 8px 0 18px;
+  border-bottom: 1.5px dashed rgba(20, 33, 61, 0.28); margin: 0 10px 0 4px; padding-left: 14px; padding-right: 0;
+}
+#climb-card .cc-label { flex: none; font: 600 10px/1 var(--f-ui); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+#climb-card .cc-x { flex: 1; min-width: 0; font: italic 400 13px/1.2 var(--f-serif); color: var(--amber-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#climb-card .cc-x:empty { visibility: hidden; }
+#climb-card .cc-x:not(:empty)::before { content: "✦ "; font-style: normal; font-size: 9px; vertical-align: 1px; }
+#climb-card .cc-nav { flex: none; display: flex; align-items: center; gap: 2px; }
+#climb-card .cc-btn {
+  display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: var(--ink-2); cursor: pointer; transition: background 120ms, color 120ms;
+}
+#climb-card .cc-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#climb-card .cc-btn:hover:not(:disabled) { background: rgba(20, 33, 61, 0.07); color: var(--ink); }
+#climb-card .cc-btn:disabled { opacity: 0.28; cursor: default; }
+#climb-card .cc-btn:focus-visible { outline: 2px solid var(--amber); outline-offset: 0; }
+#climb-card .cc-btn[data-act="close"] { margin-left: 4px; position: relative; }
+#climb-card .cc-btn[data-act="close"]::before { content: ""; position: absolute; left: -3px; top: 7px; bottom: 7px; border-left: 1px solid rgba(20, 33, 61, 0.16); }
+
+/* the body: the pass's ledger entry, as is */
+#climb-card .cc-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: 2px 18px 16px 22px; }
+#climb-card .cc-body.swap { animation: ccSwap 200ms var(--ease-out); }
+@keyframes ccSwap { from { opacity: 0; transform: translateX(var(--dx, 6px)); } to { opacity: 1; transform: none; } }
+#climb-card .recap .ans, #climb-card .recap .ans:first-child { padding: 0; margin: 14px 0 0; border: 0; }
+#climb-card .recap .ans-q { max-width: none; }
+#climb-card .ans-fact { margin-bottom: 0; }
+#climb-card .ans-fact:empty { display: none; }
+
+/* desktop: a small paper tip pointing back at the stub */
+#climb-card .cc-tip { display: none; }
+#climb-card.desk .cc-tip { display: block; position: absolute; left: -7px; top: calc(var(--oy) - 7px); width: 14px; height: 14px; background: var(--stock);
+  transform: rotate(45deg); box-shadow: -1px 1px 0 rgba(20, 33, 61, 0.18); clip-path: polygon(0 0, 0 100%, 100% 100%); }
+#climb-card.desk.tipless .cc-tip { display: none; }
+#climb-card.desk .cc-tip::after { content: ""; position: absolute; inset: 0; box-shadow: inset 3px -3px 0 -1px var(--c); }
+
+@media (prefers-reduced-motion: reduce) {
+  #climb-card, #climb-card.in, #climb-card.desk, #climb-card.desk.in { transform: none !important; transition: opacity 1ms !important; }
+  #climb-card .cc-body.swap { animation: none; }
+  .climb-stub.in.open { translate: none; }
+}
