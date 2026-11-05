@@ -40,6 +40,14 @@ CREATE TABLE IF NOT EXISTS unlock_uses (
   checks   INTEGER NOT NULL DEFAULT 1
 );
 
+-- Free passes (PASS-…) work on ONE device: the first browser to open the
+-- link claims it. device is that browser's random stats id, nothing more.
+CREATE TABLE IF NOT EXISTS unlock_claims (
+  code     TEXT PRIMARY KEY,
+  device   TEXT NOT NULL,
+  at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Google accounts that signed in to buy. unlimited = 1 after Stripe confirms.
 CREATE TABLE IF NOT EXISTS users (
   sub            TEXT PRIMARY KEY,     -- Google's stable account id

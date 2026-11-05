@@ -6,7 +6,7 @@
      POST /api/result      { n, device, pts, legs, chips }   → 204
      GET  /api/stats/:n    → { n, players, step, buckets: [[from, count]…], legs: [pct×7] }
      POST /api/report      { qid, n, device }                → 204   "report this answer"
-     GET  /api/unlock/:code                                  → { valid }   unlock links
+     GET  /api/unlock/:code?device=<id>                      → { valid, reason? }   unlock links (PASS-… = one device)
      POST /api/checkout    { idToken, returnTo }             → { url, session } or { unlimited, session }
      POST /api/stripe      (Stripe webhook)                  → 200   marks the purchase
      GET  /api/save        Authorization: Bearer <session>   → { data, ver }   cloud copy of progress
@@ -19,6 +19,7 @@
      GET  /api/admin/passes                                  → { passes }   free Unlimited passes
      POST /api/admin/passes { note }                         → { code }     make one
      POST /api/admin/passes/:code { active }                 → { ok }       revoke / restore
+     DELETE /api/admin/passes/:code                          → { ok }       delete for good
 
    Secrets (wrangler secret put …): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
    SESSION_SECRET. Plain vars (wrangler.jsonc): GOOGLE_CLIENT_ID, PRICE_CENTS.
@@ -115,14 +116,22 @@ async function postReport(request, env) {
 
 /* ------------------------------------------------------------ unlock links
    A code is valid while its row says active = 1. Revoke = set active = 0. */
-async function getUnlock(code, env) {
+async function getUnlock(code, env, device) {
   const c = code.toUpperCase();
+  const H = { headers: { 'cache-control': 'no-store' } };
   const row = await env.DB.prepare('SELECT active FROM unlock_codes WHERE code = ?').bind(c).first();
-  const valid = Boolean(row && row.active);
-  if (valid) {   // first / last use, for the owner's pass list
-    await env.DB.prepare("INSERT INTO unlock_uses (code) VALUES (?) ON CONFLICT(code) DO UPDATE SET last = datetime('now'), checks = checks + 1").bind(c).run();
+  if (!row || !row.active) return json({ valid: false }, H);
+  // A free pass belongs to the first device that opens it. Older shared codes
+  // (PILOT-…) keep working on any number of devices.
+  if (c.startsWith('PASS-')) {
+    if (!device || !/^[\w-]{8,64}$/.test(device)) return json({ valid: false, reason: 'device' }, H);
+    await env.DB.prepare('INSERT OR IGNORE INTO unlock_claims (code, device) VALUES (?, ?)').bind(c, device).run();
+    const claim = await env.DB.prepare('SELECT device FROM unlock_claims WHERE code = ?').bind(c).first();
+    if (!claim || claim.device !== device) return json({ valid: false, reason: 'claimed' }, H);
   }
-  return json({ valid }, { headers: { 'cache-control': 'no-store' } });
+  // first / last use, for the owner's pass list
+  await env.DB.prepare("INSERT INTO unlock_uses (code) VALUES (?) ON CONFLICT(code) DO UPDATE SET last = datetime('now'), checks = checks + 1").bind(c).run();
+  return json({ valid: true }, H);
 }
 
 /* Free Unlimited passes, made from karman.day/dev. A pass is an unlock code:
@@ -136,9 +145,16 @@ function passCode() {
 async function adminPasses(request, env, code) {
   if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
   if (request.method === 'GET' && !code) {
-    const rows = (await env.DB.prepare(`SELECT c.code, c.note, c.active, c.created, u.first, u.last, u.checks
-      FROM unlock_codes c LEFT JOIN unlock_uses u ON u.code = c.code ORDER BY c.created DESC, c.rowid DESC LIMIT 200`).all()).results || [];
+    const rows = (await env.DB.prepare(`SELECT c.code, c.note, c.active, c.created, u.first, u.last, u.checks, (k.device IS NOT NULL) AS claimed
+      FROM unlock_codes c LEFT JOIN unlock_uses u ON u.code = c.code LEFT JOIN unlock_claims k ON k.code = c.code ORDER BY c.created DESC, c.rowid DESC LIMIT 200`).all()).results || [];
     return json({ passes: rows }, { headers: { 'cache-control': 'no-store' } });
+  }
+  if (request.method === 'DELETE' && code) {
+    const c = code.toUpperCase();
+    const r = await env.DB.prepare('DELETE FROM unlock_codes WHERE code = ?').bind(c).run();
+    await env.DB.batch([env.DB.prepare('DELETE FROM unlock_uses WHERE code = ?').bind(c), env.DB.prepare('DELETE FROM unlock_claims WHERE code = ?').bind(c)]);
+    const changed = r && r.meta ? r.meta.changes : r && r.changes;
+    return changed ? json({ ok: true }) : json({ error: 'no such pass' }, { status: 404 });
   }
   if (request.method !== 'POST') return json({ error: 'method' }, { status: 405 });
   let b = {};
@@ -495,7 +511,7 @@ export default {
     if (m && request.method === 'GET') return getStats(Number(m[2]), env, ctx, request, m[1] === 'r');
     if (url.pathname === '/api/report' && request.method === 'POST') return postReport(request, env);
     const u = url.pathname.match(/^\/api\/unlock\/([\w-]{3,40})$/);
-    if (u && request.method === 'GET') return getUnlock(u[1], env);
+    if (u && request.method === 'GET') return getUnlock(u[1], env, url.searchParams.get('device'));
     if (url.pathname === '/api/checkout' && request.method === 'POST') return postCheckout(request, env);
     if (url.pathname === '/api/health' && request.method === 'GET') return getHealth(env, ctx);
     if (url.pathname === '/api/reports' && request.method === 'GET') return getReports(env);

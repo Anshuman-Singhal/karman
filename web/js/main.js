@@ -229,7 +229,7 @@
     e.preventDefault();
     const ok = await K.access.redeem($('code-input').value);
     if (ok) { K.fx.toast('Unlimited unlocked. Keep flying.'); K.ui.refreshAccess(); }
-    else { K.fx.toast('That code isn’t valid.'); $('code-input').select(); }
+    else { K.fx.toast(K.access.lastRefusal === 'claimed' ? 'That pass is already in use on another device.' : 'That code isn’t valid.'); $('code-input').select(); }
   });
 
   /* Copy the passport page as an image (logbook). */

@@ -27,6 +27,10 @@ K.access = (() => {
   const backend = () => Boolean(C.PAYMENTS || C.STATS);
 
   const unlimited = () => Boolean(st().unlimited);
+  // A free pass (PASS-…) belongs to the first device that opens it: the server
+  // matches it to this browser's random stats id.
+  const unlockUrl = (code) => `/api/unlock/${encodeURIComponent(code)}?device=${encodeURIComponent(K.storage.data.device || '')}`;
+  let lastRefusal = null;
   const canArchive = () => unlimited();
   const canKeepFlying = () => unlimited() || !K.storage.data.freeRunUsed;
   const freeRunLeft = () => !unlimited() && !K.storage.data.freeRunUsed;
@@ -48,9 +52,11 @@ K.access = (() => {
       if (C.DEV && !K.LIVE && code === DEV_CODE) { grant('code', { code }); return true; }
       return false;
     }
+    lastRefusal = null;
     try {
-      const res = await api(`/api/unlock/${encodeURIComponent(code)}`);
+      const res = await api(unlockUrl(code));
       if (res.valid) { grant('code', { code }); return true; }
+      lastRefusal = res.reason || null;
     } catch (e) { /* offline or invalid */ }
     return false;
   }
@@ -67,7 +73,9 @@ K.access = (() => {
     }
     if (code) {
       const ok = await redeem(code);
-      K.fx.toast(ok ? 'Unlimited unlocked. Keep flying.' : 'That unlock link isn’t valid any more.');
+      K.fx.toast(ok ? 'Unlimited unlocked. Keep flying.'
+        : lastRefusal === 'claimed' ? 'That pass is already in use on another device.'
+        : 'That unlock link isn’t valid any more.');
       if (ok) K.ui.refreshAccess();
       return;
     }
@@ -99,7 +107,7 @@ K.access = (() => {
     if (Date.now() - a.checkedAt < RECHECK_MS) return;
     try {
       if (a.via === 'code') {
-        const res = await api(`/api/unlock/${encodeURIComponent(a.code)}`);
+        const res = await api(unlockUrl(a.code));
         if (!res.valid) { revoke(); K.fx.toast('Your unlock code has ended. The daily flight is still free.'); K.ui.refreshAccess(); }
         else { a.checkedAt = Date.now(); save(); }
       } else if (a.via === 'stripe' && a.session && a.session !== 'dev') {
@@ -180,5 +188,5 @@ K.access = (() => {
     fetch(`${C.API_BASE}/api/play`, { method: 'POST', headers: { authorization: `Bearer ${a.session}`, 'content-type': 'application/json' }, body: JSON.stringify({ kind }), keepalive: true }).catch(() => {});
   }
 
-  return { unlimited, canArchive, canKeepFlying, freeRunLeft, redeem, refresh, googleButton, buyWith, simulatePurchase, notePlay, backend, revoke, afterSignIn, signOut };
+  return { unlimited, canArchive, canKeepFlying, freeRunLeft, redeem, get lastRefusal() { return lastRefusal; }, refresh, googleButton, buyWith, simulatePurchase, notePlay, backend, revoke, afterSignIn, signOut };
 })();
