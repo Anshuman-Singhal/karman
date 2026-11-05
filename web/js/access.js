@@ -9,7 +9,7 @@
      1. Buy: sign in with Google → Stripe Checkout → back to the game. The
         Worker records the purchase against the Google account, so "Restore"
         works on any device. (PAYMENTS: true + Worker secrets; SHIPPING.md 5.)
-     2. Unlock code: a link like karman.day/?unlock=PILOT-1234 that you hand
+     2. Free pass: a link like karman.day/?unlock=PASS-R8ZD-4FUE (or just the code) that you hand
         out. Codes live in the database; set one inactive and it stops
         working the next time that player opens the game.
 
@@ -45,8 +45,21 @@ K.access = (() => {
   }
 
   /** Redeem an unlock code. Resolves true/false. */
+  /** Whatever was typed or pasted → a code: a whole link, "PASS-R8ZD-4FUE",
+      "pass r8zd 4fue" or just "R8ZD4FUE" all work. */
+  function normalize(raw) {
+    let s = String(raw || '').trim();
+    const m = s.match(/[?&]unlock=([^&#\s]+)/i);
+    if (m) s = decodeURIComponent(m[1]);
+    s = s.toUpperCase();
+    const bare = s.replace(/[^A-Z0-9]/g, '');
+    const body = bare.startsWith('PASS') && bare.length === 12 ? bare.slice(4) : bare.length === 8 ? bare : null;
+    if (body && /^[A-HJ-NP-Z2-9]{8}$/.test(body)) return `PASS-${body.slice(0, 4)}-${body.slice(4)}`;
+    return s.replace(/\s+/g, '');
+  }
+
   async function redeem(raw) {
-    const code = String(raw || '').trim().toUpperCase();
+    const code = normalize(raw);
     if (!code) return false;
     if (!backend()) {
       if (C.DEV && !K.LIVE && code === DEV_CODE) { grant('code', { code }); return true; }

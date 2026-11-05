@@ -258,8 +258,10 @@
     <div class="pass-new" id="pass-new" hidden>
       <div class="lbl" id="pass-for">New pass</div>
       <div class="link" id="pass-link"></div>
+      <p class="note" style="margin:-4px 0 10px">Send the link, or just the code: they can type it under Unlimited → “Have a pass?”.</p>
       <div class="row">
         <button class="btn" type="button" id="pass-copy">Copy link</button>
+        <button class="btn" type="button" id="pass-code">Copy code</button>
         <button class="btn" type="button" id="pass-msg">Copy message</button>
         <button class="btn" type="button" id="pass-share" hidden>Share…</button>
       </div>
@@ -483,7 +485,7 @@
 
   /* ---------------------------------------------------------- free passes */
   const passUrl = (code) => `https://karman.day/?unlock=${code}`;
-  const passMsg = (code) => `🎈 Here's a free Unlimited pass for KÁRMÁN, the 3-minute daily guessing game. Open this to unlock it: ${passUrl(code)}`;
+  const passMsg = (code) => `🎈 Here's a free Unlimited pass for KÁRMÁN, the 3-minute daily guessing game. Open this to unlock it: ${passUrl(code)} (or enter ${code} under Unlimited → Have a pass?)`;
   const when = (s) => (s ? new Date(`${s.replace(' ', 'T')}Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
   async function copy(text, btn) {
     const was = btn.textContent;
@@ -503,7 +505,7 @@
       $('pass-list').innerHTML = passes.length ? `<table><thead><tr><th>For</th><th>Code</th><th>Made</th><th>Used</th><th></th></tr></thead><tbody>${
         passes.map((p) => `<tr class="${p.active ? '' : 'off'}"><td>${p.note ? esc(p.note) : '<span class="muted">—</span>'}</td><td class="code">${esc(p.code)}</td><td class="muted">${when(p.created)}</td>
           <td>${p.first ? `${p.claimed ? 'Claimed ' : ''}${when(p.first)}${p.last && p.last !== p.first ? ` <span class="muted">· last ${when(p.last)}</span>` : ''}` : '<span class="muted">Not yet</span>'}</td>
-          <td class="acts">${p.active ? `${p.claimed ? '' : `<button class="btn" data-copy="${esc(p.code)}">Copy link</button> `}<button class="btn" data-off="${esc(p.code)}">Switch off</button>` : `<span class="muted">Off</span> <button class="btn" data-on="${esc(p.code)}">Turn on</button>`} <button class="btn del" data-del="${esc(p.code)}" aria-label="Delete ${esc(p.code)}">Delete</button></td></tr>`).join('')
+          <td class="acts">${p.active ? `${p.claimed ? '' : `<button class="btn" data-copy="${esc(p.code)}">Copy link</button> <button class="btn" data-copycode="${esc(p.code)}">Copy code</button> `}<button class="btn" data-off="${esc(p.code)}">Switch off</button>` : `<span class="muted">Off</span> <button class="btn" data-on="${esc(p.code)}">Turn on</button>`} <button class="btn del" data-del="${esc(p.code)}" aria-label="Delete ${esc(p.code)}">Delete</button></td></tr>`).join('')
       }</tbody></table>` : '';
     } catch (e) { if (e.message !== 'signed out') $('pass-list').innerHTML = `<p class="empty">Couldn't load passes (${esc(e.message)}).</p>`; }
   }
@@ -511,6 +513,7 @@
     const b = e.target.closest('button');
     if (!b) return;
     if (b.dataset.copy) return copy(passUrl(b.dataset.copy), b);
+    if (b.dataset.copycode) return copy(b.dataset.copycode, b);
     if (b.dataset.del) {
       const c = b.dataset.del;
       if (!confirm(`Delete ${c} for good? Whoever has it goes back to free within about 6 hours, and the link stops working.`)) return;
@@ -543,6 +546,7 @@
     finally { go.disabled = false; go.textContent = 'Generate pass'; }
   });
   $('pass-copy').addEventListener('click', (e) => lastPass && copy(passUrl(lastPass), e.currentTarget));
+  $('pass-code').addEventListener('click', (e) => lastPass && copy(lastPass, e.currentTarget));
   $('pass-msg').addEventListener('click', (e) => lastPass && copy(passMsg(lastPass), e.currentTarget));
   if (navigator.share) {
     $('pass-share').hidden = false;
