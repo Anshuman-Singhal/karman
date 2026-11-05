@@ -129,18 +129,30 @@
   .btn.primary { background: var(--amber); border-color: var(--amber); color: #14213D; font-weight: 700; padding: 9px 18px; }
   .btn.primary:hover { filter: brightness(1.06); border-color: var(--amber); }
   .btn:disabled { opacity: 0.55; cursor: default; }
-  .pass-new { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--panel-2); border: 1px dashed rgba(255, 181, 71, 0.45); }
-  .pass-new .lbl { font-size: 0.76rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
-  .pass-new .link { font: 600 1rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; margin: 4px 0 10px; color: var(--ink); }
+  .pass-new { position: relative; margin-top: 12px; padding: 16px 18px; border-radius: 12px; background: linear-gradient(180deg, #1D2342, #181D36); border: 1px solid rgba(255, 181, 71, 0.32);
+    display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; justify-content: space-between; }
+  .pass-new::before { content: ""; position: absolute; left: 0; top: 16px; bottom: 16px; width: 3px; border-radius: 0 3px 3px 0; background: var(--amber); }
+  .pass-new .lbl { font-size: 0.74rem; color: var(--amber); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; }
+  .pass-new .pn-code { font: 800 2rem/1.05 var(--f-display); letter-spacing: 0.08em; margin: 6px 0 2px; }
+  .pass-new .link { font: 500 0.84rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink-2); word-break: break-all; }
+  .pass-new .note { margin: 8px 0 0; max-width: 520px; }
   .pass-new .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; }
+  .pill.new { background: rgba(255, 181, 71, 0.14); color: #FFCB7A; }
+  .pill.used { background: rgba(91, 212, 154, 0.14); color: var(--good); }
+  .pill.off { background: rgba(226, 232, 255, 0.08); color: var(--ink-3); }
   .passes table { margin-top: 14px; }
   .passes td.code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; white-space: nowrap; }
-  .passes .off td:not(:last-child) { opacity: 0.45; }
+  .passes .off td:nth-child(-n+3) { opacity: 0.45; }
   .passes .acts { white-space: nowrap; text-align: right; }
   .passes .acts .btn { padding: 4px 10px; font-size: 0.78rem; }
-  .passes .acts .btn.del { color: var(--bad); border-color: rgba(255, 94, 98, 0.35); }
+  .passes .acts .btn.del { color: var(--bad); border-color: rgba(255, 94, 98, 0.35); padding: 4px 8px; vertical-align: middle; }
+  .passes .acts .btn.del svg { width: 14px; height: 14px; display: block; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .codebtn { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: copy; border-bottom: 1px dotted var(--ink-3); }
+  .codebtn:hover { color: var(--amber); }
   .passes .acts .btn.del:hover { border-color: var(--bad); }
   @media (max-width: 640px) {
+    .pass-make .btn.primary { flex: 1 1 100%; }
     .passes th:nth-child(2), .passes td:nth-child(2), .passes th:nth-child(3), .passes td:nth-child(3) { display: none; }
     .passes .acts { white-space: normal; }
     .passes .acts .btn { margin: 0 0 4px 4px; }
@@ -256,13 +268,16 @@
       <button class="btn primary" id="pass-go" type="submit">Generate pass</button>
     </form>
     <div class="pass-new" id="pass-new" hidden>
-      <div class="lbl" id="pass-for">New pass</div>
-      <div class="link" id="pass-link"></div>
-      <p class="note" style="margin:-4px 0 10px">Send the link, or just the code: they can type it under Unlimited → “Have a pass?”.</p>
+      <div class="pn-main">
+        <div class="lbl" id="pass-for">New pass</div>
+        <div class="pn-code" id="pass-code-big"></div>
+        <div class="link" id="pass-link"></div>
+        <p class="note">Send the link (one tap to unlock), or just the code: they type it under Unlimited → “Have a pass?”. Works on the first device that uses it.</p>
+      </div>
       <div class="row">
+        <button class="btn primary" type="button" id="pass-msg">Copy invite</button>
         <button class="btn" type="button" id="pass-copy">Copy link</button>
         <button class="btn" type="button" id="pass-code">Copy code</button>
-        <button class="btn" type="button" id="pass-msg">Copy message</button>
         <button class="btn" type="button" id="pass-share" hidden>Share…</button>
       </div>
     </div>
@@ -502,10 +517,10 @@
   async function loadPasses() {
     try {
       const { passes } = await passApi();
-      $('pass-list').innerHTML = passes.length ? `<table><thead><tr><th>For</th><th>Code</th><th>Made</th><th>Used</th><th></th></tr></thead><tbody>${
-        passes.map((p) => `<tr class="${p.active ? '' : 'off'}"><td>${p.note ? esc(p.note) : '<span class="muted">—</span>'}</td><td class="code">${esc(p.code)}</td><td class="muted">${when(p.created)}</td>
-          <td>${p.first ? `${p.claimed ? 'Claimed ' : ''}${when(p.first)}${p.last && p.last !== p.first ? ` <span class="muted">· last ${when(p.last)}</span>` : ''}` : '<span class="muted">Not yet</span>'}</td>
-          <td class="acts">${p.active ? `${p.claimed ? '' : `<button class="btn" data-copy="${esc(p.code)}">Copy link</button> <button class="btn" data-copycode="${esc(p.code)}">Copy code</button> `}<button class="btn" data-off="${esc(p.code)}">Switch off</button>` : `<span class="muted">Off</span> <button class="btn" data-on="${esc(p.code)}">Turn on</button>`} <button class="btn del" data-del="${esc(p.code)}" aria-label="Delete ${esc(p.code)}">Delete</button></td></tr>`).join('')
+      $('pass-list').innerHTML = passes.length ? `<table><thead><tr><th>For</th><th>Code</th><th>Made</th><th>Status</th><th></th></tr></thead><tbody>${
+        passes.map((p) => `<tr class="${p.active ? '' : 'off'}"><td>${p.note ? esc(p.note) : '<span class="muted">—</span>'}</td><td class="code"><button class="codebtn" data-copycode="${esc(p.code)}" title="Copy code">${esc(p.code)}</button></td><td class="muted">${when(p.created)}</td>
+          <td>${!p.active ? '<span class="pill off">Switched off</span>' : p.first ? `<span class="pill used">${p.claimed ? 'Claimed' : 'Used'} ${when(p.first)}</span>${p.last && p.last !== p.first ? ` <span class="muted">· seen ${when(p.last)}</span>` : ''}` : '<span class="pill new">Not used yet</span>'}</td>
+          <td class="acts">${p.active ? `${p.claimed ? '' : `<button class="btn" data-copy="${esc(p.code)}">Copy link</button> `}<button class="btn" data-off="${esc(p.code)}">Switch off</button>` : `<button class="btn" data-on="${esc(p.code)}">Turn on</button>`} <button class="btn del" data-del="${esc(p.code)}" aria-label="Delete ${esc(p.code)}" title="Delete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg></button></td></tr>`).join('')
       }</tbody></table>` : '';
     } catch (e) { if (e.message !== 'signed out') $('pass-list').innerHTML = `<p class="empty">Couldn't load passes (${esc(e.message)}).</p>`; }
   }
@@ -538,7 +553,8 @@
       const p = await passApi('', { method: 'POST', body: JSON.stringify({ note: $('pass-note').value }) });
       lastPass = p.code;
       $('pass-for').textContent = p.note ? `New pass · for ${p.note}` : 'New pass';
-      $('pass-link').textContent = passUrl(p.code);
+      $('pass-link').textContent = passUrl(p.code).replace('https://', '');
+      $('pass-code-big').textContent = p.code;
       $('pass-new').hidden = false;
       $('pass-note').value = '';
       loadPasses();

@@ -712,32 +712,58 @@ K.ui = (() => {
   }
 
   /* ------------------------------------------------------------ Unlimited hangar
-     New runs first (never a silent repeat), then every run this pilot has flown,
-     newest first, each with its best altitude and a "Fly again". */
+     A boarding ticket for a run you've never flown (never a silent repeat),
+     the run card (every run, the ones you've flown punched through), then a
+     flight strip per run flown, newest first; tap a strip to fly it again. */
+  function nextMonday() {
+    const t = new Date();
+    const d = new Date(Date.UTC(t.getFullYear(), t.getMonth(), t.getDate() + (((8 - t.getDay()) % 7) || 7)));
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).toUpperCase();
+  }
   function renderRuns() {
     const d = K.storage.data;
-    const total = K.game.runsTotal(), left = K.game.runsLeft().length;
+    const total = K.game.runsTotal(), leftList = K.game.runsLeft(), left = leftList.length;
+    const done = new Set((d.runsDone || []).filter((k) => k >= 1 && k <= total));
     const byRun = new Map();
     for (const r of d.runs || []) {
-      if (!r || !r.run) continue;
-      const hits = (r.rounds || []).filter((x) => x.hit).length;
+      if (!r || !r.run || !r.rounds) continue;
       const was = byRun.get(r.run);
       byRun.set(r.run, {
         run: r.run, at: Math.max(r.at || 0, was ? was.at : 0), times: (was ? was.times : 0) + 1,
-        best: was && was.best.alt >= r.alt ? was.best : { alt: r.alt || 0, hits },
+        best: was && (was.best.alt || 0) >= (r.alt || 0) ? was.best : r,
       });
     }
     const flown = [...byRun.values()].sort((a, b) => b.at - a.at);
-    $('runs-sub').textContent = `${total - left} OF ${total} RUNS FLOWN · NEW RUNS EVERY MONDAY`;
-    const day = (t) => (t ? new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
-    $('runs-body').innerHTML = `
-      ${left ? `<button type="button" class="buy-ticket runs-new" id="runs-new"><span class="bt-main">Fly a new run</span><span class="bt-stub"><b>${left}</b><small>NEW</small></span></button>`
-        : `<div class="runs-done"><b>You’ve flown every run.</b> New ones land every Monday. Pick any run below to fly it again.</div>`}
-      ${flown.length ? `<h3 class="lb-h runs-h">Your runs</h3><ul class="runs-list">${flown.map((x) => `<li>
-          <span class="rl-no"><small>RUN</small><b>${x.run}</b></span>
-          <span class="rl-text"><b>${esc(K.units.altText(x.best.alt))}</b> · ${x.best.hits}/${K.CONFIG.LEGS} hit<small>${esc(day(x.at))}${x.times > 1 ? ` · flown ${x.times}×` : ''}</small></span>
-          <button type="button" class="rl-go" data-run="${x.run}">Fly again</button></li>`).join('')}</ul>
-        <p class="cal-key">Flying a run again shows the same seven questions.</p>` : ''}`;
+    $('runs-sub').textContent = `${total} RUNS · NEW ONES EVERY MONDAY`;
+    const day = (t) => (t ? new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase() : '');
+    const ticket = left
+      ? `<button type="button" class="buy-ticket runs-new" id="runs-new">
+          <span class="bt-main"><span class="rn-main">Fly a new run</span><span class="rn-sub">7 questions you haven’t seen</span></span>
+          <span class="bt-stub"><small>NEW</small><b>${left}</b></span></button>`
+      : `<div class="runs-new runs-wait" role="status">
+          <span class="bt-main"><span class="rn-main">All runs flown</span><span class="rn-sub">New runs land every Monday</span></span>
+          <span class="bt-stub"><small>NEXT</small><b>${nextMonday().replace(/^(\w+) /, '$1<br>')}</b></span></div>`;
+    const holes = Array.from({ length: total }, (_, i) => i + 1)
+      .map((k) => `<i class="${done.has(k) ? 'on' : ''}" title="Run ${k}${done.has(k) ? ' · flown' : ''}">${k}</i>`).join('');
+    const card = `<div class="licence run-card">
+        <div class="lic-strip">RUN CARD · KÁRMÁN AIR</div>
+        <div class="rc-holes" aria-label="${done.size} of ${total} runs flown">${holes}</div>
+        <div class="rc-foot"><span>${done.size} PUNCHED</span><span>${left} TO GO</span></div>
+      </div>`;
+    const strips = flown.map((x) => {
+      const dots = x.best.rounds.map((r) => (r.hit
+        ? `<i class="${r.clue ? 'clue' : ''}" style="background:var(--c-${S.CHIPS[r.chip] ? S.CHIPS[r.chip].key : 'fair'})"></i>`
+        : `<i class="m${r.clue ? ' clue' : ''}"></i>`)).join('');
+      const alt = K.units.altShown(x.best.alt || 0);
+      return `<li><button type="button" class="fstrip rs" data-run="${x.run}" aria-label="Fly run ${x.run} again. Best ${esc(K.units.altText(x.best.alt || 0))}.">
+        <span class="fs-main"><span class="fs-id">RUN ${x.run} · ${esc(day(x.at))}${x.times > 1 ? ` · ×${x.times}` : ''}</span>
+          <span class="fs-row"><span class="fs-dots">${dots}</span><span class="rs-again"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 1 2.2 5.3"/><path d="M4 18.2v-4.6h4.6"/></svg>Fly again</span></span></span>
+        <span class="fs-stub"><b>${alt}</b><small>${K.units.altUnit().toUpperCase()}</small></span></button></li>`;
+    }).join('');
+    $('runs-body').innerHTML = `${ticket}
+      ${card}
+      ${flown.length ? `<h3 class="lb-h">Flight strips</h3><ul class="fstrips runs-strips">${strips}</ul>
+        <p class="lb-note">Tap a strip to fly that run again: the same seven questions, a fresh climb.</p>` : ''}`;
     if ($('runs-new')) $('runs-new').onclick = () => { closeSheet('runs'); setTimeout(() => K.game.keepFlying(), K.fx.reduced() ? 0 : 200); };
     $('runs-body').querySelectorAll('[data-run]').forEach((b) => {
       b.onclick = () => { closeSheet('runs'); setTimeout(() => K.game.flyRun(Number(b.dataset.run)), K.fx.reduced() ? 0 : 200); };

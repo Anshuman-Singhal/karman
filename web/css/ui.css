@@ -3067,11 +3067,11 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 @media (max-width: 360px) { .hf li { grid-template-columns: 22px minmax(0, 1fr) 56px; } .hf-ill { width: 56px; } }
 
 /* ---------------------------------------------------------------- 10 · logbook */
-#sheet-logbook .lb-h {
+#sheet-logbook .lb-h, #sheet-runs .lb-h {
   display: flex; align-items: center; gap: 10px;
   margin: 28px 0 12px; font: 500 10.5px/1 var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3);
 }
-#sheet-logbook .lb-h::after { content: ""; flex: 1; border-top: 1px solid var(--ink-rule); }
+#sheet-logbook .lb-h::after, #sheet-runs .lb-h::after { content: ""; flex: 1; border-top: 1px solid var(--ink-rule); }
 /* the licence: a laminated card lying on the page */
 #sheet-logbook .licence {
   background: var(--fibre), #FBF6EB;
@@ -4941,22 +4941,54 @@ body.has-parked:not([data-screen="round"]) #altimeter { translate: 0 36px; }
 #screen-results .res-vs b { display: block; font-weight: 700; }
 @media (max-width: 719px) { .res-lockup .res-vs { padding-right: 92px; } }
 
-/* ---------------------------------------------------------------- Unlimited hangar */
-#sheet-runs .runs-new { margin: 6px 0 4px; }
-#sheet-runs .runs-done { margin: 6px 0 4px; padding: 14px 16px; border-radius: 12px; border: 1.5px dashed rgba(30, 42, 85, 0.28); font: 400 14px/1.45 var(--f-ui); color: var(--ink-2); }
-#sheet-runs .runs-done b { color: var(--ink); font-weight: 600; }
-#sheet-runs .runs-h { margin-top: 22px; }
-.runs-list { list-style: none; margin: 0; padding: 0; }
-.runs-list li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px dashed rgba(30, 42, 85, 0.18); }
-.runs-list li:last-child { border-bottom: 1px dashed rgba(30, 42, 85, 0.18); }
-.rl-no { flex: 0 0 46px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 0; border-radius: 8px; background: rgba(30, 42, 85, 0.06); }
-.rl-no small { font: 500 8.5px/1 var(--f-mono); letter-spacing: 0.1em; opacity: 0.6; }
-.rl-no b { font: 800 20px/1 var(--f-display); font-variant-numeric: tabular-nums; }
-.rl-text { flex: 1; min-width: 0; font: 500 14px/1.3 var(--f-ui); color: var(--ink-2); }
-.rl-text b { color: var(--ink); font-weight: 700; }
-.rl-text small { display: block; margin-top: 2px; font: 400 12.5px/1.2 var(--f-ui); color: var(--ink-3, rgba(30, 42, 85, 0.55)); }
-.rl-go { flex: 0 0 auto; height: 34px; padding: 0 14px; border-radius: 999px; border: 1.5px solid rgba(30, 42, 85, 0.3); background: transparent; color: var(--ink); font: 600 13px/1 var(--f-ui); cursor: pointer; }
-.rl-go:hover { border-color: rgba(214, 120, 40, 0.7); }
-.rl-go:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
-#sheet-runs .runs-new { background: #FFC872; }
-#sheet-runs .runs-new::after { border-left-color: rgba(30, 42, 85, 0.4); }
+
+/* ---------------------------------------------------------------- Unlimited hangar
+   The same paper as the logbook: an apricot boarding ticket, a laminated run
+   card punched for every run flown, and flight strips you tap to fly again. */
+#sheet-runs .runs-new { --cut: 72%; height: 72px; margin: 4px 0 0;
+  background: linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)), linear-gradient(90deg, transparent var(--cut), #F4B676 var(--cut)), var(--apricot-print), var(--apricot-stock);
+  color: #14213D; box-shadow: var(--apricot-edge); }
+#sheet-runs .runs-new::after { border-left-color: rgba(20, 33, 61, 0.5); }
+#sheet-runs .runs-new:hover { filter: brightness(1.04) saturate(1.04); }
+#sheet-runs .runs-new:focus-visible { outline: none; box-shadow: inset 0 0 0 3px #14213D, inset 0 0 0 5px #FFF4E2; }
+#sheet-runs .runs-new .bt-main { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 0 14px; }
+#sheet-runs .rn-main { font: 800 22px/1 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; }
+#sheet-runs .rn-sub { font: 500 10px/1 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.66; }
+#sheet-runs .runs-new .bt-stub { gap: 5px; }
+#sheet-runs .runs-new .bt-stub small { order: -1; font: 500 9.5px/1 var(--f-mono); letter-spacing: 0.1em; opacity: 0.66; }
+#sheet-runs .runs-new .bt-stub b { font: 800 26px/1 var(--f-display); font-variant-numeric: tabular-nums; }
+/* every run flown: the same ticket, unprinted, waiting for Monday */
+#sheet-runs .runs-wait { position: relative; display: flex; background: none; box-shadow: none; -webkit-mask: none; mask: none;
+  border: 1.5px dashed rgba(20, 33, 61, 0.32); border-radius: 10px; color: var(--ink-2); cursor: default; }
+#sheet-runs .runs-wait::after { border-left-color: rgba(20, 33, 61, 0.28); }
+#sheet-runs .runs-wait:hover { filter: none; }
+#sheet-runs .runs-wait .rn-main { color: var(--ink); }
+#sheet-runs .runs-wait .bt-stub b { font-size: 15px; line-height: 1.05; text-align: center; letter-spacing: 0.04em; }
+
+/* the run card: a hole for each run, punched through once flown */
+#sheet-runs .run-card { margin-top: 22px; transform: rotate(0.5deg); background: var(--fibre), #FBF6EB;
+  box-shadow: 0 0 0 1px rgba(20, 33, 61, 0.14), 0 1px 0 rgba(20, 33, 61, 0.12), 0 10px 22px rgba(80, 56, 20, 0.14); border-radius: 10px; }
+.rc-holes { display: grid; grid-template-columns: repeat(auto-fill, minmax(26px, 1fr)); gap: 7px 6px; margin: 14px 0 12px; }
+.rc-holes i { display: grid; place-items: center; aspect-ratio: 1; border-radius: 50%; font: 500 9px/1 var(--f-mono); font-style: normal; color: rgba(20, 33, 61, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.22); }
+.rc-holes i.on { color: transparent; background: #1B2A4A; transform: scale(0.84);
+  box-shadow: inset 0 1.5px 2px rgba(0, 0, 0, 0.55), 0 0.5px 0 rgba(255, 250, 240, 0.9); }
+.rc-foot { display: flex; justify-content: space-between; padding-top: 10px; border-top: 1px dashed rgba(20, 33, 61, 0.2); font: 500 10px/1 var(--f-mono); letter-spacing: 0.08em; color: var(--ink-2); }
+
+/* flight strips: the logbook's, as buttons */
+#sheet-runs .runs-strips li { list-style: none; }
+#sheet-runs .fstrip.rs { width: 100%; padding: 0; border: 0; font: inherit; text-align: left; cursor: pointer; background: #FBF6EB; box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.14); transition: transform 140ms var(--ease-out), box-shadow 140ms; }
+#sheet-runs .fstrip.rs::after { border-left-color: var(--perf-c); }
+#sheet-runs .fstrip.rs:hover { transform: translateX(3px); box-shadow: inset 0 0 0 1.5px rgba(214, 120, 40, 0.6); }
+#sheet-runs .fstrip.rs:active { transform: translateX(1px); }
+#sheet-runs .fstrip.rs:focus-visible { outline: none; box-shadow: inset 0 0 0 2px #14213D; }
+#sheet-runs .fs-id { color: var(--ink-2); }
+#sheet-runs .fs-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#sheet-runs .fs-dots i { box-shadow: 0 0 0 1px rgba(20, 33, 61, 0.45); }
+#sheet-runs .fs-dots i.m { box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.4); }
+#sheet-runs .fs-dots i.clue { outline-color: var(--amber-ink, #B8661A); }
+.rs-again { display: inline-flex; align-items: center; gap: 4px; font: 600 10px/1 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: #B8661A; }
+.rs-again svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+#sheet-runs .fs-stub b { color: var(--ink); font-variant-numeric: tabular-nums; }
+#sheet-runs .lb-note { color: var(--ink-2); font: italic 400 15px/1.4 var(--f-serif); margin-top: 12px; }
+@media (prefers-reduced-motion: reduce) { #sheet-runs .fstrip.rs { transition: none; } #sheet-runs .fstrip.rs:hover { transform: none; } }
