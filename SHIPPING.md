@@ -166,7 +166,9 @@ npx wrangler d1 execute karman --remote --command "SELECT u.email, u.paid_at, (S
 `flights_since = 0` → refund it in the Stripe dashboard. The webhook removes their Unlimited automatically.
 
 ### 4.5 Unlock links (give access without payment, take it back any time)
-Create a code, then send the link `https://karman.day/?unlock=CODE`:
+Easiest: karman.day/dev → **Free passes** → type who it's for → **Generate pass** → Copy link / Copy message. The same list shows whether each pass has been used and switches it off or on.
+
+By hand: create a code, then send the link `https://karman.day/?unlock=CODE`:
 ```bash
 npx wrangler d1 execute karman --remote --command "INSERT INTO unlock_codes (code, note) VALUES ('PILOT-ANSH-01', 'for Sam')"
 ```

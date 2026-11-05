@@ -151,6 +151,23 @@ const dd = await dash.json();
 check(dash.status === 200 && dd.totals.pilots >= 1 && Array.isArray(dd.daily) && dd.today.visits === 2 && dd.sources.length === 2, 'dashboard returns the numbers');
 const dm = await (await call('/api/admin/stats?me=device-abc-123', { headers: { authorization: `Bearer ${token}` } })).json();
 check(dm.today.visits === 1 && dm.totals.pilots === dd.totals.pilots - 1, '"leave out my plays" leaves that device out');
+
+// free passes from the dashboard
+const A = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+check((await call('/api/admin/passes', { method: 'POST', body: '{}' })).status === 401, 'making a pass needs the owner');
+const mk = await (await call('/api/admin/passes', { method: 'POST', headers: A, body: JSON.stringify({ note: 'for Sam' }) })).json();
+check(/^PASS-[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(mk.code), 'pass code has the readable format');
+check((await (await call(`/api/unlock/${mk.code.toLowerCase()}`)).json()).valid === true, 'a new pass unlocks');
+await call(`/api/unlock/${mk.code}`);
+let pl = (await (await call('/api/admin/passes', { headers: A })).json()).passes;
+const mine = pl.find((x) => x.code === mk.code);
+check(mine && mine.note === 'for Sam' && mine.active === 1 && mine.checks === 2 && mine.first, 'pass list shows note, status and use');
+check((await call(`/api/admin/passes/${mk.code}`, { method: 'POST', headers: A, body: JSON.stringify({ active: false }) })).status === 200, 'revoke a pass');
+check((await (await call(`/api/unlock/${mk.code}`)).json()).valid === false, 'a revoked pass stops unlocking');
+await call(`/api/admin/passes/${mk.code}`, { method: 'POST', headers: A, body: JSON.stringify({ active: true }) });
+check((await (await call(`/api/unlock/${mk.code}`)).json()).valid === true, 'a restored pass unlocks again');
+check((await call('/api/admin/passes/PASS-NOPE-NOPE', { method: 'POST', headers: A, body: JSON.stringify({ active: false }) })).status === 404, 'unknown pass is a 404');
+check((await call('/api/admin/passes', { headers: { authorization: 'Bearer 9999999999999.forged' } })).status === 401, 'forged token cannot list passes');
 globalThis.fetch = prevFetch;
 
 console.log(fails ? `${fails} failed` : 'Worker checks passed.');

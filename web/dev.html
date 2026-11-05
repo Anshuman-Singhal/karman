@@ -119,6 +119,30 @@
   .gate #gbtn { display: flex; justify-content: center; min-height: 44px; }
   .gate .err { color: var(--bad); font-size: 0.86rem; margin-top: 14px; min-height: 1.2em; }
   .note { color: var(--ink-3); font-size: 0.8rem; margin-top: 10px; }
+  /* ---- free passes ---- */
+  .passes { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px 18px; margin-bottom: 14px; }
+  .passes h2 { margin: 0; font: 600 1rem/1.3 var(--f-ui); }
+  .passes .sub { color: var(--ink-3); font-size: 0.82rem; margin: 2px 0 12px; }
+  .pass-make { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pass-make input { flex: 1 1 220px; min-width: 0; background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; color: var(--ink); font: inherit; font-size: 0.92rem; }
+  .pass-make input:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+  .btn.primary { background: var(--amber); border-color: var(--amber); color: #14213D; font-weight: 700; padding: 9px 18px; }
+  .btn.primary:hover { filter: brightness(1.06); border-color: var(--amber); }
+  .btn:disabled { opacity: 0.55; cursor: default; }
+  .pass-new { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--panel-2); border: 1px dashed rgba(255, 181, 71, 0.45); }
+  .pass-new .lbl { font-size: 0.76rem; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .pass-new .link { font: 600 1rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; margin: 4px 0 10px; color: var(--ink); }
+  .pass-new .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .passes table { margin-top: 14px; }
+  .passes td.code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; white-space: nowrap; }
+  .passes .off td:not(:last-child) { opacity: 0.45; }
+  .passes .acts { white-space: nowrap; text-align: right; }
+  .passes .acts .btn { padding: 4px 10px; font-size: 0.78rem; }
+  @media (max-width: 640px) {
+    .passes th:nth-child(2), .passes td:nth-child(2), .passes th:nth-child(3), .passes td:nth-child(3) { display: none; }
+    .passes .acts { white-space: normal; }
+    .passes .acts .btn { margin: 0 0 4px 4px; }
+  }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -145,6 +169,25 @@
       <button class="btn" id="signout">Sign out</button>
     </div>
   </header>
+
+  <section class="passes" aria-labelledby="passes-h">
+    <h2 id="passes-h">Free passes</h2>
+    <p class="sub">A link that unlocks Unlimited, free. Make one per person so you can switch it off later without affecting anyone else.</p>
+    <form class="pass-make" id="pass-form">
+      <input id="pass-note" maxlength="80" placeholder="Who's it for? (only you see this)" autocomplete="off">
+      <button class="btn primary" id="pass-go" type="submit">Generate pass</button>
+    </form>
+    <div class="pass-new" id="pass-new" hidden>
+      <div class="lbl" id="pass-for">New pass</div>
+      <div class="link" id="pass-link"></div>
+      <div class="row">
+        <button class="btn" type="button" id="pass-copy">Copy link</button>
+        <button class="btn" type="button" id="pass-msg">Copy message</button>
+        <button class="btn" type="button" id="pass-share" hidden>Share…</button>
+      </div>
+    </div>
+    <div id="pass-list"></div>
+  </section>
 
   <section class="kpis" id="kpis"></section>
 
@@ -437,6 +480,66 @@
       : '<p class="empty">No reports. Nice.</p>';
   }
 
+  /* ---------------------------------------------------------- free passes */
+  const passUrl = (code) => `https://karman.day/?unlock=${code}`;
+  const passMsg = (code) => `🎈 Here's a free Unlimited pass for KÁRMÁN, the 3-minute daily guessing game. Open this to unlock it: ${passUrl(code)}`;
+  const when = (s) => (s ? new Date(`${s.replace(' ', 'T')}Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '');
+  async function copy(text, btn) {
+    const was = btn.textContent;
+    try { await navigator.clipboard.writeText(text); btn.textContent = 'Copied ✓'; }
+    catch (e) { prompt('Copy this:', text); }
+    setTimeout(() => { btn.textContent = was; }, 1400);
+  }
+  async function passApi(path = '', init = {}) {
+    const r = await fetch(`/api/admin/passes${path}`, { ...init, headers: { authorization: `Bearer ${get(TOKEN_KEY)}`, 'content-type': 'application/json' }, cache: 'no-store' });
+    if (r.status === 401) { set(TOKEN_KEY, null); gate(); throw new Error('signed out'); }
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }
+  async function loadPasses() {
+    try {
+      const { passes } = await passApi();
+      $('pass-list').innerHTML = passes.length ? `<table><thead><tr><th>For</th><th>Code</th><th>Made</th><th>Used</th><th></th></tr></thead><tbody>${
+        passes.map((p) => `<tr class="${p.active ? '' : 'off'}"><td>${p.note ? esc(p.note) : '<span class="muted">—</span>'}</td><td class="code">${esc(p.code)}</td><td class="muted">${when(p.created)}</td>
+          <td>${p.first ? `${when(p.first)}${p.last && p.last !== p.first ? ` <span class="muted">· last ${when(p.last)}</span>` : ''}` : '<span class="muted">Not yet</span>'}</td>
+          <td class="acts">${p.active ? `<button class="btn" data-copy="${esc(p.code)}">Copy link</button> <button class="btn" data-off="${esc(p.code)}">Switch off</button>` : `<span class="muted">Off</span> <button class="btn" data-on="${esc(p.code)}">Turn on</button>`}</td></tr>`).join('')
+      }</tbody></table>` : '';
+    } catch (e) { if (e.message !== 'signed out') $('pass-list').innerHTML = `<p class="empty">Couldn't load passes (${esc(e.message)}).</p>`; }
+  }
+  $('pass-list').addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.copy) return copy(passUrl(b.dataset.copy), b);
+    const code = b.dataset.off || b.dataset.on;
+    if (!code) return;
+    if (b.dataset.off && !confirm(`Switch off ${code}? Whoever has it goes back to free within about 6 hours.`)) return;
+    b.disabled = true;
+    try { await passApi(`/${encodeURIComponent(code)}`, { method: 'POST', body: JSON.stringify({ active: Boolean(b.dataset.on) }) }); } catch (err) { /* reload shows the truth */ }
+    loadPasses();
+  });
+  let lastPass = null;
+  $('pass-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const go = $('pass-go');
+    go.disabled = true; go.textContent = 'Generating…';
+    try {
+      const p = await passApi('', { method: 'POST', body: JSON.stringify({ note: $('pass-note').value }) });
+      lastPass = p.code;
+      $('pass-for').textContent = p.note ? `New pass · for ${p.note}` : 'New pass';
+      $('pass-link').textContent = passUrl(p.code);
+      $('pass-new').hidden = false;
+      $('pass-note').value = '';
+      loadPasses();
+    } catch (err) { if (err.message !== 'signed out') alert(`Couldn't make a pass (${err.message}).`); }
+    finally { go.disabled = false; go.textContent = 'Generate pass'; }
+  });
+  $('pass-copy').addEventListener('click', (e) => lastPass && copy(passUrl(lastPass), e.currentTarget));
+  $('pass-msg').addEventListener('click', (e) => lastPass && copy(passMsg(lastPass), e.currentTarget));
+  if (navigator.share) {
+    $('pass-share').hidden = false;
+    $('pass-share').addEventListener('click', () => lastPass && navigator.share({ text: passMsg(lastPass) }).catch(() => {}));
+  }
+
   /* ---------------------------------------------------------- data + auth */
   async function load() {
     const token = get(TOKEN_KEY);
@@ -450,9 +553,11 @@
       D = await r.json();
       $('gate').hidden = true; $('app').hidden = false;
       render();
+      loadPasses();
     } catch (e) {
       $('meta').textContent = `Couldn't load (${e.message}). Try Refresh.`;
       $('app').hidden = false;
+      loadPasses();   // passes don't depend on the stats
     } finally { $('refresh').textContent = 'Refresh'; }
   }
 

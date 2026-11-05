@@ -31,6 +31,15 @@ CREATE TABLE IF NOT EXISTS unlock_codes (
   created  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- When each unlock link was first and last checked by a browser (so the
+-- owner can see a pass was used). No device ids, just the times.
+CREATE TABLE IF NOT EXISTS unlock_uses (
+  code     TEXT PRIMARY KEY,
+  first    TEXT NOT NULL DEFAULT (datetime('now')),
+  last     TEXT NOT NULL DEFAULT (datetime('now')),
+  checks   INTEGER NOT NULL DEFAULT 1
+);
+
 -- Google accounts that signed in to buy. unlimited = 1 after Stripe confirms.
 CREATE TABLE IF NOT EXISTS users (
   sub            TEXT PRIMARY KEY,     -- Google's stable account id

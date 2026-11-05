@@ -16,6 +16,9 @@
      POST /api/hit         { device, src }                   → 204   first open of the day (dashboard)
      POST /api/admin/login { idToken }                       → { token }   owner only (karman.day/dev)
      GET  /api/admin/stats Authorization: Bearer <token>     → everything the dashboard shows
+     GET  /api/admin/passes                                  → { passes }   free Unlimited passes
+     POST /api/admin/passes { note }                         → { code }     make one
+     POST /api/admin/passes/:code { active }                 → { ok }       revoke / restore
 
    Secrets (wrangler secret put …): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
    SESSION_SECRET. Plain vars (wrangler.jsonc): GOOGLE_CLIENT_ID, PRICE_CENTS.
@@ -113,8 +116,48 @@ async function postReport(request, env) {
 /* ------------------------------------------------------------ unlock links
    A code is valid while its row says active = 1. Revoke = set active = 0. */
 async function getUnlock(code, env) {
-  const row = await env.DB.prepare('SELECT active FROM unlock_codes WHERE code = ?').bind(code.toUpperCase()).first();
-  return json({ valid: Boolean(row && row.active) }, { headers: { 'cache-control': 'no-store' } });
+  const c = code.toUpperCase();
+  const row = await env.DB.prepare('SELECT active FROM unlock_codes WHERE code = ?').bind(c).first();
+  const valid = Boolean(row && row.active);
+  if (valid) {   // first / last use, for the owner's pass list
+    await env.DB.prepare("INSERT INTO unlock_uses (code) VALUES (?) ON CONFLICT(code) DO UPDATE SET last = datetime('now'), checks = checks + 1").bind(c).run();
+  }
+  return json({ valid }, { headers: { 'cache-control': 'no-store' } });
+}
+
+/* Free Unlimited passes, made from karman.day/dev. A pass is an unlock code:
+   PASS-XXXX-XXXX (no 0/O/1/I, so it can be read out loud). */
+const PASS_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function passCode() {
+  const b = crypto.getRandomValues(new Uint8Array(8));
+  const s = [...b].map((x) => PASS_ABC[x % PASS_ABC.length]).join('');
+  return `PASS-${s.slice(0, 4)}-${s.slice(4)}`;
+}
+async function adminPasses(request, env, code) {
+  if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
+  if (request.method === 'GET' && !code) {
+    const rows = (await env.DB.prepare(`SELECT c.code, c.note, c.active, c.created, u.first, u.last, u.checks
+      FROM unlock_codes c LEFT JOIN unlock_uses u ON u.code = c.code ORDER BY c.created DESC, c.rowid DESC LIMIT 200`).all()).results || [];
+    return json({ passes: rows }, { headers: { 'cache-control': 'no-store' } });
+  }
+  if (request.method !== 'POST') return json({ error: 'method' }, { status: 405 });
+  let b = {};
+  try { b = await request.json(); } catch { /* empty body is fine */ }
+  if (code) {
+    const c = code.toUpperCase();
+    const r = await env.DB.prepare('UPDATE unlock_codes SET active = ? WHERE code = ?').bind(b && b.active ? 1 : 0, c).run();
+    const changed = r && r.meta ? r.meta.changes : r && r.changes;
+    return changed ? json({ ok: true }) : json({ error: 'no such pass' }, { status: 404 });
+  }
+  const note = String((b && b.note) || '').trim().slice(0, 80) || null;
+  for (let i = 0; i < 5; i++) {
+    const c = passCode();
+    try {
+      await env.DB.prepare('INSERT INTO unlock_codes (code, note) VALUES (?, ?)').bind(c, note).run();
+      return json({ code: c, note });
+    } catch (e) { /* a clash: try another */ }
+  }
+  return json({ error: 'try again' }, { status: 500 });
 }
 
 /* ------------------------------------------------------------ sessions
@@ -464,6 +507,8 @@ export default {
     if (url.pathname === '/api/hit' && request.method === 'POST') return postHit(request, env);
     if (url.pathname === '/api/admin/login' && request.method === 'POST') return postAdminLogin(request, env);
     if (url.pathname === '/api/admin/stats' && request.method === 'GET') return getAdmin(request, env, ctx);
+    const ap = url.pathname.match(/^\/api\/admin\/passes(?:\/([\w-]{3,40}))?$/);
+    if (ap) return adminPasses(request, env, ap[1]);
     if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, { status: 404 });
     return env.ASSETS.fetch(request);    // everything else: the game itself
   },
