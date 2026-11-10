@@ -432,6 +432,28 @@ K.ui = (() => {
       box.setAttribute('aria-label', $('pctl-txt').textContent);
       chart.innerHTML = `${histogram(record, { step: 25, buckets: [] }, true)}<span class="crowd-down" aria-hidden="true">In the<br>hangar</span>`;
       chart.classList.add('is-down');
+      // Put the stamp in the biggest clear gap of the chart, never over your bar,
+      // its YOU tag, or the Kármán line and its label.
+      requestAnimationFrame(() => {
+        const st = chart.querySelector('.crowd-down');
+        if (!st) return;
+        const c = chart.getBoundingClientRect();
+        const svg = chart.querySelector('svg');
+        const s = svg ? svg.getBoundingClientRect() : c;
+        const busy = [...chart.querySelectorAll('.h-you, .h-bar.mine, .h-kline, .h-karman')]
+          .map((el) => el.getBoundingClientRect()).filter((r) => r.height || r.width)
+          .map((r) => [r.top - c.top - 6, r.bottom - c.top + 6]).sort((a, b) => a[0] - b[0]);
+        let best = null, y = s.top - c.top + 4;
+        const bottom = s.bottom - c.top - 14;      // keep off the 0 tick
+        for (const [a, b] of [...busy, [bottom, bottom]]) {
+          if (a - y > (best ? best[1] - best[0] : 0)) best = [y, a];
+          y = Math.max(y, b);
+        }
+        const h = st.offsetHeight;
+        const mid = best ? (best[0] + best[1]) / 2 : c.height / 2;
+        st.style.top = `${Math.round(Math.max(h / 2, Math.min(c.height - h / 2, mid)))}px`;
+        st.classList.toggle('tight', Boolean(best) && best[1] - best[0] < h + 4);
+      });
       box.hidden = false;
       const play = () => { chart.classList.add('draw'); };
       if (crowdGate) crowdGate.then(play); else play();
