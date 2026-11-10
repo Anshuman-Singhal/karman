@@ -424,6 +424,20 @@ K.ui = (() => {
     const box = $('pctl');
     const chart = $('crowd-chart');
     chart.classList.remove('draw');
+    if ((!stats || !stats.players) && K.stats.down) {
+      // The crowd's numbers can't be fetched right now: say so, plainly and in
+      // the game's voice, with your own altitude on an empty board.
+      box.dataset.kind = 'down';
+      $('pctl-txt').textContent = 'The crowd chart is in the hangar for repairs. It’ll be back on the board soon.';
+      box.setAttribute('aria-label', $('pctl-txt').textContent);
+      chart.innerHTML = `${histogram(record, { step: 25, buckets: [] }, true)}<span class="crowd-down" aria-hidden="true">In the<br>hangar</span>`;
+      chart.classList.add('is-down');
+      box.hidden = false;
+      const play = () => { chart.classList.add('draw'); };
+      if (crowdGate) crowdGate.then(play); else play();
+      return;
+    }
+    chart.classList.remove('is-down');
     if (!stats || !stats.players) { box.hidden = true; chart.innerHTML = ''; return; }
     const players = stats.players;
     const higher = stats.buckets.filter(([from]) => from > record.pts).reduce((a, b) => a + b[1], 0);

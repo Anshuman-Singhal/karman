@@ -56,6 +56,7 @@ K.stats = (() => {
     }).catch(() => {});
   }
 
+  let down = false;
   /** Today's distribution, or null when unavailable. */
   async function get(n) {
     await pending;
@@ -68,12 +69,14 @@ K.stats = (() => {
     try {
       const fresh = justSent.delete(n) ? '?fresh=1' : '';
       const res = await fetch(`${C.API_BASE}/api/stats/${n}${fresh}`);
+      down = !res.ok;                 // the server couldn't answer (not "nobody yet")
       if (!res.ok) return null;
       const data = await res.json();
       if (!data || !data.players) return null;
       cache.set(n, { data, at: Date.now() });
       return data;
     } catch (e) {
+      down = navigator.onLine !== false;   // offline is the player's network, not ours
       return null;
     }
   }
@@ -123,5 +126,5 @@ K.stats = (() => {
     }).catch(() => {});
   }
 
-  return { submit, report, get, percentile, live, sampling, hit };
+  return { submit, report, get, percentile, live, sampling, hit, get down() { return down; } };
 })();
