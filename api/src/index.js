@@ -438,8 +438,17 @@ async function isAdmin(request, env) {
     `me` leaves the owner's own browser out of every count. */
 async function getAdmin(request, env, ctx) {
   if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
-  const meRaw = new URL(request.url).searchParams.get('me') || '';
+  const u0 = new URL(request.url);
+  const meRaw = u0.searchParams.get('me') || '';
   const me = /^[\w-]{8,64}$/.test(meRaw) ? meRaw : '';
+  // The dashboard reads every table, so keep one copy for 10 minutes at the
+  // edge: leaving /dev open, or reloading it, costs nothing extra. Refresh
+  // (?fresh=1) builds a new one.
+  const cacheKey = new Request(new URL(`/api/admin/stats-cache?me=${encodeURIComponent(me)}`, request.url).toString());
+  if (!u0.searchParams.has('fresh')) {
+    const hit = await caches.default.match(cacheKey);
+    if (hit) return new Response(hit.body, { headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-dash-cache': 'hit' } });
+  }
   const T = latestFlight();
   const d0 = Math.max(1, T - 29);
   const all = async (sql, ...args) => ((await env.DB.prepare(sql).bind(...args).all()).results || []);
@@ -475,12 +484,14 @@ async function getAdmin(request, env, ctx) {
   let health = null;
   try { health = await (await getHealth(env, ctx)).json(); } catch { /* shown as unknown */ }
   const today = await one('SELECT COUNT(*) AS visits, SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = v.device AND r.n = v.day)) AS finished FROM visits v WHERE v.day = ? AND v.device != ?', T, me);
-  return json({
+  const out = json({
     T, d0, launch: LAUNCH_UTC, priceCents: Number(env.PRICE_CENTS || 599), maxPts: MAX_PTS, now: new Date().toISOString(),
     daily, newByDay, totals, loyalty, cohorts, recent, visitsByDay, newVisitsByDay, today,
     sources, countries, devices, unlimited, money, paidList: paidList.map((r) => r.paid_at), recentBuyers,
     saves: saves.c || 0, plays7: plays.c || 0, reports, health,
   }, { headers: { 'cache-control': 'no-store' } });
+  ctx.waitUntil(caches.default.put(cacheKey, new Response(out.clone().body, { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=600' } })));
+  return out;
 }
 
 /** Paid player started an Unlimited/archive flight: logged so refunds follow the rule. */
@@ -497,7 +508,9 @@ let schemaReady = null;
 function ensureSchema(env) {
   if (!schemaReady) {
     const statements = SCHEMA.replace(/--.*$/gm, '').split(';').map((x) => x.trim()).filter(Boolean);
-    schemaReady = env.DB.batch(statements.map((x) => env.DB.prepare(x))).catch((e) => { schemaReady = null; throw e; });
+    // Never fatal: if D1 refuses (a daily limit, a blip), the tables already
+    // exist, so carry on and try again on a later request.
+    schemaReady = env.DB.batch(statements.map((x) => env.DB.prepare(x))).catch((e) => { console.warn('schema check failed', e && e.message); setTimeout(() => { schemaReady = null; }, 0); });
   }
   return schemaReady;
 }

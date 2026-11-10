@@ -570,13 +570,14 @@
   }
 
   /* ---------------------------------------------------------- data + auth */
-  async function load() {
+  async function load(fresh) {
     const token = get(TOKEN_KEY);
     if (!token) return gate();
     $('refresh').textContent = 'Loading…';
     try {
       const hide = $('hideme').checked && myDevice;
-      const r = await fetch(`/api/admin/stats${hide ? `?me=${encodeURIComponent(myDevice)}` : ''}`, { headers: { authorization: `Bearer ${token}` }, cache: 'no-store' });
+      const qs = [hide ? `me=${encodeURIComponent(myDevice)}` : '', fresh === true ? 'fresh=1' : ''].filter(Boolean).join('&');
+      const r = await fetch(`/api/admin/stats${qs ? `?${qs}` : ''}`, { headers: { authorization: `Bearer ${token}` }, cache: 'no-store' });
       if (r.status === 401) { set(TOKEN_KEY, null); return gate(); }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       D = await r.json();
@@ -612,11 +613,10 @@
   $('hideme').checked = get('karman:admin-hideme') !== '0';
   if (!myDevice) { $('hideme').checked = false; $('hideme').disabled = true; $('hideme').parentElement.title = 'This browser has never played, so there is nothing to leave out.'; }
   $('hideme').addEventListener('change', () => { set('karman:admin-hideme', $('hideme').checked ? '1' : '0'); load(); });
-  $('refresh').addEventListener('click', load);
+  $('refresh').addEventListener('click', () => load(true));   // Refresh = a fresh build; opening /dev uses the 10-minute copy
   $('signout').addEventListener('click', () => { set(TOKEN_KEY, null); location.reload(); });
   let rt = 0;
   addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => D && render(), 150); });
-  setInterval(() => { if (!document.hidden && D) load(); }, 5 * 60 * 1000);
   load();
 })();
 </script>

@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS results (
 );
 
 CREATE INDEX IF NOT EXISTS results_by_flight ON results (n, pts);
+-- "did this device fly flight n?" (the dashboard's retention and finish-rate
+-- checks) is one index lookup instead of reading that whole flight.
+CREATE INDEX IF NOT EXISTS results_by_device ON results (device, n);
 
 -- "Report this answer": one row per question per device.
 CREATE TABLE IF NOT EXISTS reports (
@@ -105,3 +108,4 @@ CREATE TABLE IF NOT EXISTS visits (
   created  TEXT    NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (day, device)
 );
+CREATE INDEX IF NOT EXISTS visits_by_device ON visits (device, day);
