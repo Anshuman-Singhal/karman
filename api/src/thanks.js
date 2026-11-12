@@ -59,7 +59,7 @@ export function thanksHtml(v) {
     <tr><td style="padding:0 0 16px 0;vertical-align:top;width:40px">
       <div style="width:30px;height:30px;border-radius:50%;background:#14213D;color:#FFB547;font:700 15px/30px Georgia,serif;text-align:center">${glyph}</div></td>
     <td style="padding:0 0 16px 0;vertical-align:top;font:15px/1.5 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#3A4560"><b style="color:#14213D">${esc(title)}</b><br>${body}</td></tr>`;
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="color-scheme" content="light"><title>${esc(c.subject)}</title></head>
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="color-scheme" content="light"><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&display=swap" rel="stylesheet"><title>${esc(c.subject)}</title></head>
 <body style="margin:0;padding:0;background:#0E1838">
 <div style="display:none;max-height:0;overflow:hidden">Every Unlimited run, the whole archive, and a direct line to us.</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0E1838"><tr><td align="center" style="padding:28px 12px">
@@ -77,7 +77,18 @@ export function thanksHtml(v) {
     <tr><td style="padding:4px 30px 0 30px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1.5px dashed #B9AE97;border-radius:10px"><tr><td style="padding:16px 18px;font:15px/1.5 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#3A4560">
       <b style="color:#14213D">A direct line.</b> If anything feels off, an answer looks wrong, or you have an idea (or a question you’d love to see on a flight), just reply to this email.</td></tr></table></td></tr>
     ${c.after ? `<tr><td style="padding:18px 30px 0 30px;font:italic 16px/1.5 Georgia,serif;color:#3A4560">${esc(c.after)}</td></tr>` : ''}
-    <tr><td align="center" style="padding:26px 30px 8px 30px"><a href="https://karman.day/" style="display:inline-block;background:#FFB547;color:#14213D;text-decoration:none;font:700 16px/1 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;letter-spacing:1px;padding:15px 28px;border-radius:10px;border:1.5px solid #14213D">FLY AN UNLIMITED RUN</a></td></tr>
+    <tr><td align="center" style="padding:26px 30px 8px 30px">
+      <!-- A boarding pass, like the game's Take off ticket: apricot stock, navy ink, a perforated stub -->
+      <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:separate;border:1.5px solid #14213D;border-radius:10px;background:#F3C08A;box-shadow:0 2px 0 rgba(20,33,61,.18)">
+        <tr>
+          <td style="padding:0"><a href="https://karman.day/" style="display:block;padding:15px 22px 13px 24px;color:#14213D;text-decoration:none;text-align:center">
+            <span style="display:block;font:800 20px/1 'Big Shoulders Display','Arial Narrow','Helvetica Neue',Arial,sans-serif;letter-spacing:2px;text-transform:uppercase">Fly an Unlimited run</span>
+            <span style="display:block;margin-top:6px;font:500 10px/1 'Courier New',Courier,monospace;letter-spacing:2px;color:#5A4A35">FIRST CLASS · KARMAN.DAY</span></a></td>
+          <td style="padding:0;border-left:1.5px dashed #14213D;background:#EBA867;border-radius:0 9px 9px 0"><a href="https://karman.day/" style="display:block;padding:12px 16px;color:#14213D;text-decoration:none;text-align:center">
+            <span style="display:block;font:500 9px/1 'Courier New',Courier,monospace;letter-spacing:2px;color:#5A4A35">BOARD</span>
+            <span style="display:block;margin-top:4px;font:800 26px/1 Georgia,'Times New Roman',serif;color:#14213D">&#8734;</span></a></td>
+        </tr>
+      </table></td></tr>
     <tr><td style="padding:18px 30px 26px 30px;font:italic 18px/1.4 Georgia,serif;color:#14213D">See you above the clouds,<br><span style="font:600 13px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;letter-spacing:2px;color:#C4402A;font-style:normal">KÁRMÁN</span></td></tr>
     <tr><td style="padding:14px 30px 22px 30px;border-top:1px dashed #CFC4AC;font:12px/1.5 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#7A7F8E">${esc(c.foot)}<br>
       <a href="https://karman.day/" style="color:#7A7F8E">karman.day</a> · <a href="https://x.com/TheDailyKarman" style="color:#7A7F8E">@TheDailyKarman</a> · <a href="https://www.reddit.com/r/TheKarman/" style="color:#7A7F8E">r/TheKarman</a></td></tr>
