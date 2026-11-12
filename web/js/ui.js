@@ -33,6 +33,82 @@ K.ui = (() => {
   const FLAME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c1 3.5 5 5.6 5 10.5A5 5 0 0 1 7 12.6c0-2 1-3.6 2.3-4.6.1 1.7.9 3 2.2 3.4C11 8.3 11 5 12 2z"/></svg>';
 
   /** A round inked stamp; ink colour = tier (1 navy … 4 gold). */
+  /* ---- First class marks: a two-colour rubber-stamp seal and a ticket-stub tag.
+     Printed, not plated: navy ink + an amber spot colour laid slightly out of
+     register, both roughened by the same paper-grain filter the eye expects
+     from a hand stamp. Unique ids per call so several can live on one page. */
+  let fcN = 0;
+  const FC_INF = (() => { // Bernoulli lemniscate, centred on 0,0, half-width 1
+    const pts = [];
+    for (let i = 0; i <= 64; i++) {
+      const t = (i / 64) * Math.PI * 2, d = 1 + Math.sin(t) ** 2;
+      pts.push([Math.cos(t) / d, (Math.sin(t) * Math.cos(t)) / d]);
+    }
+    return (cx, cy, w, h = w) => 'M' + pts.map(([x, y]) => `${(cx + x * w).toFixed(2)},${(cy + y * h * 1.18).toFixed(2)}`).join('L') + 'Z';
+  })();
+  /* Ink filter: rough edges + worn coverage. Line ink loses a few pinholes and
+     thins in patches; a spot fill (spot=1) only mottles, so it never reads glossy. */
+  const fcInk = (id, seed, rough = 0.6, spot = 0) => `<filter id="${id}" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="1" seed="${seed}" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="${rough}" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feTurbulence type="fractalNoise" baseFrequency="${spot ? 0.06 : 0.09}" numOctaves="2" seed="${seed + 11}" result="w"/>
+      <feColorMatrix in="w" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  ${spot ? '-0.9 0 0 0 1.38' : '-4.2 0 0 0 3.75'}" result="wm"/>
+      <feTurbulence type="fractalNoise" baseFrequency="1.7" numOctaves="1" seed="${seed + 23}" result="p"/>
+      <feColorMatrix in="p" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -10 0 0 0 7.9" result="pm"/>
+      <feComposite in="wm" in2="pm" operator="arithmetic" k1="1" result="m"/>
+      <feComposite in="d" in2="m" operator="in"/>
+    </filter>`;
+
+  const fcStar = (cx, cy, r) => 'M' + Array.from({ length: 10 }, (_, i) => {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5, q = i % 2 ? r * 0.42 : r;
+    return `${(cx + Math.cos(a) * q).toFixed(2)},${(cy + Math.sin(a) * q).toFixed(2)}`;
+  }).join('L') + 'Z';
+
+  /** The welcome-card seal: ~72–84px. */
+  function fcSeal(size = 80) {
+    const k = ++fcN, a = `fcA${k}`, b = `fcB${k}`, top = `fcT${k}`, bot = `fcU${k}`;
+    return `<svg class="fc-seal" width="${size}" height="${size}" viewBox="0 0 120 120" role="img" aria-label="First class">
+    <defs>${fcInk(a, 3 + k, 1.2, 1)}${fcInk(b, 7 + k, 1.6)}
+      <path id="${top}" d="M20,60 a40,40 0 1,1 80,0"/>
+      <path id="${bot}" d="M12.2,60 a47.8,47.8 0 0,0 95.6,0"/></defs>
+    <g filter="url(#${a})" transform="translate(1.1 -0.9)">
+      <circle cx="60" cy="60" r="31.5" fill="#FFB547"/>
+    </g>
+    <g filter="url(#${b})" fill="none" stroke="#14213D">
+      <circle cx="60" cy="60" r="56" stroke-width="3.2"/>
+      <circle cx="60" cy="60" r="51.2" stroke-width="0.9"/>
+      <circle cx="60" cy="60" r="33.5" stroke-width="1.6"/>
+      <path d="${FC_INF(60, 60, 19.5)}" stroke-width="5" stroke-linejoin="round"/>
+      <g fill="#14213D" stroke="none">
+        <path d="${fcStar(17.4, 60.4, 3.3)}${fcStar(102.6, 60.4, 3.3)}"/>
+        <text font-family="'Big Shoulders Display', 'Arial Narrow', sans-serif" font-weight="800" font-size="14.6" letter-spacing="1.7">
+          <textPath href="#${top}" startOffset="50%" text-anchor="middle">FIRST CLASS</textPath></text>
+        <text font-family="'IBM Plex Mono', ui-monospace, monospace" font-weight="500" font-size="8.6" letter-spacing="1.9">
+          <textPath href="#${bot}" startOffset="50%" text-anchor="middle">UNLIMITED</textPath></text>
+      </g>
+    </g>
+  </svg>`;
+  }
+
+  /** The compact tag for the licence and the account box: a little class ticket,
+      amber stub with ∞, perforated, "FIRST CLASS" printed on the body. ~24px tall. */
+  function fcTag(h = 24) {
+    const k = ++fcN, a = `fcA${k}`, b = `fcB${k}`;
+    const w = Math.round((h * 104) / 26);
+    // Ticket outline with notches top and bottom at the perforation (x=27).
+    const body = 'M4,1.5 H23.5 a3.5,3.5 0 0,0 7,0 H100 a2.5,2.5 0 0,1 2.5,2.5 V22 a2.5,2.5 0 0,1 -2.5,2.5 H30.5 a3.5,3.5 0 0,0 -7,0 H4 a2.5,2.5 0 0,1 -2.5,-2.5 V4 a2.5,2.5 0 0,1 2.5,-2.5Z';
+    return `<svg class="fc-tag" width="${w}" height="${h}" viewBox="0 0 104 26" role="img" aria-label="First class">
+    <defs>${fcInk(a, 5 + k, 0.7, 1)}${fcInk(b, 9 + k, 0.8)}<clipPath id="fcC${k}"><path d="${body}"/></clipPath></defs>
+    <g filter="url(#${a})" transform="translate(0.7 -0.5)"><rect x="0" y="0" width="27" height="26" fill="#FFB547" clip-path="url(#fcC${k})"/></g>
+    <g filter="url(#${b})" fill="none" stroke="#14213D">
+      <path d="${body}" stroke-width="1.5"/>
+      <path d="M27,6.5 V19.5" stroke-width="1.1" stroke-dasharray="1.6 1.9"/>
+      <path d="${FC_INF(14, 13, 7.2)}" stroke-width="2.6" stroke-linejoin="round"/>
+      <text x="65" y="18.4" text-anchor="middle" fill="#14213D" stroke="none" font-family="'Big Shoulders Display', 'Arial Narrow', sans-serif" font-weight="800" font-size="15" letter-spacing="1.4" textLength="60" lengthAdjust="spacingAndGlyphs">FIRST CLASS</text>
+    </g>
+  </svg>`;
+  }
+
   function ink(id, tier, opts = {}) {
     const m = milestone(id);
     const rot = opts.rot != null ? opts.rot : -6;
@@ -817,8 +893,8 @@ K.ui = (() => {
     const mail = esc(K.CONFIG.CONTACT_EMAIL);
     $('welcome-body').innerHTML = `
       <div class="wel-card">
-        <div class="lic-strip">FIRST CLASS · KÁRMÁN AIR</div>
-        <span class="wel-foil" aria-hidden="true"><b>∞</b><small>FIRST<br>CLASS</small></span>
+        <div class="lic-strip">BOARDING PASS · KÁRMÁN AIR</div>
+        <span class="wel-foil" aria-hidden="true">${fcSeal(80)}</span>
         <p class="wel-eyebrow">PILOT Nº ${esc(String(K.ui.pilotNo()))}</p>
         <h2 class="wel-h" id="wel-h">${paid ? 'Thank you.' : 'Welcome aboard.'}</h2>
         <p class="wel-lede">${paid ? 'Unlimited is yours, for good. Welcome to KÁRMÁN Air’s first-class cabin: a small crew of pilots with the whole sky open to them.' : 'Someone gave you a free pass: Unlimited is yours on this device. Enjoy every run.'}</p>
@@ -1037,7 +1113,7 @@ K.ui = (() => {
         <span class="ac-stats"><span><b>${flown}</b>Flights</span><span><b>${st.cur}</b>Streak</span><span><b>${best ? best.toFixed(best < 10 ? 1 : 0) : 0}</b>Best km</span><span><b>${stamps}/${S.MILESTONES.length}</b>Stamps</span></span>
         <span class="ac-go">Open logbook <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
       </button>
-      ${owned ? `<div class="ac-thanks"><span class="lic-fc" aria-hidden="true"><b>∞</b>FIRST CLASS</span>
+      ${owned ? `<div class="ac-thanks"><span class="lic-fc" aria-hidden="true">${fcTag()}</span>
         <p>${a.via === 'code' ? 'Enjoy every run.' : 'Thank you for flying first class.'} Ideas, a wrong answer, or a question you’d love to see on a flight? Write to <a href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}?subject=${encodeURIComponent('KÁRMÁN Unlimited')}">${esc(K.CONFIG.CONTACT_EMAIL)}</a>.</p>
         <a class="ac-suggest" href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}?subject=${encodeURIComponent('A question for a flight')}&body=${encodeURIComponent('Question:\nAnswer (with units):\nSource link:\n')}">Suggest a question <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a></div>` : ''}
       ${owned ? '' : `<button type="button" class="buy-ticket ac-buy" id="ac-buy"><span class="bt-main">Unlock Unlimited</span><span class="bt-stub"><b>${esc(K.CONFIG.PRICE)}</b><small>ONE-TIME</small></span></button>`}
@@ -1098,7 +1174,7 @@ K.ui = (() => {
         </div>
       </div>
       ${top ? `<div class="lic-seal">${ink(top.id, S.tierIndex(counts[top.id]), { rot: 12 })}</div>` : ''}
-      ${K.access.unlimited() ? '<span class="lic-fc" title="Unlimited: first class"><b>∞</b>FIRST CLASS</span>' : ''}
+      ${K.access.unlimited() ? '<span class="lic-fc" title="Unlimited: first class">' + fcTag() + '</span>' : ''}
     </div>`;
 
     // Passport
