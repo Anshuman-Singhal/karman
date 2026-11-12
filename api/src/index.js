@@ -14,8 +14,12 @@
      GET  /api/me          Authorization: Bearer <session>   → { unlimited, refunded } (asks Stripe if our record says unpaid)
      POST /api/play        Authorization: Bearer <session>   → 204   for the refund rule
      POST /api/hit         { device, src }                   → 204   first open of the day (dashboard)
+     POST /api/event       { device, kind }                  → 204   anonymous product event, once per device per kind per day
      POST /api/admin/login { idToken }                       → { token }   owner only (karman.day/dev)
-     GET  /api/admin/stats Authorization: Bearer <token>     → everything the dashboard shows
+     GET  /api/admin/stats Authorization: Bearer <token>     → everything the dashboard shows (v2, api/src/dash.js)
+     GET  /api/admin/ignore?device=<id>                      → { ignored, devices, subs }   "this browser is mine"
+     POST /api/admin/ignore { device }  / DELETE …           → { ok }       leave a device out of every number (or not)
+     POST /api/admin/rebuild                                 → { ok }       re-freeze the last 14 days
      GET  /api/admin/passes                                  → { passes }   free Unlimited passes
      POST /api/admin/passes { note }                         → { code }     make one
      POST /api/admin/passes/:code { active }                 → { ok }       revoke / restore
@@ -35,12 +39,13 @@
 
 import { SCHEMA } from './schema.js';
 import { sendThanks, sendTest } from './thanks.js';
+import { buildDashboard, EVENT_KINDS } from './dash.js';
 
 const LAUNCH_UTC = Date.UTC(2026, 9, 7);   // keep in sync with web/js/config.js LAUNCH
 const LEGS = 7;                            // keep in sync with web/js/config.js LEGS
 const MAX_PTS = LEGS * 100;                // five Pinpoints = the Kármán line
 const STEP = 25;
-const RUN_BASE = 1000000;                 // Unlimited Run k is stored as flight RUN_BASE + k                           // histogram bucket width in points
+const RUN_BASE = 1000000;                 // Unlimited Run k is stored as flight RUN_BASE + k
 
 /** Today's flight: flights change at midnight Eastern (America/New_York). */
 function latestFlight(now = Date.now()) {
@@ -53,6 +58,28 @@ const json = (data, init = {}) => new Response(JSON.stringify(data), {
   ...init,
   headers: { 'content-type': 'application/json; charset=utf-8', ...(init.headers || {}) },
 });
+const changesOf = (r) => (r && r.meta && r.meta.changes != null ? r.meta.changes : r && r.changes) || 0;
+const DEVICE_RE = /^[\w-]{8,64}$/;
+/* Crawlers and link unfurlers that run JS would otherwise mint a "visitor"
+   per fetch. Real in-app browsers (Twitter, Instagram…) are not matched. */
+const BOT_UA = /(?<!cu)bot[/\-\s;)]|bot$|crawler|spider|slurp|headlesschrome|lighthouse|facebookexternalhit|embedly|whatsapp\/|google-inspectiontool|bingpreview|petalbot/i;
+const isBot = (request) => BOT_UA.test(request.headers.get('user-agent') || '');
+
+/* pilots: one row per device (the dashboard's pre-aggregation). A finished
+   daily flight moves first/last/count/streak; written only when the result
+   row itself was new, so a resubmission never counts twice. */
+const PILOT_RESULT = `INSERT INTO pilots (device, first_seen, first_flight, last_flight, flights, streak) VALUES (?1, ?2, ?2, ?2, 1, 1)
+  ON CONFLICT(device) DO UPDATE SET
+    first_seen = MIN(first_seen, excluded.first_seen),
+    first_flight = COALESCE(MIN(first_flight, excluded.first_flight), excluded.first_flight),
+    streak = CASE WHEN last_flight = excluded.last_flight - 1 THEN streak + 1
+                  WHEN last_flight >= excluded.last_flight THEN streak ELSE 1 END,
+    last_flight = MAX(COALESCE(last_flight, 0), excluded.last_flight),
+    flights = flights + 1`;
+const PILOT_HIT = `INSERT INTO pilots (device, first_seen, first_src, country, mobile) VALUES (?1, ?2, ?3, ?4, ?5)
+  ON CONFLICT(device) DO UPDATE SET
+    first_src = CASE WHEN first_src IS NULL AND first_seen >= excluded.first_seen THEN excluded.first_src ELSE first_src END,
+    country = COALESCE(country, excluded.country), mobile = COALESCE(mobile, excluded.mobile)`;
 
 async function postResult(request, env) {
   let body;
@@ -60,16 +87,22 @@ async function postResult(request, env) {
   const { device, pts, legs, chips, run } = body || {};
   const isRun = Number.isInteger(run) && run >= 1 && run <= 99999;   // a numbered Unlimited run
   const n = isRun ? RUN_BASE + run : body && body.n;
-  const ok = (isRun || (Number.isInteger(n) && n >= 1 && n <= latestFlight()))
-    && typeof device === 'string' && /^[\w-]{8,64}$/.test(device)
+  // Daily results: today's flight, or yesterday's for someone who started
+  // before midnight. Older flights are archive replays or a dev picker, never stats.
+  const T = latestFlight();
+  const ok = (isRun || (Number.isInteger(n) && n >= Math.max(1, T - 1) && n <= T))
+    && typeof device === 'string' && DEVICE_RE.test(device)
     && Number.isInteger(pts) && pts >= 0 && pts <= MAX_PTS
     && typeof legs === 'string' && legs.length === LEGS && /^[01]+$/.test(legs)
     && typeof chips === 'string' && chips.length === LEGS && /^[0-4]+$/.test(chips);
   if (!ok) return json({ error: 'invalid result' }, { status: 422 });
 
   // INSERT OR IGNORE: a second submission from the same device is dropped.
-  await env.DB.prepare('INSERT OR IGNORE INTO results (n, device, pts, legs, chips) VALUES (?, ?, ?, ?, ?)')
+  const r = await env.DB.prepare('INSERT OR IGNORE INTO results (n, device, pts, legs, chips) VALUES (?, ?, ?, ?, ?)')
     .bind(n, device, pts, legs, chips).run();
+  if (!isRun && changesOf(r)) {
+    try { await env.DB.prepare(PILOT_RESULT).bind(device, n).run(); } catch (e) { console.warn('pilots', e && e.message); }
+  }
   return new Response(null, { status: 204 });
 }
 
@@ -220,9 +253,14 @@ const stripeGet = async (env, path) => {
   if (!r.ok) throw new Error(`stripe ${r.status}`);
   return r.json();
 };
-const markPaid = (env, sub, sessionId) => env.DB.batch([
-  env.DB.prepare("UPDATE users SET unlimited = 1, paid_at = COALESCE(paid_at, datetime('now')), stripe_session = ? WHERE sub = ?").bind(sessionId, sub),
+/* markPaid also records what Stripe actually charged (amount_total, in
+   cents) in payments, once per Checkout session. cs is the session object. */
+const sqlTime = (unix) => new Date(unix * 1000).toISOString().slice(0, 19).replace('T', ' ');
+const markPaid = (env, sub, cs, at) => env.DB.batch([
+  env.DB.prepare("UPDATE users SET unlimited = 1, paid_at = COALESCE(paid_at, datetime('now')), stripe_session = ? WHERE sub = ?").bind(cs.id, sub),
   env.DB.prepare('DELETE FROM refunds WHERE sub = ?').bind(sub),
+  env.DB.prepare("INSERT OR IGNORE INTO payments (session, sub, amount, currency, at, est) VALUES (?, ?, ?, ?, COALESCE(?, datetime('now')), ?)")
+    .bind(cs.id, sub, Number.isInteger(cs.amount_total) ? cs.amount_total : Number(env.PRICE_CENTS || 599), cs.currency || 'usd', at || null, Number.isInteger(cs.amount_total) ? 0 : 1),
 ]);
 
 /** { unlimited, refunded } for an account. Throws if Stripe can't be reached
@@ -237,7 +275,7 @@ async function confirmPaid(env, sub) {
     if (cs.payment_status !== 'paid') continue;
     const ch = cs.payment_intent && cs.payment_intent.latest_charge;
     if (ch && ch.refunded) { refunded = true; continue; }
-    await markPaid(env, sub, cs.id);
+    await markPaid(env, sub, cs, cs.created ? sqlTime(cs.created) : null);
     await sendThanks(env, sub, cs.customer_details && cs.customer_details.email);   // the webhook was lost: thank them here instead
     return { unlimited: true, refunded: false };
   }
@@ -277,6 +315,14 @@ async function postCheckout(request, env) {
   const cs = await r.json();
   if (!r.ok) return json({ error: 'checkout failed' }, { status: 502 });
   await env.DB.prepare('INSERT OR IGNORE INTO checkouts (id, sub) VALUES (?, ?)').bind(cs.id, who.sub).run();
+  // For "conversion by source": copy the buyer's first flight, first source and
+  // flights flown so far from pilots. The device id itself is never stored here.
+  if (typeof b.device === 'string' && DEVICE_RE.test(b.device)) {
+    try {
+      await env.DB.prepare('INSERT OR IGNORE INTO checkout_src (id, first_flight, first_seen, src, flights) SELECT ?, first_flight, first_seen, first_src, flights FROM pilots WHERE device = ?')
+        .bind(cs.id, b.device).run();
+    } catch (e) { /* the checkout matters more than the stat */ }
+  }
   return json({ url: cs.url, session, email: who.email || null });
 }
 
@@ -299,17 +345,26 @@ async function postStripe(request, env) {
   if (paidEvent && o.payment_status === 'paid' && o.client_reference_id) {
     await env.DB.prepare('INSERT OR IGNORE INTO checkouts (id, sub) VALUES (?, ?)').bind(o.id, o.client_reference_id).run();
     await env.DB.prepare('INSERT INTO users (sub) VALUES (?) ON CONFLICT(sub) DO NOTHING').bind(o.client_reference_id).run();
-    await markPaid(env, o.client_reference_id, o.id);
+    await markPaid(env, o.client_reference_id, o);
     await sendThanks(env, o.client_reference_id, o.customer_details && o.customer_details.email);   // once per account; no-op without RESEND_API_KEY
   }
-  if (evt.type === 'charge.refunded' && o.refunded) {
-    // A full refund (issued from the Stripe dashboard) removes access again.
+  if (evt.type === 'charge.refunded' && o.payment_intent) {
+    // Any refund is recorded against the payment (partial ones too, for the
+    // dashboard's net revenue). Only a full refund removes access again.
     const s = await stripeGet(env, `checkout/sessions?payment_intent=${encodeURIComponent(o.payment_intent)}`);
-    const sub = s.data && s.data[0] && s.data[0].client_reference_id;
-    if (sub) await env.DB.batch([
-      env.DB.prepare('UPDATE users SET unlimited = 0 WHERE sub = ?').bind(sub),
-      env.DB.prepare('INSERT OR REPLACE INTO refunds (sub) VALUES (?)').bind(sub),
-    ]);
+    const cs = s.data && s.data[0];
+    const sub = cs && cs.client_reference_id;
+    if (sub) {
+      const amount = Number.isInteger(o.amount) ? o.amount : Number(env.PRICE_CENTS || 599);
+      const refunded = Number.isInteger(o.amount_refunded) ? o.amount_refunded : (o.refunded ? amount : 0);
+      const stmts = [env.DB.prepare(`INSERT INTO payments (session, sub, amount, currency, refunded, refunded_at) VALUES (?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(session) DO UPDATE SET refunded = excluded.refunded, refunded_at = excluded.refunded_at`).bind(cs.id, sub, amount, o.currency || 'usd', refunded)];
+      if (o.refunded) stmts.push(
+        env.DB.prepare('UPDATE users SET unlimited = 0 WHERE sub = ?').bind(sub),
+        env.DB.prepare('INSERT OR REPLACE INTO refunds (sub) VALUES (?)').bind(sub),
+      );
+      await env.DB.batch(stmts);
+    }
   }
   return new Response('ok');
 }
@@ -408,8 +463,28 @@ async function postHit(request, env) {
   const src = /^[\w.-]{1,40}$/.test(raw) ? raw : 'other';
   const country = request.cf && typeof request.cf.country === 'string' ? request.cf.country.slice(0, 2) : null;
   const mobile = /Mobi|Android|iPhone|iPad/i.test(request.headers.get('user-agent') || '') ? 1 : 0;
-  await env.DB.prepare('INSERT OR IGNORE INTO visits (day, device, src, country, mobile) VALUES (?, ?, ?, ?, ?)')
-    .bind(latestFlight(), b.device, src, country, mobile).run();
+  if (isBot(request)) return new Response(null, { status: 204 });
+  const day = latestFlight();
+  const r = await env.DB.prepare('INSERT OR IGNORE INTO visits (day, device, src, country, mobile) VALUES (?, ?, ?, ?, ?)')
+    .bind(day, b.device, src, country, mobile).run();
+  if (changesOf(r)) {
+    try { await env.DB.prepare(PILOT_HIT).bind(b.device, day, src, country, mobile).run(); } catch (e) { console.warn('pilots', e && e.message); }
+  }
+  return new Response(null, { status: 204 });
+}
+
+/* ------------------------------------------------------------ events
+   POST /api/event { device, kind }: an anonymous product event (paywall seen,
+   buy pressed, shared, pass redeemed, an error). One row per device per kind
+   per flight day, and a per-day count the dashboard reads. Nothing else. */
+async function postEvent(request, env) {
+  let b;
+  try { b = await request.json(); } catch { return json({ error: 'bad json' }, { status: 400 }); }
+  if (!b || typeof b.device !== 'string' || !DEVICE_RE.test(b.device) || !EVENT_KINDS.includes(b.kind)) return json({ error: 'invalid' }, { status: 422 });
+  if (isBot(request)) return new Response(null, { status: 204 });
+  const day = latestFlight();
+  const r = await env.DB.prepare('INSERT OR IGNORE INTO events (day, kind, device) VALUES (?, ?, ?)').bind(day, b.kind, b.device).run();
+  if (changesOf(r)) await env.DB.prepare('INSERT INTO counters (day, kind, n) VALUES (?, ?, 1) ON CONFLICT(day, kind) DO UPDATE SET n = n + 1').bind(day, b.kind).run();
   return new Response(null, { status: 204 });
 }
 
@@ -431,6 +506,8 @@ async function postAdminLogin(request, env) {
   if (!who || !who.email) return json({ error: 'sign-in failed' }, { status: 401 });
   const allowed = String(env.ADMIN_SHA256 || OWNER_SHA256).split(',').map((x) => x.trim());
   if (!who.verified || !allowed.includes(await sha256(who.email.trim().toLowerCase()))) return json({ error: 'not the owner' }, { status: 403 });
+  // The owner's own Google account (and anything it buys) is left out of every number.
+  try { await env.DB.prepare('INSERT OR IGNORE INTO ignore_subs (sub) VALUES (?)').bind(who.sub).run(); } catch (e) { /* not fatal */ }
   const exp = Date.now() + ADMIN_DAYS * 864e5;
   return json({ token: `${exp}.${await hmac(env.SESSION_SECRET, `admin:${exp}`)}`, email: who.email });
 }
@@ -440,8 +517,6 @@ async function isAdmin(request, env) {
   return Boolean(env.SESSION_SECRET && exp && sig && Number(exp) > Date.now() && sig === await hmac(env.SESSION_SECRET, `admin:${exp}`));
 }
 
-/** GET /api/admin/stats?me=<device>: everything on the dashboard in one go.
-    `me` leaves the owner's own browser out of every count. */
 /* Thank-you emails to buyers: how many went out, how many paying accounts
    haven't had one (bought before it existed, or before the key was set), and
    a button's worth of POST to send those now. */
@@ -462,62 +537,90 @@ async function adminThanks(request, env) {
   return json({ on: Boolean(env.RESEND_API_KEY), sent: sent.c || 0, waiting: waiting.c || 0 }, { headers: { 'cache-control': 'no-store' } });
 }
 
+/* GET /api/admin/stats: everything the flight deck shows, built by
+   api/src/dash.js. One copy is kept at the edge for 10 minutes (leaving /dev
+   open or reloading it costs nothing); ?fresh=1 (Refresh) builds a new one,
+   but never more than once a minute, so a stuck button can't eat the quota. */
+const DASH_CACHE = '/api/admin/stats-cache-v2';
 async function getAdmin(request, env, ctx) {
   if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
   const u0 = new URL(request.url);
-  const meRaw = u0.searchParams.get('me') || '';
-  const me = /^[\w-]{8,64}$/.test(meRaw) ? meRaw : '';
-  // The dashboard reads every table, so keep one copy for 10 minutes at the
-  // edge: leaving /dev open, or reloading it, costs nothing extra. Refresh
-  // (?fresh=1) builds a new one.
-  const cacheKey = new Request(new URL(`/api/admin/stats-cache?me=${encodeURIComponent(me)}`, request.url).toString());
-  if (!u0.searchParams.has('fresh')) {
-    const hit = await caches.default.match(cacheKey);
-    if (hit) return new Response(hit.body, { headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-dash-cache': 'hit' } });
+  const cacheKey = new Request(new URL(DASH_CACHE, request.url).toString());
+  const hit = await caches.default.match(cacheKey);
+  if (hit) {
+    const built = Number(hit.headers.get('x-built') || 0);
+    const fresh = u0.searchParams.has('fresh');
+    if (!fresh || Date.now() - built < 60e3) {
+      return new Response(hit.body, { headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-dash-cache': fresh ? 'throttled' : 'hit' } });
+    }
   }
-  const T = latestFlight();
-  const d0 = Math.max(1, T - 29);
-  const all = async (sql, ...args) => ((await env.DB.prepare(sql).bind(...args).all()).results || []);
-  const one = async (sql, ...args) => (await env.DB.prepare(sql).bind(...args).first()) || {};
-  const firsts = `SELECT device, MIN(n) AS first FROM results WHERE n < ${RUN_BASE} AND device != ? GROUP BY device`;
-  const vfirsts = 'SELECT device, MIN(day) AS first FROM visits WHERE device != ? GROUP BY device';
-
-  const [daily, newByDay, totals, loyalty, cohorts, recent, visitsByDay, newVisitsByDay, sources, countries, devices, unlimited,
-    money, paidList, recentBuyers, saves, plays, reports] = await Promise.all([
-    all(`SELECT n, COUNT(*) AS players, ROUND(AVG(pts), 1) AS avg, MAX(pts) AS best FROM results WHERE n BETWEEN ? AND ? AND device != ? GROUP BY n`, d0, T, me),
-    all(`SELECT first AS n, COUNT(*) AS c FROM (${firsts}) GROUP BY first`, me),
-    one(`SELECT COUNT(DISTINCT device) AS pilots, COUNT(*) AS flights FROM results WHERE n < ${RUN_BASE} AND device != ?`, me),
-    all(`SELECT days, COUNT(*) AS c FROM (SELECT device, COUNT(*) AS days FROM results WHERE n < ${RUN_BASE} AND device != ? GROUP BY device) GROUP BY days ORDER BY days`, me),
-    all(`SELECT f.first AS n, COUNT(*) AS size,
-        SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = f.device AND r.n = f.first + 1)) AS next,
-        SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = f.device AND r.n BETWEEN f.first + 1 AND f.first + 7)) AS week
-      FROM (${firsts}) f WHERE f.first >= ? GROUP BY f.first ORDER BY f.first DESC`, me, d0),
-    all(`SELECT n, pts, legs, chips, created FROM results WHERE n BETWEEN ? AND ? AND device != ?`, Math.max(1, T - 6), T, me),
-    all('SELECT day AS n, COUNT(*) AS c FROM visits WHERE day BETWEEN ? AND ? AND device != ? GROUP BY day', d0, T, me),
-    all(`SELECT first AS n, COUNT(*) AS c FROM (${vfirsts}) GROUP BY first`, me),
-    all(`SELECT v.src, COUNT(*) AS visits, SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = v.device AND r.n = v.day)) AS finished
-      FROM visits v WHERE v.day > ? AND v.device != ? GROUP BY v.src ORDER BY visits DESC LIMIT 15`, T - 7, me),
-    all('SELECT COALESCE(country, \'??\') AS country, COUNT(*) AS c FROM visits WHERE day > ? AND device != ? GROUP BY country ORDER BY c DESC LIMIT 12', T - 7, me),
-    all('SELECT mobile, COUNT(*) AS c FROM visits WHERE day > ? AND device != ? GROUP BY mobile', T - 7, me),
-    one(`SELECT COUNT(*) AS runs, COUNT(DISTINCT device) AS pilots, SUM(created >= datetime('now', '-1 day')) AS day, SUM(created >= datetime('now', '-7 days')) AS week FROM results WHERE n >= ${RUN_BASE} AND device != ?`, me),
-    one('SELECT (SELECT COUNT(*) FROM users) AS accounts, (SELECT COUNT(*) FROM users WHERE unlimited = 1) AS paid, (SELECT COUNT(*) FROM refunds) AS refunds, (SELECT COUNT(DISTINCT sub) FROM checkouts) AS checkouts'),
-    all('SELECT paid_at FROM users WHERE unlimited = 1 AND paid_at IS NOT NULL ORDER BY paid_at DESC LIMIT 2000'),
-    all('SELECT email, paid_at FROM users WHERE unlimited = 1 ORDER BY paid_at DESC LIMIT 8'),
-    one('SELECT COUNT(*) AS c FROM saves'),
-    one("SELECT COUNT(*) AS c FROM plays WHERE at >= datetime('now', '-7 days')"),
-    all('SELECT qid, COUNT(*) AS c, MAX(created) AS last FROM reports GROUP BY qid ORDER BY c DESC, last DESC LIMIT 12'),
-  ]);
   let health = null;
   try { health = await (await getHealth(env, ctx)).json(); } catch { /* shown as unknown */ }
-  const today = await one('SELECT COUNT(*) AS visits, SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = v.device AND r.n = v.day)) AS finished FROM visits v WHERE v.day = ? AND v.device != ?', T, me);
-  const out = json({
-    T, d0, launch: LAUNCH_UTC, priceCents: Number(env.PRICE_CENTS || 599), maxPts: MAX_PTS, now: new Date().toISOString(),
-    daily, newByDay, totals, loyalty, cohorts, recent, visitsByDay, newVisitsByDay, today,
-    sources, countries, devices, unlimited, money, paidList: paidList.map((r) => r.paid_at), recentBuyers,
-    saves: saves.c || 0, plays7: plays.c || 0, reports, health,
-  }, { headers: { 'cache-control': 'no-store' } });
-  ctx.waitUntil(caches.default.put(cacheKey, new Response(out.clone().body, { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=600' } })));
+  const body = await buildDashboard(env, {
+    T: latestFlight(), launch: LAUNCH_UTC, priceCents: Number(env.PRICE_CENTS || 599), health, stripeGet, d1Usage,
+  });
+  const text = JSON.stringify(body);
+  ctx.waitUntil(caches.default.put(cacheKey, new Response(text, { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=600', 'x-built': String(body.builtAt) } })));
+  return new Response(text, { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-dash-cache': 'miss' } });
+}
+
+/* Today's D1 usage for the whole account (the free tier's 5M rows read a day
+   resets at 00:00 UTC), from Cloudflare's GraphQL analytics. Needs the
+   CF_API_TOKEN secret (Account Analytics: Read) and CF_ACCOUNT_ID; D1_DATABASE_ID
+   narrows it to this database. Without them: null (the page says so). */
+async function d1Usage(env) {
+  if (!env.CF_API_TOKEN || !env.CF_ACCOUNT_ID) return null;
+  const day = new Date().toISOString().slice(0, 10);
+  const key = new Request(`https://karman.day/api/admin/d1-usage/${day}`);
+  const hit = await caches.default.match(key);
+  if (hit) return hit.json();
+  const filter = env.D1_DATABASE_ID ? '{ date: $d, databaseId: $db }' : '{ date: $d }';
+  const query = `query ($a: String!, $d: Date!${env.D1_DATABASE_ID ? ', $db: String!' : ''}) { viewer { accounts(filter: { accountTag: $a }) {
+    d1AnalyticsAdaptiveGroups(limit: 100, filter: ${filter}) { sum { rowsRead rowsWritten readQueries writeQueries } } } } }`;
+  const r = await fetch('https://api.cloudflare.com/client/v4/graphql', {
+    method: 'POST', headers: { authorization: `Bearer ${env.CF_API_TOKEN}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ query, variables: { a: env.CF_ACCOUNT_ID, d: day, db: env.D1_DATABASE_ID } }),
+  });
+  if (!r.ok) return null;
+  const j = await r.json();
+  const groups = (((j.data || {}).viewer || {}).accounts || [])[0];
+  if (!groups) return null;
+  const sum = (k) => (groups.d1AnalyticsAdaptiveGroups || []).reduce((a, g) => a + ((g.sum && g.sum[k]) || 0), 0);
+  const out = { dayUTC: day, rowsRead: sum('rowsRead'), rowsWritten: sum('rowsWritten'), limitRead: 5e6, limitWritten: 1e5, at: new Date().toISOString() };
+  await caches.default.put(key, new Response(JSON.stringify(out), { headers: { 'cache-control': 'public, max-age=600' } }));
   return out;
+}
+
+/* "This browser is mine": the owner's devices, left out of every number.
+   GET ?device= tells the page whether this browser is already on the list. */
+async function adminIgnore(request, env) {
+  if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
+  const url = new URL(request.url);
+  let device = url.searchParams.get('device') || '';
+  if (request.method !== 'GET') { try { const b = await request.json(); device = (b && b.device) || device; } catch { /* query string */ } }
+  if (!DEVICE_RE.test(device)) {
+    if (request.method !== 'GET') return json({ error: 'invalid device' }, { status: 422 });
+    device = '';
+  }
+  if (request.method === 'POST') await env.DB.prepare('INSERT OR IGNORE INTO ignore_devices (device) VALUES (?)').bind(device).run();
+  else if (request.method === 'DELETE') await env.DB.prepare('DELETE FROM ignore_devices WHERE device = ?').bind(device).run();
+  else if (request.method !== 'GET') return json({ error: 'method' }, { status: 405 });
+  const c = await env.DB.prepare('SELECT (SELECT COUNT(*) FROM ignore_devices) AS devices, (SELECT COUNT(*) FROM ignore_subs) AS subs, (SELECT COUNT(*) FROM ignore_devices WHERE device = ?) AS mine').bind(device).first();
+  return json({ ok: true, ignored: Boolean(c && c.mine), devices: (c && c.devices) || 0, subs: (c && c.subs) || 0 }, { headers: { 'cache-control': 'no-store' } });
+}
+
+/* POST /api/admin/rebuild: forget the frozen numbers of the last 14 days (and
+   those cohorts' retention), so they are re-frozen over the next builds with
+   the current exclusions. Older days stay as they were. */
+async function adminRebuild(request, env) {
+  if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
+  const from = latestFlight() - 14;
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM day_stats WHERE n >= ?').bind(from),
+    env.DB.prepare('DELETE FROM cohort_ret WHERE n >= ?').bind(from - 30),
+  ]);
+  try { await caches.default.delete(new Request(new URL(DASH_CACHE, request.url).toString())); } catch { /* expires on its own */ }
+  return json({ ok: true, from });
 }
 
 /** Paid player started an Unlimited/archive flight: logged so refunds follow the rule. */
@@ -560,9 +663,12 @@ export default {
     if (url.pathname === '/api/me' && request.method === 'GET') return getMe(request, env);
     if (url.pathname === '/api/play' && request.method === 'POST') return postPlay(request, env);
     if (url.pathname === '/api/hit' && request.method === 'POST') return postHit(request, env);
+    if (url.pathname === '/api/event' && request.method === 'POST') return postEvent(request, env);
     if (url.pathname === '/api/admin/login' && request.method === 'POST') return postAdminLogin(request, env);
     if (url.pathname === '/api/admin/stats' && request.method === 'GET') return getAdmin(request, env, ctx);
     if (url.pathname === '/api/admin/thanks') return adminThanks(request, env);
+    if (url.pathname === '/api/admin/ignore') return adminIgnore(request, env);
+    if (url.pathname === '/api/admin/rebuild' && request.method === 'POST') return adminRebuild(request, env);
     const ap = url.pathname.match(/^\/api\/admin\/passes(?:\/([\w-]{3,40}))?$/);
     if (ap) return adminPasses(request, env, ap[1]);
     if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, { status: 404 });

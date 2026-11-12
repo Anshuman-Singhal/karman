@@ -68,7 +68,7 @@ K.access = (() => {
     lastRefusal = null;
     try {
       const res = await api(unlockUrl(code));
-      if (res.valid) { grant('code', { code }); return true; }
+      if (res.valid) { grant('code', { code }); if (K.stats) K.stats.event('pass_redeem'); return true; }
       lastRefusal = res.reason || null;
     } catch (e) { /* offline or invalid */ }
     return false;
@@ -160,7 +160,7 @@ K.access = (() => {
   async function buyWith(idToken, restore) {
     const res = await api('/api/checkout', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ idToken, returnTo: location.origin, restore: Boolean(restore) }),
+      body: JSON.stringify({ idToken, returnTo: location.origin, restore: Boolean(restore), device: K.storage.data.device || undefined }),
     });
     if (res.session) Object.assign(st(), { session: res.session, email: res.email || st().email || null });
     if (res.unlimited) { grant('stripe', { session: res.session, pending: null }); afterSignIn(); return 'restored'; }

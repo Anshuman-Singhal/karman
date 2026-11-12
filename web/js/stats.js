@@ -8,7 +8,14 @@
      POST {API_BASE}/api/result   { n, device, pts, legs: "11010", chips: "23412" }
      GET  {API_BASE}/api/stats/n  { n, players, step, buckets: [[from, count]…], legs: [pct×5] }
    With STATS off, nothing shows, unless DEV + SAMPLE_STATS, in which
-   case clearly-labelled sample numbers preview the design.
+   case clearly-labelled sample numbers preview the design. A ?dev session on
+   the live site never writes anything (picker plays, wipes and test runs
+   stay out of the numbers): it previews with the sample numbers instead.
+
+   Also the owner dashboard's anonymous beacons (no cookies, nothing personal,
+   the same random device id): hit() = first open of the day, event(kind) =
+   paywall seen / buy pressed / shared / pass redeemed / an error, each at
+   most once per device per day.
    ========================================================================== */
 
 K.stats = (() => {
@@ -16,7 +23,7 @@ K.stats = (() => {
   const cache = new Map();          // n → { data, at }
   const FRESH_MS = 60 * 1000;
 
-  const live = () => Boolean(C.STATS);
+  const live = () => Boolean(C.STATS) && !C.DEV;
   const sampling = () => !live() && C.DEV && C.SAMPLE_STATS;
 
   /** Send a finished flight. Fire-and-forget; failures are ignored. */
@@ -70,13 +77,14 @@ K.stats = (() => {
       const fresh = justSent.delete(n) ? '?fresh=1' : '';
       const res = await fetch(`${C.API_BASE}/api/stats/${n}${fresh}`);
       down = !res.ok;                 // the server couldn't answer (not "nobody yet")
-      if (!res.ok) return null;
+      if (!res.ok) { event('stats_down'); return null; }
       const data = await res.json();
       if (!data || !data.players) return null;
       cache.set(n, { data, at: Date.now() });
       return data;
     } catch (e) {
       down = navigator.onLine !== false;   // offline is the player's network, not ours
+      if (down) event('stats_down');
       return null;
     }
   }
@@ -107,13 +115,22 @@ K.stats = (() => {
     return { n, players, step, buckets, legs, sample: true };
   }
 
+  const dayStamp = () => String((K.date && K.date.flightNumber ? K.date.flightNumber() : null) || new Date().toDateString());
+  const beacons = () => live() && !/^\/dev\b/.test(location.pathname) && Boolean(K.storage && K.storage.data && K.storage.data.device);
+  const stamped = (key, stamp) => { try { return localStorage.getItem(key) === stamp; } catch (e) { return false; } };
+  const stampIt = (key, stamp) => { try { localStorage.setItem(key, stamp); } catch (e) { /* private mode */ } };
+
   /** First open of the day: counts visitors and where they came from, for the
-      owner's dashboard. Once per day per browser; the dashboard itself never counts. */
+      owner's dashboard. Once per day per browser (also called when the game
+      reboots at midnight or the tab comes back, so a tab left open still
+      counts); stamped only once the server has it, so a failed send retries.
+      The dashboard itself never counts. */
+  const sentHit = new Set();
   function hit() {
-    if (!live() || /^\/dev\b/.test(location.pathname)) return;
-    const day = K.date && K.date.flightNumber ? K.date.flightNumber() : null;
-    const stamp = String(day || new Date().toDateString());
-    try { if (localStorage.getItem('karman:hit') === stamp) return; localStorage.setItem('karman:hit', stamp); } catch (e) { /* private mode: count anyway */ }
+    if (!beacons()) return;
+    const stamp = dayStamp();
+    if (sentHit.has(stamp) || stamped('karman:hit', stamp)) return;
+    sentHit.add(stamp);
     const q = new URLSearchParams(location.search);
     let src = q.get('utm_source') || q.get('ref') || q.get('src') || '';
     if (!src && document.referrer) {
@@ -123,8 +140,29 @@ K.stats = (() => {
     fetch(`${C.API_BASE}/api/hit`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, keepalive: true,
       body: JSON.stringify({ device: K.storage.data.device, src: src || 'direct' }),
-    }).catch(() => {});
+    }).then((r) => { if (r && r.ok) stampIt('karman:hit', stamp); else sentHit.delete(stamp); }, () => sentHit.delete(stamp));
   }
 
-  return { submit, report, get, percentile, live, sampling, hit, get down() { return down; } };
+  /** An anonymous product event for the owner's dashboard: one of
+      paywall_view, buy_click, share, pass_redeem, error, stats_down.
+      At most once per kind per device per day; fire-and-forget. */
+  const sentEv = new Set();
+  function event(kind) {
+    if (!beacons()) return;
+    const stamp = dayStamp(), key = `karman:ev:${kind}`, mem = `${kind}:${stamp}`;
+    if (sentEv.has(mem) || stamped(key, stamp)) return;
+    sentEv.add(mem);
+    try {
+      fetch(`${C.API_BASE}/api/event`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, keepalive: true,
+        body: JSON.stringify({ device: K.storage.data.device, kind }),
+      }).then((r) => { if (r && r.ok) stampIt(key, stamp); else sentEv.delete(mem); }, () => sentEv.delete(mem));
+    } catch (e) { sentEv.delete(mem); }
+  }
+  if (typeof addEventListener === 'function') {
+    addEventListener('error', () => event('error'));
+    addEventListener('unhandledrejection', () => event('error'));
+  }
+
+  return { submit, report, get, percentile, live, sampling, hit, event, get down() { return down; } };
 })();

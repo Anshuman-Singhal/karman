@@ -1019,7 +1019,7 @@ K.ui = (() => {
     if (name === 'help') renderHelp();
     if (name === 'archive') { calY = 0; renderArchive(); }
     if (name === 'runs') renderRuns();
-    if (name === 'paywall') renderPaywall();
+    if (name === 'paywall') { renderPaywall(); if (!K.access.unlimited()) K.stats.event('paywall_view'); }
     if (name === 'menu') { renderMenu(); menuTimer = setInterval(renderResume, 250); $('btn-menu').setAttribute('aria-expanded', 'true'); }
     el.hidden = false;
     void el.offsetWidth;

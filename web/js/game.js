@@ -553,7 +553,7 @@ K.game = (() => {
       if (el) el.textContent = K.date.formatClock(ms);
       const stub = document.getElementById('next-clock');   // the results' next-flight stub
       if (stub) stub.textContent = K.date.formatClock(ms);
-      if (ms < 1000 && devFlight == null && !live) setTimeout(() => boot(), 1500);
+      if (ms < 1000 && devFlight == null && !live) setTimeout(() => { boot(); if (K.stats) K.stats.hit(); }, 1500);
     };
     tick();
     countdownTimer = setInterval(tick, 1000);

@@ -140,6 +140,7 @@
     btn.classList.add('torn');
     K.audio.tick();
     const str = K.share.text(last.record, last.streak);
+    K.stats.event('share');
     // Copy first, inside the tap, so the text is always on the clipboard.
     const result = await K.share.copy(str);
     if (result === 'copied') K.fx.toast('Flight log copied. Paste it in the group chat.');
@@ -158,6 +159,7 @@
     if (!last) return;
     const stamp = $('dare-stamp');
     const str = K.share.invite();
+    K.stats.event('share');
     const result = await K.share.copy(str);
     stamp.classList.remove('stamped'); void stamp.offsetWidth; stamp.classList.add('stamped');
     K.audio.tick();
@@ -181,6 +183,7 @@
     void btn.offsetWidth;
     btn.classList.add('torn');
     K.audio.tick();
+    K.stats.event('share');
     const blobP = K.shareImage.render(last.record, last.n, last.streak, K.ui.lastStats);
     try {
       if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error('no image clipboard');
@@ -226,7 +229,7 @@
   $('btn-keep').addEventListener('click', () => K.game.keepFlying());
   $('parked-tag').addEventListener('click', () => K.game.keepFlying());
   $('btn-today').addEventListener('click', () => K.game.boot({ mode: 'daily' }));
-  $('btn-buy').addEventListener('click', () => K.ui.startGoogle('buy'));
+  $('btn-buy').addEventListener('click', () => { K.stats.event('buy_click'); K.ui.startGoogle('buy'); });
   $('btn-restore').addEventListener('click', () => K.ui.startGoogle('restore'));
   $('btn-code-toggle').addEventListener('click', () => { $('code-form').hidden = false; $('code-input').focus(); });
   $('code-form').addEventListener('submit', async (e) => {
@@ -242,6 +245,7 @@
     if (!btn) return;
     btn.classList.remove('thunk'); void btn.offsetWidth; btn.classList.add('thunk');
     K.audio.stamp();
+    K.stats.event('share');
     const blobP = K.shareImage.passport();
     try {
       if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error('no image clipboard');
@@ -288,6 +292,9 @@
     K.access.afterSignIn();
     setTimeout(() => K.ui.maybeWelcome(), 1400);   // earlier buyers: the welcome card, once
   });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && K.sync) K.sync.now(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && K.sync) K.sync.now();
+    if (!document.hidden) K.stats.hit();          // a tab or home-screen app resumed on a new day still counts
+  });
   paintSound();
 })();
