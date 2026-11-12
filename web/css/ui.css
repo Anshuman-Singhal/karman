@@ -5174,3 +5174,123 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
 
 #sheet-account .ac-welcome { display: block; margin: 10px 0 0; padding: 0; border: 0; background: none; font: italic 400 15px/1.3 var(--f-serif); color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 #sheet-account .ac-welcome:hover { color: var(--ink); }
+
+/* ---------------------------------------------------------------- first-class perks
+   Livery (Account), new runs landed (Menu + hangar), any run by number (the
+   run card), the run log (Logbook). Same paper, same inks: navy, amber, the
+   red of the licence rule. js/firstclass.js. */
+
+/* Welcome card: the livery perk's little balloon */
+.wel-perks i.wel-liv svg { width: 12px; height: 15px; fill: #FFB547; }
+
+/* Livery picker: four real balloons in little sky windows */
+#sheet-account .liv-card { margin: 14px 0 0; padding: 16px 16px 14px; transform: rotate(0.4deg); background: var(--fibre), #FBF6EB; box-shadow: 0 0 0 1px rgba(20, 33, 61, 0.1), 0 10px 24px rgba(20, 33, 61, 0.14); }
+.liv-lede { margin: 10px 0 12px; font: italic 400 17px/1.3 var(--f-serif); color: var(--ink); }
+.liv-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.liv-sw { position: relative; display: flex; flex-direction: column; align-items: center; min-width: 0; padding: 6px 6px 9px; border-radius: 10px; border: 1.5px solid rgba(20, 33, 61, 0.16);
+  background: rgba(255, 255, 255, 0.35); color: var(--ink); cursor: pointer; font: inherit; -webkit-tap-highlight-color: transparent;
+  transition: border-color 140ms, box-shadow 140ms, background-color 140ms, transform 140ms var(--ease-out); }
+.liv-sw:hover { border-color: rgba(20, 33, 61, 0.42); }
+.liv-sw:active { transform: scale(0.97); }
+.liv-sw:focus-visible { outline: 2px solid #14213D; outline-offset: 2px; }
+.liv-win { display: block; width: 100%; aspect-ratio: 4 / 5; border-radius: 7px; overflow: hidden; background: linear-gradient(180deg, #7E9CC6 0%, #A9BFDC 62%, #E9D3B9 100%); }
+.liv-win svg { display: block; width: 100%; height: 100%; }
+.liv-sw b { margin-top: 8px; max-width: 100%; font: 800 15px/1 var(--f-display); letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.liv-sw small { margin-top: 4px; max-width: 100%; font: 500 8.5px/1 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(20, 33, 61, 0.55); white-space: nowrap; }
+.liv-sw.on { border: 2px solid #14213D; padding: 5.5px 5.5px 8.5px; background: rgba(255, 181, 71, 0.16); box-shadow: 0 0 0 3px rgba(255, 181, 71, 0.35); }
+.liv-sw.on small { color: #B8661A; }
+.liv-tick { position: absolute; top: -7px; right: -7px; width: 22px; height: 22px; border-radius: 50%; background: #14213D; display: grid; place-items: center; font-style: normal;
+  opacity: 0; transform: scale(0.4); transition: opacity 160ms, transform 220ms var(--ease-spring); }
+.liv-sw.on .liv-tick { opacity: 1; transform: none; }
+.liv-tick svg { width: 12px; height: 12px; fill: none; stroke: #FFB547; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.liv-note { margin: 12px 0 0; padding-top: 10px; border-top: 1px dashed rgba(20, 33, 61, 0.22); font: 500 9.5px/1.5 var(--f-mono); letter-spacing: 0.06em; color: rgba(20, 33, 61, 0.6); text-transform: uppercase; }
+@media (max-width: 359px) { .liv-sw b { font-size: 13px; } .liv-sw small { font-size: 7.5px; } }
+@media (prefers-reduced-motion: reduce) { .liv-sw, .liv-tick { transition: none; } .liv-sw:active { transform: none; } }
+
+/* Menu: Unlimited's own news, a tiny inked ticket rather than a notification dot */
+#sheet-menu .mt-new { position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: stretch; height: 20px; border-radius: 4px;
+  box-shadow: inset 0 0 0 1.5px #14213D; font: 800 13px/1 var(--f-display); letter-spacing: 0.06em; color: #14213D; overflow: hidden; transform: rotate(-3deg); }
+#sheet-menu .mt-new b { display: grid; place-items: center; padding: 0 6px 0 7px; background: #FFB547; border-right: 1.5px dashed #14213D; font-weight: 800; }
+#sheet-menu .mt-new > span:not(.sr-only) { display: grid; place-items: center; padding: 0 7px 0 6px; }
+
+/* Hangar: a red rubber stamp across the run card's corner */
+#sheet-runs .run-card { overflow: visible; }
+.nr-defs { position: absolute; width: 0; height: 0; }
+.nr-stamp { position: absolute; top: -10px; right: 12px; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 10px 5px;
+  border: 2.5px solid #C4402A; border-radius: 5px; outline: 1px solid #C4402A; outline-offset: -6px; color: #C4402A; transform: rotate(6deg);
+  background: rgba(251, 246, 235, 0.55); mix-blend-mode: multiply; filter: url(#nr-ink); pointer-events: none;
+  animation: nrThunk 460ms 260ms cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.nr-stamp b { font: 800 24px/0.9 var(--f-display); letter-spacing: 0.04em; padding: 2px 4px 0; white-space: nowrap; }
+.nr-stamp small { font: 500 8.5px/1 var(--f-mono); letter-spacing: 0.14em; padding: 0 4px 2px; white-space: nowrap; }
+@keyframes nrThunk {
+  0%   { opacity: 0; transform: translateY(-6px) scale(1.45) rotate(14deg); }
+  50%  { opacity: 1; transform: scale(0.95) rotate(5deg); }
+  100% { opacity: 1; transform: rotate(6deg); }
+}
+#sheet-runs .run-card.rc-any .lic-strip { padding-right: 0; }
+.rc-holes i.fresh, .rc-holes button.fresh { color: #14213D; box-shadow: inset 0 0 0 1.5px #14213D; background: #FFB547; font-weight: 600; }
+.rc-foot .nr-foot b { color: #14213D; background: #FFB547; padding: 2px 4px; border-radius: 3px; font-weight: 500; }
+
+/* Any run: every hole is a button. Unflown ones calm until touched; flown ones stay punched. */
+.rc-holes button { position: relative; display: grid; place-items: center; aspect-ratio: 1; width: 100%; min-width: 0; padding: 0; border: 0; border-radius: 50%; background: transparent;
+  font: 500 9px/1 var(--f-mono); color: rgba(20, 33, 61, 0.5); box-shadow: inset 0 0 0 1px rgba(20, 33, 61, 0.26); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background-color 120ms, box-shadow 120ms, color 120ms, transform 120ms var(--ease-out); }
+.rc-holes button::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; }   /* ≈32px hit area at 390 */
+.rc-holes button.on::after { inset: -5px; }   /* the punched hole is drawn at 84%: about the same reach */
+.rc-holes button:hover { color: #14213D; background: rgba(255, 181, 71, 0.22); box-shadow: inset 0 0 0 1.5px #14213D; }
+.rc-holes button:active { transform: scale(0.9); }
+.rc-holes button:focus-visible { outline: 2px solid #14213D; outline-offset: 2px; }
+.rc-holes button.on { color: transparent; background: #1B2A4A; transform: scale(0.84); box-shadow: inset 0 1.5px 2px rgba(0, 0, 0, 0.55), 0 0.5px 0 rgba(255, 250, 240, 0.9); }
+.rc-holes button.on:hover, .rc-holes button.on:focus-visible { color: #FFB547; background: #1B2A4A; box-shadow: inset 0 1.5px 2px rgba(0, 0, 0, 0.55), 0 0 0 1.5px #FFB547; }
+.rc-holes button.fresh:hover { background: #FFC56B; }
+/* the run in progress (parked or in the air): a dashed amber ring, number showing */
+.rc-holes button.wip { color: #14213D; font-weight: 600; outline: 1.5px dashed #FFB547; outline-offset: 2px; }
+.rc-holes button.wip.on { color: #FFB547; }
+@media (prefers-reduced-motion: reduce) { .nr-stamp { animation: none; } .rc-holes button { transition: none; } .rc-holes button:active { transform: none; } }
+
+/* Fly run Nº [__] › : for "do run 12" */
+.rc-pick { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 12px; }
+.rc-msg { margin: -6px 0 12px; text-align: right; font: italic 400 13px/1.35 var(--f-serif); color: var(--ink-2); }
+.rc-msg.bad { color: #C4402A; }
+.rc-msg:empty { display: none; }
+.rc-hint { font: italic 400 14px/1.2 var(--f-serif); color: var(--ink-3); }
+.rc-pick .rc-no { display: inline-flex; align-items: center; gap: 7px; margin-left: auto; font: 500 10px/1 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+.rc-pick input { width: 46px; height: 32px; padding: 0 4px; border: 0; border-bottom: 1.5px solid #14213D; border-radius: 0; background: rgba(255, 255, 255, 0.5);
+  font: 800 20px/1 var(--f-display); letter-spacing: 0.04em; text-align: center; color: #14213D; font-variant-numeric: tabular-nums; -webkit-appearance: none; appearance: none; }
+.rc-pick input::placeholder { color: rgba(20, 33, 61, 0.22); }
+.rc-pick input:focus { outline: none; background: rgba(255, 181, 71, 0.2); box-shadow: 0 2px 0 #FFB547; }
+.rc-go { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; background: #14213D; color: #FFB547; cursor: pointer; flex: none; }
+.rc-go svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.rc-go:hover { background: #22305A; }
+.rc-go:focus-visible { outline: 2px solid #14213D; outline-offset: 2px; }
+.rc-pick.bad input { border-bottom-color: #C4402A; animation: rcNo 300ms ease-in-out; }
+@keyframes rcNo { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@media (prefers-reduced-motion: reduce) { .rc-pick.bad input { animation: none; } }
+@media (max-width: 359px) { .rc-hint { display: none; } }
+
+/* Run log: the Unlimited page of the logbook */
+#sheet-logbook .rl-card { transform: rotate(0.5deg); }
+.rl-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 14px 0 6px; }
+.rl-stats div { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding-left: 10px; border-left: 1px dashed rgba(20, 33, 61, 0.2); }
+.rl-stats div:first-child { padding-left: 0; border-left: 0; }
+.rl-stats b { font: 800 26px/1 var(--f-display); color: #14213D; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rl-stats b small { font: 500 10px/1 var(--f-mono); margin-left: 2px; color: rgba(20, 33, 61, 0.55); }
+.rl-stats span { font: 500 9px/1 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(20, 33, 61, 0.6); }
+.rl-chart { margin: 14px 0 4px; }
+.rl-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.rl-chart .rl-bar { fill: #1B2A4A; }
+.rl-chart .rl-best { fill: #FFB547; stroke: #14213D; stroke-width: 1.5; }
+.rl-chart .rl-base { stroke: rgba(20, 33, 61, 0.25); stroke-width: 1; }
+.rl-chart .rl-k { stroke: #C4402A; stroke-width: 1.2; stroke-dasharray: 4 4; }
+.rl-chart .rl-kt { font: italic 400 13px var(--f-serif); fill: #C4402A; }
+.rl-chart .rl-a { stroke: rgba(20, 33, 61, 0.45); stroke-width: 1; stroke-dasharray: 1.5 3; }
+.rl-chart .rl-at { font: 500 9px var(--f-mono); letter-spacing: 0.06em; fill: rgba(20, 33, 61, 0.6); }
+.rl-chart .rl-x { font: 500 8.5px var(--f-mono); fill: rgba(20, 33, 61, 0.55); }
+.rl-chart .rl-x.b { fill: #14213D; }
+.rl-chart .rl-v { font: 800 15px var(--f-display); fill: #14213D; }
+.rl-cap { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; padding-top: 10px; border-top: 1px dashed rgba(20, 33, 61, 0.2);
+  font: 500 10px/1.2 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(20, 33, 61, 0.62); }
+.rl-cap b { color: #14213D; font-weight: 500; }
+.rl-cap span:last-child { flex: none; }
+.rl-ghost { margin: 12px 0 2px; padding: 16px 12px; border: 1.5px dashed var(--ink-rule, rgba(20, 33, 61, 0.2)); border-radius: 8px; text-align: center;
+  font: italic 400 15px/1.35 var(--f-serif); color: var(--ink-3); }

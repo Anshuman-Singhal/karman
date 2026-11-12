@@ -64,10 +64,11 @@ K.ui = (() => {
     return `${(cx + Math.cos(a) * q).toFixed(2)},${(cy + Math.sin(a) * q).toFixed(2)}`;
   }).join('L') + 'Z';
 
-  /** The welcome-card seal: ~72–84px. */
-  function fcSeal(size = 80) {
+  /** The welcome-card seal: ~72–84px. bare: shapes only, no lettering (the
+      share card sets the lettering itself, since an SVG image can't use web fonts). */
+  function fcSeal(size = 80, bare = false) {
     const k = ++fcN, a = `fcA${k}`, b = `fcB${k}`, top = `fcT${k}`, bot = `fcU${k}`;
-    return `<svg class="fc-seal" width="${size}" height="${size}" viewBox="0 0 120 120" role="img" aria-label="First class">
+    return `<svg xmlns="http://www.w3.org/2000/svg" class="fc-seal" width="${size}" height="${size}" viewBox="0 0 120 120" role="img" aria-label="First class">
     <defs>${fcInk(a, 3 + k, 1.2, 1)}${fcInk(b, 7 + k, 1.6)}
       <path id="${top}" d="M20,60 a40,40 0 1,1 80,0"/>
       <path id="${bot}" d="M12.2,60 a47.8,47.8 0 0,0 95.6,0"/></defs>
@@ -80,11 +81,11 @@ K.ui = (() => {
       <circle cx="60" cy="60" r="33.5" stroke-width="1.6"/>
       <path d="${FC_INF(60, 60, 19.5)}" stroke-width="5" stroke-linejoin="round"/>
       <g fill="#14213D" stroke="none">
-        <path d="${fcStar(17.4, 60.4, 3.3)}${fcStar(102.6, 60.4, 3.3)}"/>
+        <path d="${fcStar(17.4, 60.4, 3.3)}${fcStar(102.6, 60.4, 3.3)}"/>${bare ? '' : `
         <text font-family="'Big Shoulders Display', 'Arial Narrow', sans-serif" font-weight="800" font-size="14.6" letter-spacing="1.7">
           <textPath href="#${top}" startOffset="50%" text-anchor="middle">FIRST CLASS</textPath></text>
         <text font-family="'IBM Plex Mono', ui-monospace, monospace" font-weight="500" font-size="8.6" letter-spacing="1.9">
-          <textPath href="#${bot}" startOffset="50%" text-anchor="middle">UNLIMITED</textPath></text>
+          <textPath href="#${bot}" startOffset="50%" text-anchor="middle">UNLIMITED</textPath></text>`}
       </g>
     </g>
   </svg>`;
@@ -238,7 +239,7 @@ K.ui = (() => {
     const d = K.date.dateOfFlight(flight.n);
     const short = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
     const un = mode === 'unlimited';
-    $('home-meta').textContent = un ? `Unlimited · Flight #${flight.flightNo || flight.run}` : mode === 'archive' ? `Archive · ${short}` : `${short} · ${flight.weather.name}`;
+    $('home-meta').textContent = un ? (K.access.unlimited() && flight.run ? `Unlimited · Run ${flight.run}` : `Unlimited · Flight #${flight.flightNo || flight.run}`) : mode === 'archive' ? `Archive · ${short}` : `${short} · ${flight.weather.name}`;
     // The visually hidden lead names the game for search engines and screen readers (the page's one h1).
     $('home-h').innerHTML = '<span class="sr-only">Karman, the daily number guessing game. </span>' + (un ? 'Unlimited <span>∞</span>' : `Flight <span>#${flight.n}</span>`);
     // What's at stake (v5). A pilot who has never flown gets the pitch and a time promise;
@@ -606,7 +607,7 @@ K.ui = (() => {
     if (nextNo == null) nextNo = (K.game.today || n) + 1;
     lastRecord = { record, n, streak, mode, args: { record, n, mode, streak, thermals, streakInfo, isFresh: false, prevBest, nextNo } };
     $('dare-stamp').classList.remove('stamped');
-    $('res-eyebrow').textContent = mode === 'unlimited' ? `Unlimited · Flight #${record.flightNo || record.run || ''}`
+    $('res-eyebrow').textContent = mode === 'unlimited' ? (K.access.unlimited() && record.run ? `Unlimited · Run ${record.run}` : `Unlimited · Flight #${record.flightNo || record.run || ''}`)
       : `${mode === 'archive' ? 'Archive · ' : ''}Flight #${n} · ${dayMonth(K.date.dateOfFlight(n))}`;
     $('btn-today').hidden = mode === 'daily';
     const subj = encodeURIComponent(`KÁRMÁN ${mode === 'unlimited' ? 'Unlimited' : `#${n}`}`);
@@ -783,6 +784,7 @@ K.ui = (() => {
   /** Anything that shows locked/unlocked state, after access changes. */
   function refreshAccess() {
     paintKeep();
+    K.fc.applyLivery();
     if (!$('sheet-archive').hidden) renderArchive();
     if (!$('sheet-paywall').hidden && K.access.unlimited()) { closeSheet('paywall'); if (Date.now() - welcomedAt > 3000) K.fx.toast('Unlimited unlocked. Keep flying.'); }
     if (!$('sheet-account').hidden) renderAccount();
@@ -836,6 +838,7 @@ K.ui = (() => {
     const d = K.storage.data;
     const total = K.game.runsTotal(), leftList = K.game.runsLeft(), left = leftList.length;
     const done = new Set((d.runsDone || []).filter((k) => k >= 1 && k <= total));
+    const F = K.fc.hangar();   // first class: fresh runs, any run by number
     const byRun = new Map();
     for (const r of d.runs || []) {
       if (!r || !r.run || !r.rounds) continue;
@@ -847,20 +850,27 @@ K.ui = (() => {
     }
     const flown = [...byRun.values()].sort((a, b) => b.at - a.at);
     $('runs-sub').textContent = `${total} RUNS · NEW ONES EVERY MONDAY`;
-    const day = (t) => (t ? new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase() : '');
-    const ticket = left
+    const day = K.fc.day;
+    const ticket = F.wip
       ? `<button type="button" class="buy-ticket runs-new" id="runs-new">
-          <span class="bt-main"><span class="rn-main">Fly a new run</span><span class="rn-sub">7 questions you haven’t seen</span></span>
-          <span class="bt-stub"><small>NEW</small><b>${left}</b></span></button>`
+          <span class="bt-main"><span class="rn-main">Resume Run ${Number(F.wip.run) || ''}</span><span class="rn-sub">In progress · leg ${(F.wip.round || 0) + 1} of ${K.CONFIG.LEGS}</span></span>
+          <span class="bt-stub"><small>LEG</small><b>${(F.wip.round || 0) + 1}</b></span></button>`
+      : left
+      ? `<button type="button" class="buy-ticket runs-new" id="runs-new">
+          <span class="bt-main"><span class="rn-main">Fly a new run</span><span class="rn-sub">${F.sub || '7 questions you haven’t seen'}</span></span>
+          <span class="bt-stub">${F.fresh.length ? `<small>FRESH</small><b>${F.fresh.length}</b>` : `<small>NEW</small><b>${left}</b>`}</span></button>`
       : `<div class="runs-new runs-wait" role="status">
           <span class="bt-main"><span class="rn-main">All runs flown</span><span class="rn-sub">New runs land every Monday</span></span>
           <span class="bt-stub"><small>NEXT</small><b>${nextMonday().replace(/^(\w+) /, '$1<br>')}</b></span></div>`;
     const holes = Array.from({ length: total }, (_, i) => i + 1)
-      .map((k) => `<i class="${done.has(k) ? 'on' : ''}" title="Run ${k}${done.has(k) ? ' · flown' : ''}">${k}</i>`).join('');
-    const card = `<div class="licence run-card">
-        <div class="lic-strip">RUN CARD · KÁRMÁN AIR</div>
-        <div class="rc-holes" aria-label="${done.size} of ${total} runs flown">${holes}</div>
-        <div class="rc-foot"><span>${done.size} PUNCHED</span><span>${left} TO GO</span></div>
+      .map((k) => (F.first
+        ? `<button type="button" class="${done.has(k) ? 'on' : F.fresh.includes(k) ? 'fresh' : ''}${F.wip && F.wip.run === k ? ' wip' : ''}" data-run="${k}" aria-label="${F.wip && F.wip.run === k ? `Resume run ${k} (in progress)` : `Fly run ${k}${done.has(k) ? ' (flown)' : F.fresh.includes(k) ? ' (new)' : ''}`}">${k}</button>`
+        : `<i class="${done.has(k) ? 'on' : ''}" title="Run ${k}${done.has(k) ? ' · flown' : ''}">${k}</i>`)).join('');
+    const card = `<div class="licence run-card${F.first ? ' rc-any' : ''}">
+        ${F.stamp}<div class="lic-strip">RUN CARD · KÁRMÁN AIR</div>
+        <div class="rc-holes" ${F.first ? 'role="group" ' : ''}aria-label="${done.size} of ${total} runs flown">${holes}</div>
+        ${F.picker}
+        <div class="rc-foot">${F.foot(done.size, left) || `<span>${done.size} PUNCHED</span><span>${left} TO GO</span>`}</div>
       </div>`;
     const strips = flown.map((x) => {
       const dots = x.best.rounds.map((r) => (r.hit
@@ -876,10 +886,13 @@ K.ui = (() => {
       ${card}
       ${flown.length ? `<h3 class="lb-h">Flight strips</h3><ul class="fstrips runs-strips">${strips}</ul>
         <p class="lb-note">Tap a strip to fly that run again: the same seven questions, a fresh climb.</p>` : ''}`;
-    if ($('runs-new')) $('runs-new').onclick = () => { closeSheet('runs'); setTimeout(() => K.game.keepFlying(), K.fx.reduced() ? 0 : 200); };
-    $('runs-body').querySelectorAll('[data-run]').forEach((b) => {
-      b.onclick = () => { closeSheet('runs'); setTimeout(() => K.game.flyRun(Number(b.dataset.run)), K.fx.reduced() ? 0 : 200); };
-    });
+    // Every way aboard goes through K.fc.board: a run in progress is resumed, or left only on a second ask.
+    const later = (fn) => { closeSheet('runs'); setTimeout(fn, K.fx.reduced() ? 0 : 200); };
+    const board = (k) => K.fc.board($('runs-body'), k, { fly: (r) => later(() => (r == null ? K.game.keepFlying() : K.game.flyRun(r))), resume: () => later(() => K.game.keepFlying()) });
+    if ($('runs-new')) $('runs-new').onclick = () => (F.wip || !F.fresh.length ? board(null) : board(F.fresh[0]));
+    $('runs-body').querySelectorAll('[data-run]').forEach((b) => { b.onclick = () => board(Number(b.dataset.run)); });
+    K.fc.bindPicker($('runs-body'), board);
+    K.fc.markSeen();   // shown once: the next visit is back to normal
   }
 
   /* ------------------------------------------------------------ welcome aboard
@@ -903,6 +916,7 @@ K.ui = (() => {
         <ul class="wel-perks">
           <li><i aria-hidden="true">∞</i><span><b>${left ? `${left} Unlimited runs` : 'Every Unlimited run'}</b>${left ? ' to fly' : ''}, seven new questions each. New runs land every Monday.</span></li>
           <li><i aria-hidden="true">◷</i><span><b>The whole archive.</b> Every daily flight since Flight #1, from the calendar on the home screen.</span></li>
+          <li><i aria-hidden="true" class="wel-liv"><svg viewBox="0 0 16 20"><path d="M8 1C4 1 1.5 4 1.5 7.5c0 3 2.6 5.6 4.6 7.2h3.8c2-1.6 4.6-4.2 4.6-7.2C14.5 4 12 1 8 1z"/><rect x="5.6" y="15.8" width="4.8" height="3" rx=".8"/></svg></i><span><b>Your own livery.</b> Paint your balloon in Account.</span></li>
           <li><i aria-hidden="true">✉</i><span><b>A direct line.</b> Ideas? A wrong answer? A question you’d love to see on a flight: <a href="mailto:${mail}?subject=${encodeURIComponent('KÁRMÁN Unlimited')}">${mail}</a>.</span></li>
         </ul>
       </div>
@@ -984,7 +998,7 @@ K.ui = (() => {
     un.classList.remove('locked');   // tiles look the same either way; the unlock page explains
     ar.classList.remove('locked');
     const pk = K.storage.data.parked && K.storage.data.parked.unlimited;
-    $('mt-unlimited').outerHTML = `<span id="mt-unlimited">${cur === 'unlimited' ? '<span class="mt-meta">Flying</span>' : pk ? `<span class="mt-meta">Resume · leg ${(pk.round || 0) + 1}</span>` : A.unlimited() ? '' : A.freeRunLeft() ? '<span class="mt-meta">1 free run</span>' : price}</span>`;
+    $('mt-unlimited').outerHTML = `<span id="mt-unlimited">${cur === 'unlimited' ? '<span class="mt-meta">Flying</span>' : pk ? `<span class="mt-meta">Resume · leg ${(pk.round || 0) + 1}</span>` : A.unlimited() ? K.fc.menuBadge() : A.freeRunLeft() ? '<span class="mt-meta">1 free run</span>' : price}</span>`;
     $('mt-archive').outerHTML = `<span id="mt-archive">${cur === 'archive' ? '<span class="mt-meta">Flying</span>' : A.canArchive() ? '' : price}</span>`;
     $('menu-contact').href = $('contact-link').href;
     $('btn-units').setAttribute('aria-checked', String(K.units.system() !== 'imperial'));
@@ -1127,7 +1141,7 @@ K.ui = (() => {
       ${owned ? `<div class="ac-thanks"><span class="lic-fc" aria-hidden="true">${fcTag()}</span>
         <p>${a.via === 'code' ? 'Enjoy every run.' : 'Thank you for flying first class.'} Ideas? A wrong answer? A question you’d love to see on a flight: <a href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}?subject=${encodeURIComponent('KÁRMÁN Unlimited')}">${esc(K.CONFIG.CONTACT_EMAIL)}</a></p>
         <a class="ac-suggest" href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}?subject=${encodeURIComponent('A question for a flight')}&body=${encodeURIComponent('Question:\nAnswer (with units):\nSource link:\n')}">Suggest a question <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
-        <button type="button" class="ac-welcome" id="ac-welcome">See your welcome card</button></div>` : ''}
+        <button type="button" class="ac-welcome" id="ac-welcome">See your welcome card</button></div>${K.fc.liveryCard()}` : ''}
       ${owned ? '' : `<button type="button" class="buy-ticket ac-buy" id="ac-buy"><span class="bt-main">Unlock Unlimited</span><span class="bt-stub"><b>${esc(K.CONFIG.PRICE)}</b><small>ONE-TIME</small></span></button>`}
       <div class="ac-links">
         ${signed ? '<button type="button" class="link-btn" id="ac-sync">Back up now</button>' : ''}
@@ -1135,6 +1149,7 @@ K.ui = (() => {
         ${signed ? '<button type="button" class="link-btn" id="ac-signout">Sign out on this device</button>' : ''}
       </div>
       <p class="pay-fine">${owned && a.via === 'stripe' ? 'Refunds: refundable if you haven’t flown an Unlimited or archive flight since buying. ' : ''}Questions or a refund? <a href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}">${esc(K.CONFIG.CONTACT_EMAIL)}</a><br>Signing out keeps everything on this device. <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>`;
+    K.fc.bindLivery($('account-body'));
     $('ac-logbook').onclick = () => { closeSheet('account'); setTimeout(() => openSheet('logbook'), K.fx.reduced() ? 0 : 200); };
     if ($('ac-welcome')) $('ac-welcome').onclick = () => welcome(a.via === 'code' ? 'pass' : 'paid', { replay: true });
     if ($('ac-buy')) $('ac-buy').onclick = () => { closeSheet('account'); setTimeout(() => openSheet('paywall'), K.fx.reduced() ? 0 : 200); };
@@ -1269,6 +1284,7 @@ K.ui = (() => {
 
     $('logbook-body').innerHTML = `
       ${licence}
+      ${K.fc.runLog()}
       <h3 class="lb-h">Passport</h3>
       ${passport}
       <h3 class="lb-h">Instrument calibration</h3>
@@ -1310,7 +1326,7 @@ K.ui = (() => {
     if (document.fonts) document.fonts.ready.then(fitHome);
   }
 
-  return { parked, answerRow, welcome, maybeWelcome,
+  return { parked, answerRow, welcome, maybeWelcome, fcSeal,
     init, show, topbar, setAltitude, home, results, landing, closed, prepareLaunch, dockReady, dockIn, refreshAccess, startGoogle, renderAccount,
     calStep(d) { calM += d; if (calM < 0) { calM = 11; calY -= 1; } if (calM > 11) { calM = 0; calY += 1; } renderArchive(); },
     openSheet, closeSheet, dev, anchorBalloon, renderMenu, refreshUnits,

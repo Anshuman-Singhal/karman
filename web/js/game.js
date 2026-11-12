@@ -24,6 +24,7 @@ K.game = (() => {
   let live = null;      // flight in progress (also store.live)
   let busy = false;     // true while a reveal is animating
   let devFlight = null; // dev strip override
+  let gen = 0;          // bumped by every boot(): an animation from an older flight stops at its next await
   let mode = 'daily';   // 'daily' | 'archive' (a past day) | 'unlimited' (7 random questions)
   let today = 0;        // today's flight number (Eastern)
   let timerRaf = 0, countdownTimer = 0, saveTimer = 0, emberGate = 0;
@@ -104,10 +105,12 @@ K.game = (() => {
 
   /* ------------------------------------------------------------ boot */
   function boot(opts = {}) {
+    gen += 1;
     if ('flight' in opts) devFlight = opts.flight;
     stopTimer();
     busy = false;
     store = K.storage.load();
+    K.fc.boot();   // first class: livery on the craft, new runs counted
     today = devFlight != null ? devFlight : K.date.flightNumber();
     // Which flight? The one asked for, else TODAY. Opening the site (a link, a search
     // result, a refresh) always lands on today's flight; an Unlimited or archive run left
@@ -210,6 +213,7 @@ K.game = (() => {
       leaves the ground in one long climb before the first question. */
   async function launch() {
     if (live) return;
+    const my = gen;
     K.audio.unlock();          // must happen inside the tap
     K.audio.takeoff();
     K.ui.prepareLaunch();
@@ -232,6 +236,7 @@ K.game = (() => {
         };
         requestAnimationFrame(step);
       });
+      if (my !== gen) return;   // another flight booted during the burn
     }
     K.scene.inflate(0);
     K.fx.haptic(24);
@@ -244,6 +249,7 @@ K.game = (() => {
     }, 110);
     await climb;
     clearInterval(trail);
+    if (my !== gen) return;
     K.ui.dockReady();
     startRound(false);
     K.ui.dockIn();
@@ -279,9 +285,10 @@ K.game = (() => {
       }, animate ? (K.fx.reduced() ? 120 : 200) + 160 : 160);
     }
     if (animate) {
+      const my = gen;
       await K.round.advance(opts);
-      // Locked during the transition (Enter), or left the round? Then don't start a clock.
-      if (!live || live.round !== i || live.phase !== 'round') return;
+      // Locked during the transition (Enter), left the round, or another flight booted? Then don't start a clock.
+      if (my !== gen || !live || live.round !== i || live.phase !== 'round') return;
       live.startedAt = Date.now();   // the 30 s start once the dial is full
       save();
     } else K.round.render(opts);
@@ -361,8 +368,9 @@ K.game = (() => {
     live.phase = 'reveal';
     save();
 
+    const my = gen;
     await playReveal(fact, result, false);
-    busy = false;
+    if (my === gen) busy = false;   // a new flight booted mid-reveal owns busy now
   }
 
   /** What another width would have done with the same guess: the narrowest
@@ -383,10 +391,12 @@ K.game = (() => {
 
   /** The reveal: anticipation → impact → outcome → climb. */
   async function playReveal(fact, result, replay) {
+    const my = gen;   // boot() mid-reveal (Menu → Today, a run…) ends this reveal at its next await
     // the ticket punch: a fresh lock with a guess (tapped, or the fuse at 0 s)
     K.round.lockVisual({ punch: !replay && result.guess != null });
     K.fx.haptic(10);
     await K.round.dropNeedle(result.guess, { quiet: replay });
+    if (my !== gen || !live) return;
 
     const pin = result.hit && result.chip === 4;
     const bp = K.round.bandPoint();
@@ -396,6 +406,7 @@ K.game = (() => {
     if (!replay) {
       if (result.hit) {
         await K.fx.hitstop(pin ? 240 : 110);
+        if (my !== gen || !live) return;
         const col = CHIP_HEX[result.chip];
         K.fx.embers(bp.x, bp.y, { count: pin ? 48 : 26, color: col, speed: pin ? 300 : 220 });
         const gain = K.units.legText(S.kmOf(result.ptsAfter - result.delta), S.kmOf(result.ptsAfter));
@@ -416,6 +427,7 @@ K.game = (() => {
 
     K.round.renderLegs(-1, live.rounds);
     await K.fx.sleep(replay ? 0 : 380);
+    if (my !== gen || !live) return;
     const i = live.round;
     K.round.showResult({
       hit: result.hit, chipIdx: result.chip, delta: result.delta, ptsAfter: result.ptsAfter, clue: result.clue,
@@ -539,8 +551,9 @@ K.game = (() => {
       });
       K.ui.show('round');
       busy = true;
+      const my = gen;
       await playReveal(fact, r, true);
-      busy = false;
+      if (my === gen) busy = false;
     }
   }
 

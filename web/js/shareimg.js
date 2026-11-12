@@ -215,7 +215,60 @@ K.shareImage = (() => {
     ctx.fillText(`${hits}/${record.rounds.length} LEGS LANDED${clue}`, x0, y + r + 46);
   }
 
-  function stub(ctx, record, n, streak) {
+  /* First class: the two-colour seal from the welcome card, stamped on the
+     stub. Ring, disc, ∞ and stars come from K.ui.fcSeal as an SVG image; the
+     arc lettering is set here glyph by glyph, because text inside an SVG
+     image can't reach the page's web fonts. Resolves to a canvas, or null. */
+  const SEAL = { x: 934, y: 1132, px: 160, deg: -12 };
+  function arcText(ctx, str, r, font, spacing, top) {
+    ctx.font = font;
+    const ws = [...str].map((c) => ctx.measureText(c).width + spacing);
+    const total = ws.reduce((a, b) => a + b, 0) - spacing;
+    let a = top ? -Math.PI / 2 - total / r / 2 : Math.PI / 2 + total / r / 2;
+    ctx.textAlign = 'center';
+    [...str].forEach((c, i) => {
+      const half = (ws[i] - spacing) / 2 / r;
+      const mid = top ? a + half : a - half;
+      ctx.save();
+      ctx.rotate(top ? mid + Math.PI / 2 : mid - Math.PI / 2);
+      ctx.textBaseline = top ? 'alphabetic' : 'top';
+      ctx.fillText(c, 0, top ? -r : r);
+      ctx.restore();
+      a += (top ? 1 : -1) * ws[i] / r;
+    });
+  }
+  async function seal(px) {
+    if (!K.ui || !K.ui.fcSeal) return null;
+    const svg = K.ui.fcSeal(px, true);
+    const img = await new Promise((res) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = () => res(null);
+      im.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    });
+    if (!img) return null;
+    const k = px / 120;
+    const off = document.createElement('canvas');
+    off.width = off.height = px;
+    const o = off.getContext('2d');
+    o.drawImage(img, 0, 0, px, px);
+    o.save();
+    o.translate(px / 2, px / 2);
+    o.fillStyle = NAVY;
+    arcText(o, 'FIRST CLASS', 40 * k, `800 ${14.6 * k}px ${DISPLAY}`, 1.7 * k, true);
+    arcText(o, 'UNLIMITED', 47.8 * k - 8.6 * k * 0.95, `500 ${8.6 * k}px ${MONO}`, 1.9 * k, false);
+    o.restore();
+    // Worn ink: a scatter of pinholes knocked out of everything, the same on every card.
+    o.globalCompositeOperation = 'destination-out';
+    const r = rng(7);
+    for (let i = 0; i < px * 5; i++) {
+      o.globalAlpha = 0.25 + r() * 0.6;
+      o.beginPath(); o.arc(r() * px, r() * px, 0.4 + (r() * 1.4 * k) / 2, 0, Math.PI * 2); o.fill();
+    }
+    return off;
+  }
+
+  function stub(ctx, record, n, streak, fcSeal) {
     // Cream paper with two half-circle notches at the perforation.
     ctx.fillStyle = CREAM;
     ctx.fillRect(0, STUB_Y, W, H - STUB_Y);
@@ -240,7 +293,9 @@ K.shareImage = (() => {
     ctx.font = `800 64px ${DISPLAY}`;
     ctx.fillText('GROUND', 80, STUB_Y + 160);
     ctx.font = `800 80px ${DISPLAY}`;
-    ctx.fillText(fit(ctx, layer, W - 470 - 80, 80), 470, STUB_Y + 166);
+    // With the seal in the corner, the layer name stops short of it.
+    const layerW = fcSeal ? SEAL.x - SEAL.px / 2 - 24 - 470 : W - 470 - 80;
+    ctx.fillText(fit(ctx, layer, layerW, 80), 470, STUB_Y + 166, layerW);   // maxWidth: never past its room
     // Arrow
     ctx.strokeStyle = NAVY;
     ctx.lineWidth = 4;
@@ -269,6 +324,16 @@ K.shareImage = (() => {
     ctx.fillStyle = NAVY;
     ctx.font = `800 40px ${DISPLAY}`;
     ctx.fillText(K.CONFIG.SHARE_URL.toUpperCase(), W - 80, STUB_Y + 252);
+
+    if (fcSeal) {
+      ctx.save();
+      ctx.translate(SEAL.x, SEAL.y);
+      ctx.rotate((SEAL.deg * Math.PI) / 180);
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalAlpha = 0.94;
+      ctx.drawImage(fcSeal, -SEAL.px / 2, -SEAL.px / 2);
+      ctx.restore();
+    }
   }
 
   /** The sky the flight was flown under (daily weather, or the Unlimited run's). */
@@ -363,7 +428,9 @@ K.shareImage = (() => {
       ctx.fillText(`Higher than ${pct}% of today's pilots`, x0 + 6, 930);
     }
 
-    stub(ctx, record, n, streak);
+    let fc = null;
+    if (K.access && K.access.unlimited()) { try { fc = await seal(SEAL.px); } catch (e) { fc = null; } }
+    stub(ctx, record, n, streak, fc);
 
     return new Promise((res) => cv.toBlob((b) => res(b), 'image/png'));
   }
