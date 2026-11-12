@@ -5243,6 +5243,9 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
 .rc-holes button.on { color: transparent; background: #1B2A4A; transform: scale(0.84); box-shadow: inset 0 1.5px 2px rgba(0, 0, 0, 0.55), 0 0.5px 0 rgba(255, 250, 240, 0.9); }
 .rc-holes button.on:hover, .rc-holes button.on:focus-visible { color: #FFB547; background: #1B2A4A; box-shadow: inset 0 1.5px 2px rgba(0, 0, 0, 0.55), 0 0 0 1.5px #FFB547; }
 .rc-holes button.fresh:hover { background: #FFC56B; }
+/* the run in progress (parked or in the air): a dashed amber ring, number showing */
+.rc-holes button.wip { color: #14213D; font-weight: 600; outline: 1.5px dashed #FFB547; outline-offset: 2px; }
+.rc-holes button.wip.on { color: #FFB547; }
 @media (prefers-reduced-motion: reduce) { .nr-stamp { animation: none; } .rc-holes button { transition: none; } .rc-holes button:active { transform: none; } }
 
 /* Fly run Nº [__] › : for "do run 12" */

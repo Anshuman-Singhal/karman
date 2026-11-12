@@ -864,7 +864,7 @@ K.ui = (() => {
           <span class="bt-stub"><small>NEXT</small><b>${nextMonday().replace(/^(\w+) /, '$1<br>')}</b></span></div>`;
     const holes = Array.from({ length: total }, (_, i) => i + 1)
       .map((k) => (F.first
-        ? `<button type="button" class="${done.has(k) ? 'on' : F.fresh.includes(k) ? 'fresh' : ''}" data-run="${k}" aria-label="Fly run ${k}${done.has(k) ? ' (flown)' : F.fresh.includes(k) ? ' (new)' : ''}">${k}</button>`
+        ? `<button type="button" class="${done.has(k) ? 'on' : F.fresh.includes(k) ? 'fresh' : ''}${F.wip && F.wip.run === k ? ' wip' : ''}" data-run="${k}" aria-label="${F.wip && F.wip.run === k ? `Resume run ${k} (in progress)` : `Fly run ${k}${done.has(k) ? ' (flown)' : F.fresh.includes(k) ? ' (new)' : ''}`}">${k}</button>`
         : `<i class="${done.has(k) ? 'on' : ''}" title="Run ${k}${done.has(k) ? ' · flown' : ''}">${k}</i>`)).join('');
     const card = `<div class="licence run-card${F.first ? ' rc-any' : ''}">
         ${F.stamp}<div class="lic-strip">RUN CARD · KÁRMÁN AIR</div>

@@ -174,7 +174,7 @@ K.vehicle = (() => {
   const LIVERIES = {
     vermilion: { gores: [GORE_RED, GORE_RED], pin: C.amber, nose: C.ember, fins: C.ember },
     midnight: { gores: [C.navy, C.navy], pin: C.amber, nose: C.amber, fins: C.amber },
-    airmail: { gores: [C.navy, GORE_RED], pin: C.cream, nose: C.ember, fins: C.navy },
+    airmail: { gores: [C.navy, GORE_RED], pin: C.cream, nose: C.ember, fins: C.navy, trim: '#C4402A' },   // trim: a red stripe on the fins' trailing edges
     gold: { gores: [C.amber, C.amber], pin: C.navy, nose: C.navy, fins: C.amber },
   };
   let livId = 'vermilion';
@@ -349,11 +349,13 @@ K.vehicle = (() => {
               <path class="v-acc-f" d="M86,138 L68,178 L68,186 L86,175Z" fill="${C.ember}"/>
               <path d="M86,138 L68,178 L68,186 L86,175Z" fill="${C.night}" opacity=".18"/>
               ${inked('M86,138 L68,178 L68,186 L86,175', 0.6, 1)}
+              <path class="v-trim" d="M68.6,184.6 L85.6,174.2" fill="none" stroke-width="2.2" stroke-linecap="round" stroke="none"/>
             </g>
             <g class="v-finr" style="transform-origin:114px 174px">
               <path class="v-acc-f" d="M114,138 L132,178 L132,186 L114,175Z" fill="${C.ember}"/>
               ${hatch('M114,138 L132,178 L132,186 L114,175Z', 0.45)}
               ${inked('M114,138 L132,178 L132,186 L114,175', 0.6, 1)}
+              <path class="v-trim" d="M131.4,184.6 L114.4,174.2" fill="none" stroke-width="2.2" stroke-linecap="round" stroke="none"/>
             </g>
             <path d="M86,92 L114,92 L114,168 L86,168Z" fill="${C.paper}"/>
             <path d="M86,92 L114,92 L114,168 L86,168Z" fill="url(#v-body)"/>
@@ -425,11 +427,12 @@ K.vehicle = (() => {
     // Navy paint would vanish into the night sky: it gets a cream pinline.
     const paint = (sel, c) => svg.querySelectorAll(sel).forEach((n) => {
       n.setAttribute('fill', c);
-      if (c === C.navy) { n.setAttribute('stroke', C.cream); n.setAttribute('stroke-width', '1.3'); n.setAttribute('stroke-opacity', '.8'); n.setAttribute('stroke-linejoin', 'round'); }
+      if (c === C.navy) { n.setAttribute('stroke', '#F3E7D3'); n.setAttribute('stroke-width', '1.5'); n.setAttribute('stroke-opacity', '.6'); n.setAttribute('stroke-linejoin', 'round'); }
       else n.removeAttribute('stroke');
     });
     paint('.v-acc-n', liv().nose);
     paint('.v-acc-f', liv().fins);
+    svg.querySelectorAll('.v-trim').forEach((n) => n.setAttribute('stroke', liv().trim || 'none'));
     drawEnvelope(gores.phase);
   }
 
