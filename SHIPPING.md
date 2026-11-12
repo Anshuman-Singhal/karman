@@ -80,7 +80,9 @@ Prefer the terminal? `npx wrangler login` then `npx wrangler deploy` from the pr
 
 What the stats store: one row per device per flight with the final points and which legs hit. No names, no answers. The device id is a random UUID created in the player's browser. Each flight's stats are cached at the edge for 60 seconds.
 
-Live vs. local is automatic (`K.LIVE` in `config.js`): on karman.day the stats are on and the dev strip is hidden; on your laptop the dev strip shows and stats are off. Add `?dev` to the address (`karman.day/?dev`) to get the dev strip on the live site.
+Live vs. local is automatic (`K.LIVE` in `config.js`): on karman.day the stats are on and the dev strip is hidden; on your laptop the dev strip shows and stats are off. Add `?dev` to the address (`karman.day/?dev`) to get the dev strip on the live site; a `?dev` session writes no stats, visits or events (results show clearly-labelled sample numbers instead).
+
+**Flight deck (karman.day/dev).** One request (`/api/admin/stats`, cached 10 minutes; Refresh at most once a minute). It reads small pre-aggregated tables (`pilots`, `day_stats`, `cohort_ret`, `counters`, `payments`) that the Worker keeps itself; right after the first deploy the page catches up on history a slice per build (a few Refreshes; Tools → Data shows progress). Your Google account is left out of every number as soon as you sign in; use Tools → Data → "Leave out my plays" on each browser you play on. Optional: a `CF_API_TOKEN` secret (Account Analytics: Read) plus `CF_ACCOUNT_ID` (and `D1_DATABASE_ID`) vars make the page show today's D1 rows read against the 5M/day cap.
 
 ### 1.5 Tests on every push
 
@@ -232,6 +234,6 @@ Every buyer gets one thank-you email from hello@karman.day (replies land in your
 2. Domains → Add domain → `karman.day`. Resend shows a few DNS records (an MX + TXT on a `send.` subdomain and a DKIM TXT). Add them in Cloudflare → karman.day → DNS (or use Resend's one-click Cloudflare button). They don't touch your existing Email Routing for hello@.
 3. Wait for "Verified", then API Keys → Create API key (permission: Sending access, domain: karman.day).
 4. Cloudflare → Workers & Pages → karman → Settings → Variables and Secrets → Add → type **Secret**, name `RESEND_API_KEY`, paste the key. Deploy.
-5. Open karman.day/dev → Thank-you emails: it should say On. Press "Thank N earlier buyers" once to thank everyone who bought before.
+5. Open karman.day/dev → Tools → Thank-you emails: it should say On, with a log of the latest sends and a "Send test to me" button. The dashboard warns if a buyer is still unthanked a day after paying.
 Also worth turning on: Stripe → Settings → Customer emails → "Successful payments", so buyers get a receipt.
 6. Optional, to REPLY as hello@karman.day from Gmail: Gmail → Settings → Accounts and Import → "Send mail as" → Add another email address → name KÁRMÁN, address hello@karman.day, untick "Treat as an alias" → SMTP server smtp.resend.com, port 465, SSL, username `resend`, password = a Resend API key → Gmail emails a code to hello@karman.day, which Email Routing forwards to you; paste it. Then pick "From: hello@karman.day" when replying.

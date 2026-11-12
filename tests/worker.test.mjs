@@ -229,6 +229,9 @@ check((await call('/api/admin/passes', { headers: { authorization: 'Bearer 99999
 check((await call('/api/admin/thanks')).status === 401, 'thank-you status needs the owner');
 const th = await (await call('/api/admin/thanks', { headers: A })).json();
 check(th.on === false && th.sent === 1 && th.waiting >= 1, 'thank-you status: off, one sent, earlier buyers waiting');
+check(th.recent.length === 1 && th.recent[0].email === 'fa•••@b.c' && th.recent[0].kind === 'new' && !('sub' in th.recent[0]) && th.late === 0, 'thank-you log: latest sends, masked, no account ids');
+db.exec("INSERT INTO users (sub, email, unlimited, paid_at) VALUES ('g-late', 'late@b.c', 1, datetime('now', '-2 days'))");
+check((await (await call('/api/admin/thanks', { headers: A })).json()).late === 1, 'a buyer unthanked a day after paying is flagged (the automatic send failed)');
 {
   env.RESEND_API_KEY = 're_test';
   const mails = []; const f0 = globalThis.fetch;

@@ -24,7 +24,7 @@
      POST /api/admin/passes { note }                         → { code }     make one
      POST /api/admin/passes/:code { active }                 → { ok }       revoke / restore
      DELETE /api/admin/passes/:code                          → { ok }       delete for good
-     GET  /api/admin/thanks                                  → { on, sent, waiting }   buyer thank-you emails
+     GET  /api/admin/thanks                                  → { on, sent, waiting, late, recent }   buyer thank-you emails
      POST /api/admin/thanks                                  → { sent, failed }        thank earlier buyers now
      POST /api/admin/thanks { test: email }                  → { test }                a test copy, nothing marked
 
@@ -520,6 +520,7 @@ async function isAdmin(request, env) {
 /* Thank-you emails to buyers: how many went out, how many paying accounts
    haven't had one (bought before it existed, or before the key was set), and
    a button's worth of POST to send those now. */
+const maskEmail = (e) => { const [u, d] = String(e || '').split('@'); return d ? `${u.slice(0, 2)}•••@${d}` : ''; };
 async function adminThanks(request, env) {
   if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
   const waitingQ = "SELECT u.sub, u.email FROM users u LEFT JOIN thanks t ON t.sub = u.sub WHERE u.unlimited = 1 AND t.sub IS NULL AND u.email IS NOT NULL AND u.email != ''";
@@ -534,7 +535,17 @@ async function adminThanks(request, env) {
   }
   const sent = await env.DB.prepare('SELECT COUNT(*) AS c FROM thanks').first();
   const waiting = await env.DB.prepare(`SELECT COUNT(*) AS c FROM (${waitingQ})`).first();
-  return json({ on: Boolean(env.RESEND_API_KEY), sent: sent.c || 0, waiting: waiting.c || 0 }, { headers: { 'cache-control': 'no-store' } });
+  // The log the dashboard shows: latest sends (email masked, no account ids), and
+  // paying accounts still unthanked a day after paying (an automatic send failed).
+  const recent = ((await env.DB.prepare(`SELECT t.email, t.sent, u.paid_at FROM thanks t LEFT JOIN users u ON u.sub = t.sub
+    WHERE t.sub NOT IN (SELECT sub FROM ignore_subs) ORDER BY t.sent DESC LIMIT 10`).all()).results || []).map((r) => ({
+    email: maskEmail(r.email), sent: r.sent,
+    kind: r.paid_at && Date.parse(`${r.sent.replace(' ', 'T')}Z`) - Date.parse(`${r.paid_at.replace(' ', 'T')}Z`) > 864e5 ? 'earlier' : 'new',
+  }));
+  const late = await env.DB.prepare(`SELECT COUNT(*) AS c FROM users u LEFT JOIN thanks t ON t.sub = u.sub
+    WHERE u.unlimited = 1 AND t.sub IS NULL AND u.paid_at IS NOT NULL AND u.paid_at < datetime('now', '-1 day')
+      AND u.email IS NOT NULL AND u.email != '' AND u.sub NOT IN (SELECT sub FROM ignore_subs)`).first();
+  return json({ on: Boolean(env.RESEND_API_KEY), sent: sent.c || 0, waiting: waiting.c || 0, late: (late && late.c) || 0, recent }, { headers: { 'cache-control': 'no-store' } });
 }
 
 /* GET /api/admin/stats: everything the flight deck shows, built by
