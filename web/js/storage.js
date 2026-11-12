@@ -17,6 +17,7 @@
      runs:   [FlightRecord],                     // Unlimited runs (latest 50)
      seen:   [factId],                           // Unlimited questions already dealt
      freeRunUsed: boolean,                       // the one free Unlimited run
+     runsSeen: number | null,                    // Unlimited runs already announced (first class: "+N NEW")
      access: { unlimited, via: 'stripe'|'code'|null, code, session, checkedAt, pending, email },
      sync:   { ver, at }                           // cloud copy version (sync.js)
      reported: { [factId]: true }
@@ -40,7 +41,7 @@ K.storage = (() => {
       stats: { flights: 0, bestAlt: 0, chip: [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0]] },
       stamps: {},
       stampCounts: {},
-      prefs: {},            // { units: 'metric' | 'imperial', sound: true | false }
+      prefs: {},            // { units: 'metric' | 'imperial', sound: true | false, livery: 'vermilion' | 'midnight' | 'airmail' | 'gold' }
       device: null,         // random id for anonymous comparison stats
       pilot: null,          // seed for the Pilot Nº; follows the Google account across devices
       seenHelp: false,
@@ -55,6 +56,7 @@ K.storage = (() => {
       lastChip: null,       // the width you used last; new legs start on it
       runNext: 1,           // (unused since random runs; kept for old saves)
       runsDone: [],         // numbered Unlimited runs this pilot has flown (no repeats until all done)
+      runsSeen: null,       // how many Unlimited runs had landed when this pilot last looked (null: set silently on next boot)
       unlimitedCount: 0,    // how many Unlimited flights: shown as Unlimited · Flight #N           // flights left mid-way when switching modes, by slot
     };
   }

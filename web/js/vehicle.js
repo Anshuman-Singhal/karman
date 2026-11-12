@@ -144,7 +144,7 @@ K.vehicle = (() => {
   function capsuleArt() {
     return `
       <path d="${CBODY}" fill="${C.paper}"/><path d="${CBODY}" fill="url(#v-body)"/>
-      <path d="${DOME}" fill="${C.ember}"/>
+      <path class="v-acc" d="${DOME}" fill="${C.ember}"/>
       <path d="M100,38 C108,38 114,45 114,58 L106,58 C106,47 103.5,41 100,38Z" fill="${C.night}" opacity=".22"/>
       <path d="M90.5,53 C91,46 94.5,41.5 98.5,40" fill="none" stroke="${C.cream}" stroke-opacity=".85" stroke-width="1.1" stroke-linecap="round"/>
       ${hatch('M107,58 L114,58 L114,90 L107,90Z', 0.4)}
@@ -167,6 +167,18 @@ K.vehicle = (() => {
   /* The gores are drawn in multiply over the cream paint: this red lands on
      the poster's vermilion (#D9452B) once the sheet shows through it. */
   const GORE_RED = '#F0563A';
+  /* First-class liveries (Account → Livery). gores: the fills of gore k%3 = 0
+     and 1 (k%3 = 2 is the bare painted sheet); pin: the seam pinline; acc: the
+     rocket's painted accents (dome, fins, band), amber where ember would sink
+     into a dark envelope's night sky. Everyone else flies Vermilion. */
+  const LIVERIES = {
+    vermilion: { gores: [GORE_RED, GORE_RED], pin: C.amber, acc: C.ember },
+    midnight: { gores: [C.navy, C.navy], pin: C.amber, acc: C.amber },
+    airmail: { gores: [C.navy, GORE_RED], pin: C.cream, acc: C.ember },
+    gold: { gores: [C.amber, C.amber], pin: C.navy, acc: C.amber },
+  };
+  let livId = 'vermilion';
+  const liv = () => LIVERIES[livId];
   function inlinePaint() {
     if (!window.fetch || !window.FileReader) return;
     svg.querySelectorAll('.v-paint').forEach((im) => {
@@ -320,7 +332,7 @@ K.vehicle = (() => {
         <g class="v-pleats" fill="none" stroke="${C.paper}" stroke-opacity=".5" stroke-width=".7"></g>
         <ellipse class="v-valve" cx="100" cy="10" rx="6" ry="2" fill="${C.amber}"/>
         <line x1="100" y1="118" x2="100" y2="150" stroke="${C.paper}" stroke-opacity=".7" stroke-width=".9"/>
-        <path d="M95,126 L105,126 L101.5,134 L98.5,134Z" fill="${C.ember}"/>
+        <path class="v-acc" d="M95,126 L105,126 L101.5,134 L98.5,134Z" fill="${C.ember}"/>
       </g>
 
       <!-- STAGES 2–3: the rocket (hangs small under the balloon, then flies) -->
@@ -334,19 +346,19 @@ K.vehicle = (() => {
           </g>
           <g class="v-booster" style="transform-origin:100px 130px">
             <g class="v-finl" style="transform-origin:86px 174px">
-              <path d="M86,138 L68,178 L68,186 L86,175Z" fill="${C.ember}"/>
+              <path class="v-acc" d="M86,138 L68,178 L68,186 L86,175Z" fill="${C.ember}"/>
               <path d="M86,138 L68,178 L68,186 L86,175Z" fill="${C.night}" opacity=".18"/>
               ${inked('M86,138 L68,178 L68,186 L86,175', 0.6, 1)}
             </g>
             <g class="v-finr" style="transform-origin:114px 174px">
-              <path d="M114,138 L132,178 L132,186 L114,175Z" fill="${C.ember}"/>
+              <path class="v-acc" d="M114,138 L132,178 L132,186 L114,175Z" fill="${C.ember}"/>
               ${hatch('M114,138 L132,178 L132,186 L114,175Z', 0.45)}
               ${inked('M114,138 L132,178 L132,186 L114,175', 0.6, 1)}
             </g>
             <path d="M86,92 L114,92 L114,168 L86,168Z" fill="${C.paper}"/>
             <path d="M86,92 L114,92 L114,168 L86,168Z" fill="url(#v-body)"/>
             ${hatch('M107,92 L114,92 L114,168 L107,168Z', 0.4)}
-            <rect x="86" y="150" width="28" height="8" fill="${C.ember}"/>
+            <rect class="v-acc" x="86" y="150" width="28" height="8" fill="${C.ember}"/>
             <path d="M86,150 L93,158 M93,150 L100,158 M100,150 L107,158 M107,150 L114,158" stroke="${C.paper}" stroke-opacity=".55" stroke-width="1.2"/>
             <rect x="86" y="92" width="28" height="3" fill="${C.navy}"/>
             <path d="M97,144 L103,144 L103,182 L97,182Z" fill="${C.navy}"/>
@@ -402,6 +414,41 @@ K.vehicle = (() => {
     el.tapePool = pool(el.tapes, 10);
     el.pleatPool = pool(el.pleats, 3);
     inlinePaint();
+    setLivery(livId);
+  }
+
+  /** Paint the craft in a livery (unknown ids fly Vermilion). */
+  function setLivery(id) {
+    livId = LIVERIES[id] ? id : 'vermilion';
+    if (!svg) return;
+    el.pins.setAttribute('stroke', liv().pin);
+    svg.querySelectorAll('.v-acc').forEach((n) => n.setAttribute('fill', liv().acc));
+    drawEnvelope(gores.phase);
+  }
+
+  /** A still balloon on its basket in a livery, as SVG markup (the Account
+      swatches): the live craft, cloned, with its own ids, gores drawn at rest. */
+  let swN = 0;
+  function swatch(id, viewBox = '36 -2 128 170') {
+    if (!svg) return '';
+    const L = LIVERIES[id] || LIVERIES.vermilion;
+    const c = svg.cloneNode(true);
+    c.querySelectorAll('.v-helium, .v-payload, .v-orbiter, .v-gondola, .v-glowwrap, .v-frost').forEach((n) => n.remove());
+    ['.v-hot', '.v-basket', '.v-swing', '.v-flame'].forEach((s) => { const n = c.querySelector(s); if (n) n.removeAttribute('style'); });
+    c.querySelectorAll('.v-paint').forEach((n) => n.setAttribute('href', ENV_SRC));
+    c.querySelector('.v-pins').setAttribute('stroke', L.pin);
+    const q = (s) => [...c.querySelectorAll(`${s} path`)];
+    drawEnvelope(0.35, { gorePool: q('.v-gores'), pinPool: q('.v-pins'), teethPool: q('.v-teeth'), medal: c.querySelector('.v-medal') }, L, 12);
+    ['id', 'class', 'style', 'width', 'height'].forEach((a) => c.removeAttribute(a));
+    c.setAttribute('viewBox', viewBox);
+    c.setAttribute('preserveAspectRatio', 'xMidYMax meet');
+    c.setAttribute('aria-hidden', 'true');
+    c.setAttribute('focusable', 'false');
+    let xml = c.outerHTML;
+    const k = ++swN;
+    const ids = [...c.querySelectorAll('[id]')].map((n) => n.id);
+    ids.forEach((i) => { xml = xml.split(`id="${i}"`).join(`id="${i}-s${k}"`).split(`#${i})`).join(`#${i}-s${k})`).split(`href="#${i}"`).join(`href="#${i}-s${k}"`); });
+    return xml;
   }
 
   function pool(parent, n) {
@@ -635,8 +682,9 @@ K.vehicle = (() => {
     lastKm = km;
   }
 
-  function drawEnvelope(phase) {
-    const N = gores.n, step = (Math.PI * 2) / N;
+  function drawEnvelope(phase, t = el, L = liv(), N = gores.n) {
+    if (!t.gorePool) return;
+    const step = (Math.PI * 2) / N;
     let g = 0, p = 0, th = 0;
     const wrap = (a) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
     const r1 = rAt(126), r2 = rAt(138);
@@ -647,33 +695,33 @@ K.vehicle = (() => {
       const lo = Math.max(a0, -EDGE), hi = Math.min(b, EDGE);
       const isEmber = k % 3 !== 2;
       // The cream gores are the painted sheet itself; only the ember ones are drawn.
-      if (hi > lo && isEmber && g < el.gorePool.length) {
-        const path = el.gorePool[g++];
+      if (hi > lo && isEmber && g < t.gorePool.length) {
+        const path = t.gorePool[g++];
         path.setAttribute('d', gorePath(lo, hi));
-        path.setAttribute('fill', GORE_RED);
+        path.setAttribute('fill', L.gores[k % 3]);
       }
       // Seam pinline between the two ember gores of each pair.
       if (k % 3 === 0) {
         const seam = wrap(b);
-        if (Math.abs(seam) < EDGE && p < el.pinPool.length) el.pinPool[p++].setAttribute('d', meridianPath(seam));
+        if (Math.abs(seam) < EDGE && p < t.pinPool.length) t.pinPool[p++].setAttribute('d', meridianPath(seam));
       }
       // Tooth: one navy triangle per gore under the belly. Clipped like the
       // gores, so a tooth turns into view gradually instead of popping.
-      if (hi > lo && hi - lo > 0.02 && th < el.teethPool.length) {
+      if (hi > lo && hi - lo > 0.02 && th < t.teethPool.length) {
         const c = (lo + hi) / 2;
-        el.teethPool[th++].setAttribute('d', `M${(100 + r1 * Math.sin(lo)).toFixed(2)},126 L${(100 + r1 * Math.sin(hi)).toFixed(2)},126 L${(100 + r2 * Math.sin(c)).toFixed(2)},138Z`);
+        t.teethPool[th++].setAttribute('d', `M${(100 + r1 * Math.sin(lo)).toFixed(2)},126 L${(100 + r1 * Math.sin(hi)).toFixed(2)},126 L${(100 + r2 * Math.sin(c)).toFixed(2)},138Z`);
       }
     }
-    for (let i = g; i < el.gorePool.length; i++) el.gorePool[i].setAttribute('d', '');
-    for (let i = p; i < el.pinPool.length; i++) el.pinPool[i].setAttribute('d', '');
-    for (let i = th; i < el.teethPool.length; i++) el.teethPool[i].setAttribute('d', '');
+    for (let i = g; i < t.gorePool.length; i++) t.gorePool[i].setAttribute('d', '');
+    for (let i = p; i < t.pinPool.length; i++) t.pinPool[i].setAttribute('d', '');
+    for (let i = th; i < t.teethPool.length; i++) t.teethPool[i].setAttribute('d', '');
     // Medallion: rides the first ember seam round the envelope.
     const theta = wrap(phase + step);
     const cs = Math.cos(theta);
     if (cs > 0.05) {
-      el.medal.style.visibility = 'visible';
-      el.medal.setAttribute('transform', `translate(${(100 + 62 * Math.sin(theta)).toFixed(2)} 70) scale(${cs.toFixed(3)} 1)`);
-    } else el.medal.style.visibility = 'hidden';
+      t.medal.style.visibility = 'visible';
+      t.medal.setAttribute('transform', `translate(${(100 + 62 * Math.sin(theta)).toFixed(2)} 70) scale(${cs.toFixed(3)} 1)`);
+    } else t.medal.style.visibility = 'hidden';
   }
 
   function drawHelium(f, phase) {
@@ -744,5 +792,5 @@ K.vehicle = (() => {
     return s <= 1 ? [100, 70] : s === 2 ? [100, 50] : s === 3 ? [100, 70] : [100, 126];
   }
 
-  return { build, frame, set, setGores, spin, kick, anchor, stageOf, get stage() { return stage; }, STAGES };
+  return { build, frame, set, setGores, spin, kick, anchor, stageOf, setLivery, swatch, get livery() { return livId; }, get stage() { return stage; }, STAGES };
 })();

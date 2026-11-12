@@ -15,7 +15,7 @@ const web = path.join(__dirname, '..', 'web', 'js');
 const ctx = { window: {}, console, Math, Date, Number, String, Map, Set, Array, Object, JSON, Intl, crypto: globalThis.crypto, Boolean, setTimeout, clearTimeout };
 ctx.window = ctx;
 vm.createContext(ctx);
-for (const f of ['config.js', 'prng.js', 'date.js', 'data/content.js', 'scoring.js', 'daily.js', 'units.js', 'storage.js', 'sync.js']) {
+for (const f of ['config.js', 'prng.js', 'date.js', 'data/content.js', 'scoring.js', 'daily.js', 'units.js', 'storage.js', 'sync.js', 'firstclass.js']) {
   vm.runInContext(fs.readFileSync(path.join(web, f), 'utf8'), ctx, { filename: f });
 }
 const K = ctx.K;
@@ -255,6 +255,32 @@ section('Legs add up');
   K.storage.data.prefs.units = 'metric';
   check(K.units.climbText(100 - 57.6) === '+42.4 km', 'no float noise in climb text');
   K.storage = store;
+}
+
+/* ---- first class: livery, new runs, any run, run log ---- */
+section('First class');
+{
+  const F = K.fc;
+  check(F.liveryOf({ livery: 'midnight' }, true) === 'midnight', 'a first-class pilot flies the livery they picked');
+  check(F.liveryOf({ livery: 'midnight' }, false) === 'vermilion', 'without Unlimited (or after a revoke) the craft flies Vermilion');
+  check(F.liveryOf({}, true) === 'vermilion' && F.liveryOf({ livery: 'chrome' }, true) === 'vermilion' && F.liveryOf(null, true) === 'vermilion', 'no pick or an unknown one: Vermilion');
+  check(F.LIVERIES.map((l) => l.id).join() === 'vermilion,midnight,airmail,gold', 'four liveries, house colours first');
+  check(F.freshRuns(43, 40, [1, 3, 42]).join() === '41,43', 'fresh runs: landed since last look, not yet flown, lowest first');
+  check(F.freshRuns(43, 43, []).length === 0 && F.freshRuns(43, null, []).length === 0 && F.freshRuns(40, 43, []).length === 0, 'nothing fresh when all seen, never set, or the schedule shrank');
+  check(F.parseRun('12', 40) === 12 && F.parseRun(' #7 ', 40) === 7 && F.parseRun('Run 40', 40) === 40, 'run numbers parse from "12", "#7", "Run 40"');
+  check(F.parseRun('0', 40) === null && F.parseRun('41', 40) === null && F.parseRun('', 40) === null && F.parseRun('abc', 40) === null, 'run 0, past the last run, or no number: refused');
+  const rec = (run, alt, hits, at) => ({ mode: 'unlimited', run, alt, pts: Math.round(alt * 10), at, done: true, rounds: Array.from({ length: 7 }, (_, i) => ({ chip: 2, hit: i < hits })) });
+  const st = F.runLogStats([rec(7, 63.8, 6, 3), rec(3, 41.2, 7, 1), rec(18, 87.1, 7, 5), rec(7, 50, 5, 9)], [1, 3, 7, 18, 99], 40);
+  check(st.n === 4 && st.list.map((r) => r.run).join() === '3,7,18,7', 'run log: every saved run, in the order flown');
+  check(st.flown === 4 && st.best.run === 18 && st.perfect === 2, `run log: 4 distinct runs flown (out-of-range ignored), best Run 18, 2 perfect (got ${st.flown}/${st.best.run}/${st.perfect})`);
+  check(Math.abs(st.avg - (63.8 + 41.2 + 87.1 + 50) / 4) < 1e-9, 'run log: average altitude');
+  const none = F.runLogStats([], [1], 40);
+  check(none.n === 0 && none.flown === 1 && !none.best, 'run log with no saved runs: a count, no best');
+  const M = realStorage.migrate;
+  const old = M({ v: 1, launch: '2026-10-7', runsDone: [1, 2], prefs: { units: 'metric' } });
+  check(old.runsSeen === null && old.prefs.units === 'metric' && !old.prefs.livery, 'an old save loads with runsSeen unset and its prefs untouched');
+  const kept = M({ v: 1, launch: '2026-10-7', runsSeen: 37, prefs: { livery: 'gold' } });
+  check(kept.runsSeen === 37 && kept.prefs.livery === 'gold', 'runsSeen and the livery survive a reload');
 }
 
 console.log(failures ? `\n${failures} check(s) failed.` : '\nAll checks passed.');

@@ -108,6 +108,7 @@ K.game = (() => {
     stopTimer();
     busy = false;
     store = K.storage.load();
+    if (K.fc) K.fc.boot();   // first class: livery on the craft, new runs counted
     today = devFlight != null ? devFlight : K.date.flightNumber();
     // Which flight? The one asked for, else TODAY. Opening the site (a link, a search
     // result, a refresh) always lands on today's flight; an Unlimited or archive run left
