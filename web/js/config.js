@@ -35,8 +35,10 @@ K.CONFIG = {
   THERMAL_MAX: 2,
 
   /* Comparison stats ("higher than 72% of pilots"). On automatically on the
-     live site, where the Worker answers /api/*. API_BASE '' = same domain. */
-  STATS: K.LIVE,
+     live site, where the Worker answers /api/*. API_BASE '' = same domain.
+     Only on karman.day itself: a *.workers.dev preview shares the production
+     database, so it never writes results, visits or events. */
+  STATS: K.LIVE && /(^|\.)karman\.day$/.test(location.hostname),
   API_BASE: '',
   /* Preview the stats design with clearly-labelled SAMPLE numbers when there
      is no backend. Only active while DEV is true. */

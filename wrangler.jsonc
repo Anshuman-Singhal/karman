@@ -17,6 +17,13 @@
   // Public values (the Google Client ID is not a secret). Stripe keys and
   // SESSION_SECRET are set as secrets in the Cloudflare dashboard, never here.
   "vars": { "GOOGLE_CLIENT_ID": "356308228840-6jim0vk3hpq8c3abg07hajgmt3lb9ege.apps.googleusercontent.com", "PRICE_CENTS": 599 },
+  // Per-IP limit for the anonymous write endpoints (/api/hit, /api/event,
+  // /api/report, /api/result): 30 requests a minute per IP and endpoint, counted
+  // per Cloudflare location. The Worker fails open if the binding is missing or
+  // errors. Needs Wrangler 4.36 or later.
+  "ratelimits": [
+    { "name": "LIMITER", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }
+  ],
   "d1_databases": [
     { "binding": "DB", "database_name": "karman" }
   ],
