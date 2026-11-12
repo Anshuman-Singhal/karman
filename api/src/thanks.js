@@ -16,14 +16,14 @@ export function thanksText() {
   return [
     'Thank you.',
     '',
-    'You just unlocked KÁRMÁN Unlimited, and it genuinely helps keep the balloon flying. Here is what is now yours:',
+    'You just unlocked KÁRMÁN Unlimited. Welcome to the first-class cabin: a small crew of pilots with the whole sky open to them. Here is what is now yours:',
     '',
     '- Every Unlimited run: seven fresh questions each, with new runs landing every Monday. Menu > Unlimited shows your run card.',
     '- The whole archive: every daily flight since Flight #1, from the calendar on the home screen.',
     '- Your progress, everywhere: sign in with the same Google account on any device and your logbook, streak and Unlimited come with you.',
     '',
     'A direct line',
-    'If anything feels off, an answer looks wrong, or you have an idea (or a question you would love to see on a flight), just reply to this email. Every message is read and answered.',
+    'If anything feels off, an answer looks wrong, or you have an idea (or a question you would love to see on a flight), just reply to this email.',
     '',
     'See you above the clouds,',
     'KÁRMÁN',
@@ -47,14 +47,14 @@ export function thanksHtml() {
     <tr><td style="padding:22px 30px 0 30px;font:600 11px/1 'Courier New',monospace;letter-spacing:1.5px;color:#C4402A;border-bottom:0">FIRST CLASS · KÁRMÁN AIR</td></tr>
     <tr><td style="padding:10px 30px 0 30px"><div style="height:2px;background:#E2552B;line-height:2px">&nbsp;</div></td></tr>
     <tr><td style="padding:22px 30px 6px 30px;font:italic 34px/1.1 Georgia,'Times New Roman',serif;color:#14213D">Thank you.</td></tr>
-    <tr><td style="padding:6px 30px 20px 30px;font:16px/1.55 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#3A4560">You just unlocked <b style="color:#14213D">KÁRMÁN Unlimited</b>, and it genuinely helps keep the balloon flying. Here’s what’s now yours:</td></tr>
+    <tr><td style="padding:6px 30px 20px 30px;font:16px/1.55 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#3A4560">You just unlocked <b style="color:#14213D">KÁRMÁN Unlimited</b>. Welcome to the first-class cabin: a small crew of pilots with the whole sky open to them. Here’s what’s now yours:</td></tr>
     <tr><td style="padding:0 30px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       ${perk('∞', 'Every Unlimited run', 'Seven fresh questions each, with new runs landing every Monday. <i>Menu → Unlimited</i> shows your run card.')}
       ${perk('◷', 'The whole archive', 'Every daily flight since Flight #1, from the calendar on the home screen.')}
       ${perk('☁', 'Your progress, everywhere', 'Sign in with the same Google account on any device and your logbook, streak and Unlimited come with you.')}
     </table></td></tr>
     <tr><td style="padding:4px 30px 0 30px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1.5px dashed #B9AE97;border-radius:10px"><tr><td style="padding:16px 18px;font:15px/1.5 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#3A4560">
-      <b style="color:#14213D">A direct line.</b> If anything feels off, an answer looks wrong, or you have an idea (or a question you’d love to see on a flight), just reply to this email. Every message is read and answered.</td></tr></table></td></tr>
+      <b style="color:#14213D">A direct line.</b> If anything feels off, an answer looks wrong, or you have an idea (or a question you’d love to see on a flight), just reply to this email.</td></tr></table></td></tr>
     <tr><td align="center" style="padding:26px 30px 8px 30px"><a href="https://karman.day/" style="display:inline-block;background:#FFB547;color:#14213D;text-decoration:none;font:700 16px/1 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;letter-spacing:1px;padding:15px 28px;border-radius:10px;border:1.5px solid #14213D">FLY AN UNLIMITED RUN</a></td></tr>
     <tr><td style="padding:18px 30px 26px 30px;font:italic 18px/1.4 Georgia,serif;color:#14213D">See you above the clouds,<br><span style="font:600 13px/1.6 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;letter-spacing:2px;color:#C4402A;font-style:normal">KÁRMÁN</span></td></tr>
     <tr><td style="padding:14px 30px 22px 30px;border-top:1px dashed #CFC4AC;font:12px/1.5 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#7A7F8E">You’re getting this one-time email because you bought KÁRMÁN Unlimited. Your receipt comes separately from Stripe.<br>

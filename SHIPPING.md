@@ -234,3 +234,4 @@ Every buyer gets one thank-you email from hello@karman.day (replies land in your
 4. Cloudflare → Workers & Pages → karman → Settings → Variables and Secrets → Add → type **Secret**, name `RESEND_API_KEY`, paste the key. Deploy.
 5. Open karman.day/dev → Thank-you emails: it should say On. Press "Thank N earlier buyers" once to thank everyone who bought before.
 Also worth turning on: Stripe → Settings → Customer emails → "Successful payments", so buyers get a receipt.
+6. Optional, to REPLY as hello@karman.day from Gmail: Gmail → Settings → Accounts and Import → "Send mail as" → Add another email address → name KÁRMÁN, address hello@karman.day, untick "Treat as an alias" → SMTP server smtp.resend.com, port 465, SSL, username `resend`, password = a Resend API key → Gmail emails a code to hello@karman.day, which Email Routing forwards to you; paste it. Then pick "From: hello@karman.day" when replying.

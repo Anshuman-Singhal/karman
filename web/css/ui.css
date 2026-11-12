@@ -5092,8 +5092,8 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
 
 /* ---------------------------------------------------------------- social links
    Quiet, like the rest of the menu: two outlined chips under the settings
-   (the way most daily games keep them out of the play), a "discuss" line at
-   the end of the answers, and two small glyphs in the pass's footer. */
+   (the way most daily games keep them out of the play), and two small
+   glyphs in the pass's footer. */
 .menu-social { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 18px 0 0; padding-top: 14px; border-top: 1px dashed rgba(20, 33, 61, 0.2); }
 .ms-label { flex: 1 0 100%; font: 600 10px/1 var(--f-ui); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 2px; }
 .soc-chip { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 10px;
@@ -5105,16 +5105,6 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
 .soc-chip:hover { background: rgba(20, 33, 61, 0.06); }
 .soc-chip:active { transform: translateY(1px); }
 .soc-chip:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
-
-.recap-talk { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px; padding: 12px 14px; border-radius: 10px; border: 1.5px dashed rgba(20, 33, 61, 0.28);
-  color: var(--ink-2); text-decoration: none; font: 500 13.5px/1.3 var(--f-ui); transition: border-color 140ms, background 140ms; }
-.recap-talk b { color: var(--ink); font-weight: 700; }
-.recap-talk .soc-r { flex: none; width: 20px; height: 20px; fill: #E2552B; }
-.recap-talk span { flex: 1; }
-.recap-talk .rt-go { flex: none; width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.6; transition: transform 140ms var(--ease-out); }
-.recap-talk:hover { border-color: rgba(226, 85, 43, 0.6); background: rgba(226, 85, 43, 0.04); }
-.recap-talk:hover .rt-go { transform: translate(2px, -2px); opacity: 1; }
-.recap-talk:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 
 .sf-soc { display: inline-flex; align-items: center; gap: 10px; }
 .sf-soc a[aria-label] { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: inherit; opacity: 0.75; transition: opacity 140ms; }
