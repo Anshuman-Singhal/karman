@@ -21,7 +21,7 @@ const COPY = {
     foot: 'You’re getting this one-time email because you bought KÁRMÁN Unlimited. Your receipt comes separately from Stripe.',
   },
   earlier: {
-    subject: 'A thank-you from KÁRMÁN, first class',
+    subject: 'Welcome aboard: thank you for flying KÁRMÁN Unlimited',   // same shape as the new-buyer subject, which Gmail files under Primary
     lede: 'You’ve been flying KÁRMÁN Unlimited for a while now, and we wanted to say it properly: welcome to the first-class cabin, a small crew of pilots with the whole sky open to them. A quick reminder of what’s yours:',
     after: 'Your first-class welcome card lives in the game too: Account → See your welcome card.',
     foot: 'You’re getting this one-time email because you bought KÁRMÁN Unlimited.',
