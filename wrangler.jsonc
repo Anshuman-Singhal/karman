@@ -22,7 +22,8 @@
   // per Cloudflare location. The Worker fails open if the binding is missing or
   // errors. Needs Wrangler 4.36 or later.
   "ratelimits": [
-    { "name": "LIMITER", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } }
+    { "name": "LIMITER", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } },
+    { "name": "LIMITER_WIDE", "namespace_id": "1002", "simple": { "limit": 120, "period": 60 } }
   ],
   "d1_databases": [
     { "binding": "DB", "database_name": "karman" }

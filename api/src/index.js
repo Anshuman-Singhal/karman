@@ -64,9 +64,11 @@ const DEVICE_RE = /^[\w-]{8,64}$/;
 const BOT_UA = /(?<!cu)bot[/\-\s;)]|bot$|crawler|spider|slurp|headlesschrome|lighthouse|facebookexternalhit|embedly|whatsapp\/|google-inspectiontool|bingpreview|petalbot/i;
 const isBot = (request) => BOT_UA.test(request.headers.get('user-agent') || '');
 
-/* Rate limit for the anonymous write endpoints (hit, event, report), per
-   client IP. Uses the Workers rate-limiting binding when one is configured
-   (env.LIMITER, see SHIPPING.md), else a small fixed window per isolate.
+/* Rate limit for the anonymous write endpoints (hit, result, event, report),
+   per client IP. Uses the Workers rate-limiting bindings when configured
+   (env.LIMITER at 30/min; env.LIMITER_WIDE at 120/min for hit and result, which
+   a school or carrier network sharing one IP can legitimately send in bulk and
+   which are never re-sent), else a small fixed window per isolate.
    Fails open: any error means "allowed", so a real player is never blocked
    by the limiter itself. Over the limit the request is answered 429 and
    nothing is written (the game simply retries another time). */
@@ -76,7 +78,8 @@ async function limited(request, env, scope, per = 30) {
   if (!ip) return false;
   const key = `${scope}:${ip}`;
   try {
-    if (env.LIMITER && typeof env.LIMITER.limit === 'function') return !(await env.LIMITER.limit({ key })).success;
+    const lim = per > 30 ? env.LIMITER_WIDE : env.LIMITER;
+    if (lim && typeof lim.limit === 'function') return !(await lim.limit({ key })).success;
     const now = Date.now();
     let b = buckets.get(key);
     if (!b || now - b.t >= 60e3) {
@@ -124,7 +127,7 @@ async function postResult(request, env) {
     && typeof legs === 'string' && legs.length === LEGS && /^[01]+$/.test(legs)
     && typeof chips === 'string' && chips.length === LEGS && /^[0-4]+$/.test(chips);
   if (!ok) return json({ error: 'invalid result' }, { status: 422 });
-  if (await limited(request, env, 'result')) return tooMany();
+  if (await limited(request, env, 'result', 120)) return tooMany();
 
   // INSERT OR IGNORE: a second submission from the same device is dropped, and
   // the follow-up statements (same batch, same transaction) run only when the
@@ -515,7 +518,7 @@ async function postHit(request, env) {
   const country = request.cf && typeof request.cf.country === 'string' ? request.cf.country.slice(0, 2) : null;
   const mobile = /Mobi|Android|iPhone|iPad/i.test(request.headers.get('user-agent') || '') ? 1 : 0;
   if (isBot(request)) return new Response(null, { status: 204 });
-  if (await limited(request, env, 'hit', 60)) return tooMany();
+  if (await limited(request, env, 'hit', 120)) return tooMany();
   const day = latestFlight();
   await env.DB.batch([
     env.DB.prepare('INSERT OR IGNORE INTO visits (day, device, src, country, mobile) VALUES (?, ?, ?, ?, ?)').bind(day, b.device, src, country, mobile),
