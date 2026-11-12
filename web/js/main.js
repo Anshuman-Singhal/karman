@@ -284,7 +284,10 @@
     })(t0);
   }
   // Access first (a purchase coming back from Stripe), then the cloud copy.
-  K.access.refresh().finally(() => K.access.afterSignIn());
+  K.access.refresh().finally(() => {
+    K.access.afterSignIn();
+    setTimeout(() => K.ui.maybeWelcome(), 1400);   // earlier buyers: the welcome card, once
+  });
   document.addEventListener('visibilitychange', () => { if (document.hidden && K.sync) K.sync.now(); });
   paintSound();
 })();

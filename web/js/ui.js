@@ -886,8 +886,10 @@ K.ui = (() => {
      Shown once, at the moment Unlimited arrives: a thank-you for buyers, a
      warm hello for pass holders, what's now theirs, and a direct line. */
   let welcomedAt = 0;
-  function welcome(kind) {
+  /** kind: 'paid' | 'pass'. opts.replay: opened again from the Account box. */
+  function welcome(kind, opts = {}) {
     welcomedAt = Date.now();
+    if (!opts.replay) { K.storage.data.access.welcomed = true; K.storage.save(); }   // once per device
     const paid = kind === 'paid';
     const total = K.game.runsTotal(), left = K.game.runsLeft().length;
     const mail = esc(K.CONFIG.CONTACT_EMAIL);
@@ -899,17 +901,26 @@ K.ui = (() => {
         <h2 class="wel-h" id="wel-h">${paid ? 'Thank you.' : 'Welcome aboard.'}</h2>
         <p class="wel-lede">${paid ? 'Unlimited is yours, for good. Welcome to KÁRMÁN Air’s first-class cabin: a small crew of pilots with the whole sky open to them.' : 'Someone gave you a free pass: Unlimited is yours on this device. Enjoy every run.'}</p>
         <ul class="wel-perks">
-          <li><i aria-hidden="true">∞</i><span><b>${left || total} Unlimited runs</b> to fly, seven new questions each. New runs land every Monday.</span></li>
+          <li><i aria-hidden="true">∞</i><span><b>${left ? `${left} Unlimited runs` : 'Every Unlimited run'}</b>${left ? ' to fly' : ''}, seven new questions each. New runs land every Monday.</span></li>
           <li><i aria-hidden="true">◷</i><span><b>The whole archive.</b> Every daily flight since Flight #1, from the calendar on the home screen.</span></li>
-          <li><i aria-hidden="true">✉</i><span><b>A direct line.</b> Ideas, a wrong answer, a question you’d love to see on a flight: <a href="mailto:${mail}?subject=${encodeURIComponent('KÁRMÁN Unlimited')}">${mail}</a>.</span></li>
+          <li><i aria-hidden="true">✉</i><span><b>A direct line.</b> Ideas? A wrong answer? A question you’d love to see on a flight: <a href="mailto:${mail}?subject=${encodeURIComponent('KÁRMÁN Unlimited')}">${mail}</a>.</span></li>
         </ul>
       </div>
-      <button type="button" class="buy-ticket wel-go" id="wel-go"><span class="bt-main">Fly your first run</span><span class="bt-stub"><small>NEW</small><b>${left || total}</b></span></button>
+      <button type="button" class="buy-ticket wel-go" id="wel-go"><span class="bt-main">${opts.replay ? 'Fly a run' : 'Fly your first run'}</span><span class="bt-stub"><small>${left ? 'NEW' : 'RUNS'}</small><b>${left || '∞'}</b></span></button>
       <p class="wel-fine">${paid ? 'Find it any time under Menu → Unlimited.' : 'Find it any time under Menu → Unlimited.'}</p>`;
     $('wel-go').onclick = () => { closeSheet('welcome'); setTimeout(() => K.game.keepFlying(), K.fx.reduced() ? 0 : 220); };
     ['paywall', 'account', 'menu'].forEach((s) => { if (!$(`sheet-${s}`).hidden) closeSheet(s); });
     setTimeout(() => openSheet('welcome'), K.fx.reduced() ? 0 : 260);
-    if (paid) K.audio.stamp();
+    if (paid && !opts.replay) K.audio.stamp();
+  }
+  /** Pilots who had Unlimited before the welcome card existed (or bought on
+      another device) see it once, the next time they open the game, never
+      in the middle of a flight. */
+  function maybeWelcome() {
+    const a = K.storage.data.access || {};
+    if (!a.unlimited || a.welcomed || current === 'round') return;
+    if (document.querySelector('.sheet-wrap:not([hidden])')) return;
+    welcome(a.via === 'code' ? 'pass' : 'paid');
   }
 
   /* ------------------------------------------------------------ paywall */
@@ -1114,8 +1125,9 @@ K.ui = (() => {
         <span class="ac-go">Open logbook <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
       </button>
       ${owned ? `<div class="ac-thanks"><span class="lic-fc" aria-hidden="true">${fcTag()}</span>
-        <p>${a.via === 'code' ? 'Enjoy every run.' : 'Thank you for flying first class.'} Ideas, a wrong answer, or a question you’d love to see on a flight? Write to <a href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}?subject=${encodeURIComponent('KÁRMÁN Unlimited')}">${esc(K.CONFIG.CONTACT_EMAIL)}</a>.</p>
-        <a class="ac-suggest" href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}?subject=${encodeURIComponent('A question for a flight')}&body=${encodeURIComponent('Question:\nAnswer (with units):\nSource link:\n')}">Suggest a question <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a></div>` : ''}
+        <p>${a.via === 'code' ? 'Enjoy every run.' : 'Thank you for flying first class.'} Ideas? A wrong answer? A question you’d love to see on a flight: <a href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}?subject=${encodeURIComponent('KÁRMÁN Unlimited')}">${esc(K.CONFIG.CONTACT_EMAIL)}</a></p>
+        <a class="ac-suggest" href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}?subject=${encodeURIComponent('A question for a flight')}&body=${encodeURIComponent('Question:\nAnswer (with units):\nSource link:\n')}">Suggest a question <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
+        <button type="button" class="ac-welcome" id="ac-welcome">See your welcome card</button></div>` : ''}
       ${owned ? '' : `<button type="button" class="buy-ticket ac-buy" id="ac-buy"><span class="bt-main">Unlock Unlimited</span><span class="bt-stub"><b>${esc(K.CONFIG.PRICE)}</b><small>ONE-TIME</small></span></button>`}
       <div class="ac-links">
         ${signed ? '<button type="button" class="link-btn" id="ac-sync">Back up now</button>' : ''}
@@ -1124,6 +1136,7 @@ K.ui = (() => {
       </div>
       <p class="pay-fine">${owned && a.via === 'stripe' ? 'Refunds: refundable if you haven’t flown an Unlimited or archive flight since buying. ' : ''}Questions or a refund? <a href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}">${esc(K.CONFIG.CONTACT_EMAIL)}</a><br>Signing out keeps everything on this device. <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>`;
     $('ac-logbook').onclick = () => { closeSheet('account'); setTimeout(() => openSheet('logbook'), K.fx.reduced() ? 0 : 200); };
+    if ($('ac-welcome')) $('ac-welcome').onclick = () => welcome(a.via === 'code' ? 'pass' : 'paid', { replay: true });
     if ($('ac-buy')) $('ac-buy').onclick = () => { closeSheet('account'); setTimeout(() => openSheet('paywall'), K.fx.reduced() ? 0 : 200); };
     if ($('ac-restore')) $('ac-restore').onclick = () => { closeSheet('account'); setTimeout(() => { openSheet('paywall'); startGoogle('restore'); }, K.fx.reduced() ? 0 : 200); };
     if ($('ac-sync')) $('ac-sync').onclick = async (e) => {
@@ -1297,7 +1310,7 @@ K.ui = (() => {
     if (document.fonts) document.fonts.ready.then(fitHome);
   }
 
-  return { parked, answerRow, welcome,
+  return { parked, answerRow, welcome, maybeWelcome,
     init, show, topbar, setAltitude, home, results, landing, closed, prepareLaunch, dockReady, dockIn, refreshAccess, startGoogle, renderAccount,
     calStep(d) { calM += d; if (calM < 0) { calM = 11; calY -= 1; } if (calM > 11) { calM = 0; calY += 1; } renderArchive(); },
     openSheet, closeSheet, dev, anchorBalloon, renderMenu, refreshUnits,
