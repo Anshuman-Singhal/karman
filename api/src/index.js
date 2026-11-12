@@ -451,10 +451,10 @@ async function adminThanks(request, env) {
   if (request.method === 'POST') {
     let b = {};
     try { b = await request.json(); } catch { /* no body: thank earlier buyers */ }
-    if (b && b.test) return json({ test: await sendTest(env, String(b.test).trim()) });
+    if (b && b.test) return json({ test: await sendTest(env, String(b.test).trim(), b.variant === 'earlier' ? 'earlier' : 'new') });
     const rows = (await env.DB.prepare(`${waitingQ} LIMIT 40`).all()).results || [];
     let sent = 0, failed = 0;
-    for (const r of rows) { const s = await sendThanks(env, r.sub, r.email); if (s === 'sent') sent++; else if (s !== 'already') failed++; }
+    for (const r of rows) { const s = await sendThanks(env, r.sub, r.email, 'earlier'); if (s === 'sent') sent++; else if (s !== 'already') failed++; }
     return json({ sent, failed, on: Boolean(env.RESEND_API_KEY) });
   }
   const sent = await env.DB.prepare('SELECT COUNT(*) AS c FROM thanks').first();
