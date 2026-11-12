@@ -144,7 +144,7 @@ K.vehicle = (() => {
   function capsuleArt() {
     return `
       <path d="${CBODY}" fill="${C.paper}"/><path d="${CBODY}" fill="url(#v-body)"/>
-      <path class="v-acc" d="${DOME}" fill="${C.ember}"/>
+      <path class="v-acc-n" d="${DOME}" fill="${C.ember}"/>
       <path d="M100,38 C108,38 114,45 114,58 L106,58 C106,47 103.5,41 100,38Z" fill="${C.night}" opacity=".22"/>
       <path d="M90.5,53 C91,46 94.5,41.5 98.5,40" fill="none" stroke="${C.cream}" stroke-opacity=".85" stroke-width="1.1" stroke-linecap="round"/>
       ${hatch('M107,58 L114,58 L114,90 L107,90Z', 0.4)}
@@ -168,14 +168,14 @@ K.vehicle = (() => {
      the poster's vermilion (#D9452B) once the sheet shows through it. */
   const GORE_RED = '#F0563A';
   /* First-class liveries (Account → Livery). gores: the fills of gore k%3 = 0
-     and 1 (k%3 = 2 is the bare painted sheet); pin: the seam pinline; acc: the
-     rocket's painted accents (dome, fins, band), amber where ember would sink
-     into a dark envelope's night sky. Everyone else flies Vermilion. */
+     and 1 (k%3 = 2 is the bare painted sheet); pin: the seam pinline; nose and
+     fins: the rocket's painted nose cone and its fins + band (amber where ember
+     would sink into the night sky). Everyone else flies Vermilion. */
   const LIVERIES = {
-    vermilion: { gores: [GORE_RED, GORE_RED], pin: C.amber, acc: C.ember },
-    midnight: { gores: [C.navy, C.navy], pin: C.amber, acc: C.amber },
-    airmail: { gores: [C.navy, GORE_RED], pin: C.cream, acc: C.ember },
-    gold: { gores: [C.amber, C.amber], pin: C.navy, acc: C.amber },
+    vermilion: { gores: [GORE_RED, GORE_RED], pin: C.amber, nose: C.ember, fins: C.ember },
+    midnight: { gores: [C.navy, C.navy], pin: C.amber, nose: C.amber, fins: C.amber },
+    airmail: { gores: [C.navy, GORE_RED], pin: C.cream, nose: C.ember, fins: C.navy },
+    gold: { gores: [C.amber, C.amber], pin: C.navy, nose: C.navy, fins: C.amber },
   };
   let livId = 'vermilion';
   const liv = () => LIVERIES[livId];
@@ -332,7 +332,7 @@ K.vehicle = (() => {
         <g class="v-pleats" fill="none" stroke="${C.paper}" stroke-opacity=".5" stroke-width=".7"></g>
         <ellipse class="v-valve" cx="100" cy="10" rx="6" ry="2" fill="${C.amber}"/>
         <line x1="100" y1="118" x2="100" y2="150" stroke="${C.paper}" stroke-opacity=".7" stroke-width=".9"/>
-        <path class="v-acc" d="M95,126 L105,126 L101.5,134 L98.5,134Z" fill="${C.ember}"/>
+        <path class="v-acc-n" d="M95,126 L105,126 L101.5,134 L98.5,134Z" fill="${C.ember}"/>
       </g>
 
       <!-- STAGES 2–3: the rocket (hangs small under the balloon, then flies) -->
@@ -346,19 +346,19 @@ K.vehicle = (() => {
           </g>
           <g class="v-booster" style="transform-origin:100px 130px">
             <g class="v-finl" style="transform-origin:86px 174px">
-              <path class="v-acc" d="M86,138 L68,178 L68,186 L86,175Z" fill="${C.ember}"/>
+              <path class="v-acc-f" d="M86,138 L68,178 L68,186 L86,175Z" fill="${C.ember}"/>
               <path d="M86,138 L68,178 L68,186 L86,175Z" fill="${C.night}" opacity=".18"/>
               ${inked('M86,138 L68,178 L68,186 L86,175', 0.6, 1)}
             </g>
             <g class="v-finr" style="transform-origin:114px 174px">
-              <path class="v-acc" d="M114,138 L132,178 L132,186 L114,175Z" fill="${C.ember}"/>
+              <path class="v-acc-f" d="M114,138 L132,178 L132,186 L114,175Z" fill="${C.ember}"/>
               ${hatch('M114,138 L132,178 L132,186 L114,175Z', 0.45)}
               ${inked('M114,138 L132,178 L132,186 L114,175', 0.6, 1)}
             </g>
             <path d="M86,92 L114,92 L114,168 L86,168Z" fill="${C.paper}"/>
             <path d="M86,92 L114,92 L114,168 L86,168Z" fill="url(#v-body)"/>
             ${hatch('M107,92 L114,92 L114,168 L107,168Z', 0.4)}
-            <rect class="v-acc" x="86" y="150" width="28" height="8" fill="${C.ember}"/>
+            <rect class="v-acc-f" x="86" y="150" width="28" height="8" fill="${C.ember}"/>
             <path d="M86,150 L93,158 M93,150 L100,158 M100,150 L107,158 M107,150 L114,158" stroke="${C.paper}" stroke-opacity=".55" stroke-width="1.2"/>
             <rect x="86" y="92" width="28" height="3" fill="${C.navy}"/>
             <path d="M97,144 L103,144 L103,182 L97,182Z" fill="${C.navy}"/>
@@ -422,7 +422,14 @@ K.vehicle = (() => {
     livId = LIVERIES[id] ? id : 'vermilion';
     if (!svg) return;
     el.pins.setAttribute('stroke', liv().pin);
-    svg.querySelectorAll('.v-acc').forEach((n) => n.setAttribute('fill', liv().acc));
+    // Navy paint would vanish into the night sky: it gets a cream pinline.
+    const paint = (sel, c) => svg.querySelectorAll(sel).forEach((n) => {
+      n.setAttribute('fill', c);
+      if (c === C.navy) { n.setAttribute('stroke', C.cream); n.setAttribute('stroke-width', '1.3'); n.setAttribute('stroke-opacity', '.8'); n.setAttribute('stroke-linejoin', 'round'); }
+      else n.removeAttribute('stroke');
+    });
+    paint('.v-acc-n', liv().nose);
+    paint('.v-acc-f', liv().fins);
     drawEnvelope(gores.phase);
   }
 

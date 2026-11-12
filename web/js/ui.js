@@ -239,7 +239,7 @@ K.ui = (() => {
     const d = K.date.dateOfFlight(flight.n);
     const short = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
     const un = mode === 'unlimited';
-    $('home-meta').textContent = un ? `Unlimited · ${K.access.unlimited() && flight.run ? `Run ${flight.run} · ` : ''}Flight #${flight.flightNo || flight.run}` : mode === 'archive' ? `Archive · ${short}` : `${short} · ${flight.weather.name}`;
+    $('home-meta').textContent = un ? (K.access.unlimited() && flight.run ? `Unlimited · Run ${flight.run}` : `Unlimited · Flight #${flight.flightNo || flight.run}`) : mode === 'archive' ? `Archive · ${short}` : `${short} · ${flight.weather.name}`;
     // The visually hidden lead names the game for search engines and screen readers (the page's one h1).
     $('home-h').innerHTML = '<span class="sr-only">Karman, the daily number guessing game. </span>' + (un ? 'Unlimited <span>∞</span>' : `Flight <span>#${flight.n}</span>`);
     // What's at stake (v5). A pilot who has never flown gets the pitch and a time promise;
@@ -607,7 +607,7 @@ K.ui = (() => {
     if (nextNo == null) nextNo = (K.game.today || n) + 1;
     lastRecord = { record, n, streak, mode, args: { record, n, mode, streak, thermals, streakInfo, isFresh: false, prevBest, nextNo } };
     $('dare-stamp').classList.remove('stamped');
-    $('res-eyebrow').textContent = mode === 'unlimited' ? `Unlimited · Flight #${record.flightNo || record.run || ''}`
+    $('res-eyebrow').textContent = mode === 'unlimited' ? (K.access.unlimited() && record.run ? `Unlimited · Run ${record.run}` : `Unlimited · Flight #${record.flightNo || record.run || ''}`)
       : `${mode === 'archive' ? 'Archive · ' : ''}Flight #${n} · ${dayMonth(K.date.dateOfFlight(n))}`;
     $('btn-today').hidden = mode === 'daily';
     const subj = encodeURIComponent(`KÁRMÁN ${mode === 'unlimited' ? 'Unlimited' : `#${n}`}`);
@@ -850,8 +850,12 @@ K.ui = (() => {
     }
     const flown = [...byRun.values()].sort((a, b) => b.at - a.at);
     $('runs-sub').textContent = `${total} RUNS · NEW ONES EVERY MONDAY`;
-    const day = (t) => (t ? new Date(t).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase() : '');
-    const ticket = left
+    const day = K.fc.day;
+    const ticket = F.wip
+      ? `<button type="button" class="buy-ticket runs-new" id="runs-new">
+          <span class="bt-main"><span class="rn-main">Resume Run ${Number(F.wip.run) || ''}</span><span class="rn-sub">In progress · leg ${(F.wip.round || 0) + 1} of ${K.CONFIG.LEGS}</span></span>
+          <span class="bt-stub"><small>LEG</small><b>${(F.wip.round || 0) + 1}</b></span></button>`
+      : left
       ? `<button type="button" class="buy-ticket runs-new" id="runs-new">
           <span class="bt-main"><span class="rn-main">Fly a new run</span><span class="rn-sub">${F.sub || '7 questions you haven’t seen'}</span></span>
           <span class="bt-stub">${F.fresh.length ? `<small>FRESH</small><b>${F.fresh.length}</b>` : `<small>NEW</small><b>${left}</b>`}</span></button>`
@@ -882,11 +886,12 @@ K.ui = (() => {
       ${card}
       ${flown.length ? `<h3 class="lb-h">Flight strips</h3><ul class="fstrips runs-strips">${strips}</ul>
         <p class="lb-note">Tap a strip to fly that run again: the same seven questions, a fresh climb.</p>` : ''}`;
-    if ($('runs-new')) $('runs-new').onclick = () => { closeSheet('runs'); setTimeout(() => (F.fresh.length ? K.game.flyRun(F.fresh[0]) : K.game.keepFlying()), K.fx.reduced() ? 0 : 200); };
-    $('runs-body').querySelectorAll('[data-run]').forEach((b) => {
-      b.onclick = () => { closeSheet('runs'); setTimeout(() => K.game.flyRun(Number(b.dataset.run)), K.fx.reduced() ? 0 : 200); };
-    });
-    K.fc.bindPicker($('runs-body'), (k) => { closeSheet('runs'); setTimeout(() => K.game.flyRun(k), K.fx.reduced() ? 0 : 200); });
+    // Every way aboard goes through K.fc.board: a run in progress is resumed, or left only on a second ask.
+    const later = (fn) => { closeSheet('runs'); setTimeout(fn, K.fx.reduced() ? 0 : 200); };
+    const board = (k) => K.fc.board($('runs-body'), k, { fly: (r) => later(() => (r == null ? K.game.keepFlying() : K.game.flyRun(r))), resume: () => later(() => K.game.keepFlying()) });
+    if ($('runs-new')) $('runs-new').onclick = () => (F.wip || !F.fresh.length ? board(null) : board(F.fresh[0]));
+    $('runs-body').querySelectorAll('[data-run]').forEach((b) => { b.onclick = () => board(Number(b.dataset.run)); });
+    K.fc.bindPicker($('runs-body'), board);
     K.fc.markSeen();   // shown once: the next visit is back to normal
   }
 

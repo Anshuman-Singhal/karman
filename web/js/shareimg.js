@@ -219,7 +219,7 @@ K.shareImage = (() => {
      stub. Ring, disc, ∞ and stars come from K.ui.fcSeal as an SVG image; the
      arc lettering is set here glyph by glyph, because text inside an SVG
      image can't reach the page's web fonts. Resolves to a canvas, or null. */
-  const SEAL = { x: 926, y: 1132, px: 160, deg: -12 };
+  const SEAL = { x: 934, y: 1132, px: 160, deg: -12 };
   function arcText(ctx, str, r, font, spacing, top) {
     ctx.font = font;
     const ws = [...str].map((c) => ctx.measureText(c).width + spacing);
@@ -294,7 +294,8 @@ K.shareImage = (() => {
     ctx.fillText('GROUND', 80, STUB_Y + 160);
     ctx.font = `800 80px ${DISPLAY}`;
     // With the seal in the corner, the layer name stops short of it.
-    ctx.fillText(fit(ctx, layer, fcSeal ? SEAL.x - SEAL.px / 2 - 16 - 470 : W - 470 - 80, 80), 470, STUB_Y + 166);
+    const layerW = fcSeal ? SEAL.x - SEAL.px / 2 - 24 - 470 : W - 470 - 80;
+    ctx.fillText(fit(ctx, layer, layerW, 80), 470, STUB_Y + 166, layerW);   // maxWidth: never past its room
     // Arrow
     ctx.strokeStyle = NAVY;
     ctx.lineWidth = 4;
