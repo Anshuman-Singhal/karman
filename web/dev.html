@@ -583,7 +583,15 @@
       $('thx-body').innerHTML = !s.on
         ? `<p><span class="pill off">Off</span> Not sending yet: add a <b>RESEND_API_KEY</b> secret in Cloudflare (see SHIPPING.md · Thank-you emails). ${s.waiting ? `${s.waiting} buyer${s.waiting === 1 ? '' : 's'} will be waiting to be thanked.` : ''}</p>`
         : `<p><span class="pill used">On</span> ${s.sent} sent.${s.waiting ? ` ${s.waiting} earlier buyer${s.waiting === 1 ? '' : 's'} never got one.` : ' Everyone has been thanked.'}</p>
+           <form class="pass-make" id="thx-test" style="margin:10px 0 12px"><input id="thx-to" type="email" placeholder="Send a test copy to…" value="karman.daily@gmail.com"><button class="btn" type="submit">Send test</button></form>
            ${s.waiting ? `<button class="btn primary" id="thx-send">Thank ${s.waiting} earlier buyer${s.waiting === 1 ? '' : 's'}</button>` : ''}`;
+      if ($('thx-test')) $('thx-test').onsubmit = async (e) => {
+        e.preventDefault();
+        const b = e.currentTarget.querySelector('button'); b.disabled = true; b.textContent = 'Sending…';
+        try { const x = await (await fetch('/api/admin/thanks', { method: 'POST', headers: { authorization: `Bearer ${get(TOKEN_KEY)}`, 'content-type': 'application/json' }, body: JSON.stringify({ test: $('thx-to').value }) })).json(); b.textContent = x.test === 'sent' ? 'Sent ✓ check the inbox' : 'Failed: check the key / domain'; }
+        catch (err) { b.textContent = 'Failed'; }
+        setTimeout(() => { b.disabled = false; b.textContent = 'Send test'; }, 4000);
+      };
       if ($('thx-send')) $('thx-send').onclick = async (e) => {
         const b = e.currentTarget; b.disabled = true; b.textContent = 'Sending…';
         try { const x = await (await fetch('/api/admin/thanks', { method: 'POST', headers: { authorization: `Bearer ${get(TOKEN_KEY)}` } })).json(); alert(`Sent ${x.sent}${x.failed ? `, ${x.failed} failed (try again later)` : ''}.`); } catch (err) { alert('Couldn’t send right now.'); }

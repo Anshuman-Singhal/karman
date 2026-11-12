@@ -203,6 +203,14 @@ check((await call('/api/admin/passes', { headers: { authorization: 'Bearer 99999
 check((await call('/api/admin/thanks')).status === 401, 'thank-you status needs the owner');
 const th = await (await call('/api/admin/thanks', { headers: A })).json();
 check(th.on === false && th.sent === 1 && th.waiting >= 1, 'thank-you status: off, one sent, earlier buyers waiting');
+{
+  env.RESEND_API_KEY = 're_test';
+  const mails = []; const f0 = globalThis.fetch;
+  globalThis.fetch = async (url, init) => (String(url).startsWith('https://api.resend.com/') ? (mails.push(JSON.parse(init.body)), new Response('{"id":"t"}', { status: 200 })) : f0(url, init));
+  const tr = await (await call('/api/admin/thanks', { method: 'POST', headers: A, body: JSON.stringify({ test: 'me@x.y' }) })).json();
+  check(tr.test === 'sent' && mails.length === 1 && mails[0].to[0] === 'me@x.y' && /^\[Test\]/.test(mails[0].subject) && !db.prepare("SELECT 1 FROM thanks WHERE email = 'me@x.y'").get(), 'a test copy goes out and marks nobody');
+  globalThis.fetch = f0; delete env.RESEND_API_KEY;
+}
 globalThis.fetch = prevFetch;
 
 console.log(fails ? `${fails} failed` : 'Worker checks passed.');

@@ -22,6 +22,7 @@
      DELETE /api/admin/passes/:code                          → { ok }       delete for good
      GET  /api/admin/thanks                                  → { on, sent, waiting }   buyer thank-you emails
      POST /api/admin/thanks                                  → { sent, failed }        thank earlier buyers now
+     POST /api/admin/thanks { test: email }                  → { test }                a test copy, nothing marked
 
    Secrets (wrangler secret put …): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
    SESSION_SECRET. Plain vars (wrangler.jsonc): GOOGLE_CLIENT_ID, PRICE_CENTS.
@@ -33,7 +34,7 @@
    ========================================================================== */
 
 import { SCHEMA } from './schema.js';
-import { sendThanks } from './thanks.js';
+import { sendThanks, sendTest } from './thanks.js';
 
 const LAUNCH_UTC = Date.UTC(2026, 9, 7);   // keep in sync with web/js/config.js LAUNCH
 const LEGS = 7;                            // keep in sync with web/js/config.js LEGS
@@ -448,6 +449,9 @@ async function adminThanks(request, env) {
   if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
   const waitingQ = "SELECT u.sub, u.email FROM users u LEFT JOIN thanks t ON t.sub = u.sub WHERE u.unlimited = 1 AND t.sub IS NULL AND u.email IS NOT NULL AND u.email != ''";
   if (request.method === 'POST') {
+    let b = {};
+    try { b = await request.json(); } catch { /* no body: thank earlier buyers */ }
+    if (b && b.test) return json({ test: await sendTest(env, String(b.test).trim()) });
     const rows = (await env.DB.prepare(`${waitingQ} LIMIT 40`).all()).results || [];
     let sent = 0, failed = 0;
     for (const r of rows) { const s = await sendThanks(env, r.sub, r.email); if (s === 'sent') sent++; else if (s !== 'already') failed++; }

@@ -63,6 +63,21 @@ export function thanksHtml() {
 </td></tr></table></body></html>`;
 }
 
+/** A test copy to the owner: same email, nothing marked. Returns 'sent' | 'off' | 'failed'. */
+export async function sendTest(env, to) {
+  if (!env.RESEND_API_KEY) return 'off';
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to || '')) return 'failed';
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ from: FROM, to: [to], reply_to: REPLY, subject: `[Test] ${SUBJECT}`, html: thanksHtml(), text: thanksText() }),
+    });
+    if (!r.ok) { console.warn('test email failed', r.status, (await r.text()).slice(0, 200)); return 'failed'; }
+    return 'sent';
+  } catch (e) { return 'failed'; }
+}
+
 /** Thank one paying account, once. Returns 'sent' | 'already' | 'off' | 'no-email' | 'failed'. Never throws. */
 export async function sendThanks(env, sub, emailHint) {
   try {
