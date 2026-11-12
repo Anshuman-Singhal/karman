@@ -5089,3 +5089,86 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
 }
 
 .crowd-down.tight { font-size: 10.5px; padding: 3px 7px 2px; transform: translate(-50%, -50%) rotate(-5deg); }
+
+/* ---------------------------------------------------------------- social links
+   Quiet, like the rest of the menu: two outlined chips under the settings
+   (the way most daily games keep them out of the play), a "discuss" line at
+   the end of the answers, and two small glyphs in the pass's footer. */
+.menu-social { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 18px 0 0; padding-top: 14px; border-top: 1px dashed rgba(20, 33, 61, 0.2); }
+.ms-label { flex: 1 0 100%; font: 600 10px/1 var(--f-ui); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 2px; }
+.soc-chip { flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 10px;
+  border: 1.5px solid rgba(20, 33, 61, 0.85); color: var(--ink); text-decoration: none; font: 600 13.5px/1 var(--f-ui); white-space: nowrap;
+  transition: background 140ms, transform 140ms var(--ease-out); }
+.soc-chip span { overflow: hidden; text-overflow: ellipsis; }
+.soc-chip svg { flex: none; width: 16px; height: 16px; fill: currentColor; }
+.soc-chip .soc-r { color: #E2552B; width: 18px; height: 18px; }
+.soc-chip:hover { background: rgba(20, 33, 61, 0.06); }
+.soc-chip:active { transform: translateY(1px); }
+.soc-chip:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.recap-talk { display: flex; align-items: center; gap: 10px; margin: 16px 0 4px; padding: 12px 14px; border-radius: 10px; border: 1.5px dashed rgba(20, 33, 61, 0.28);
+  color: var(--ink-2); text-decoration: none; font: 500 13.5px/1.3 var(--f-ui); transition: border-color 140ms, background 140ms; }
+.recap-talk b { color: var(--ink); font-weight: 700; }
+.recap-talk .soc-r { flex: none; width: 20px; height: 20px; fill: #E2552B; }
+.recap-talk span { flex: 1; }
+.recap-talk .rt-go { flex: none; width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.6; transition: transform 140ms var(--ease-out); }
+.recap-talk:hover { border-color: rgba(226, 85, 43, 0.6); background: rgba(226, 85, 43, 0.04); }
+.recap-talk:hover .rt-go { transform: translate(2px, -2px); opacity: 1; }
+.recap-talk:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.sf-soc { display: inline-flex; align-items: center; gap: 10px; }
+.sf-soc a[aria-label] { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: inherit; opacity: 0.75; transition: opacity 140ms; }
+.sf-soc a[aria-label]:hover { opacity: 1; }
+.sf-soc a[aria-label] svg { width: 14px; height: 14px; fill: currentColor; }
+.sf-soc a[aria-label]:last-of-type { margin-right: 4px; }
+
+/* ---------------------------------------------------------------- first class
+   Unlimited holders: a gold foil endorsement on the licence and the account,
+   and a one-time "welcome aboard" card the moment Unlimited arrives. */
+.lic-fc { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px 3px 6px; border-radius: 4px;
+  font: 600 9px/1 var(--f-mono); letter-spacing: 0.12em; color: #5A3B06;
+  background: linear-gradient(115deg, #E9C46A 0%, #FFF0B8 38%, #D9A93F 62%, #F6D98A 100%);
+  box-shadow: inset 0 0 0 1px rgba(122, 82, 10, 0.45), 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 5px rgba(80, 56, 20, 0.22); }
+.lic-fc b { font: 800 13px/1 var(--f-display); letter-spacing: 0; }
+.licence .lic-fc { position: absolute; top: 12px; right: 14px; transform: rotate(2deg); }
+#sheet-logbook .licence .lic-strip { padding-right: 112px; }
+
+#sheet-account .ac-thanks { margin: 14px 0 0; padding: 14px 16px; border-radius: 12px; border: 1.5px dashed rgba(122, 82, 10, 0.35); background: rgba(233, 196, 106, 0.12); }
+#sheet-account .ac-thanks p { margin: 10px 0 8px; font: 400 14px/1.5 var(--f-ui); color: var(--ink-2); }
+#sheet-account .ac-thanks a { color: var(--ink); font-weight: 600; }
+#sheet-account .ac-suggest { display: inline-flex; align-items: center; gap: 5px; font: 600 13px/1 var(--f-ui); color: #B8661A !important; text-decoration: none; }
+#sheet-account .ac-suggest svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+#sheet-account .ac-suggest:hover { text-decoration: underline; }
+
+#sheet-welcome .sheet { position: relative; }
+#sheet-welcome .sheet-x { position: absolute; top: 14px; right: 14px; z-index: 2; }
+.wel-card { position: relative; margin: 46px 0 18px; padding: 18px 18px 6px; border-radius: 12px; transform: rotate(-0.5deg);
+  background: var(--fibre, none), #FBF6EB; color: var(--ink);
+  box-shadow: 0 0 0 1px rgba(20, 33, 61, 0.14), 0 1px 0 rgba(20, 33, 61, 0.12), 0 14px 28px rgba(80, 56, 20, 0.16);
+  animation: welIn 520ms var(--ease-out) both; }
+@keyframes welIn { from { opacity: 0; transform: translateY(18px) rotate(-2deg) scale(0.97); } }
+.wel-card .lic-strip { color: #C4402A; padding-right: 80px; }
+.wel-foil { position: absolute; top: 12px; right: 14px; display: grid; place-items: center; width: 66px; height: 66px; border-radius: 50%; transform: rotate(10deg);
+  color: #5A3B06; text-align: center; background: radial-gradient(circle at 35% 30%, #FFF4C7, #E9C46A 45%, #C9952F 75%, #F0D488);
+  box-shadow: inset 0 0 0 2px rgba(122, 82, 10, 0.45), inset 0 0 0 5px rgba(255, 248, 220, 0.5), inset 0 0 0 6px rgba(122, 82, 10, 0.3), 0 4px 10px rgba(80, 56, 20, 0.3);
+  animation: welFoil 700ms 260ms var(--ease-spring, cubic-bezier(.3, 1.5, .5, 1)) both; }
+@keyframes welFoil { from { opacity: 0; transform: rotate(-20deg) scale(1.6); } }
+.wel-foil b { display: block; font: 800 24px/0.9 var(--f-display); }
+.wel-foil small { display: block; font: 600 7.5px/1.15 var(--f-mono); letter-spacing: 0.12em; margin-top: -10px; }
+.wel-eyebrow { margin: 16px 0 0; font: 500 10px/1 var(--f-mono); letter-spacing: 0.1em; color: var(--ink-3); }
+.wel-h { margin: 6px 0 0; font: italic 400 40px/1 var(--f-serif); color: var(--ink); }
+.wel-lede { margin: 10px 0 0; max-width: 34ch; font: 400 15px/1.5 var(--f-ui); color: var(--ink-2); }
+.wel-perks { list-style: none; margin: 16px 0 0; padding: 14px 0 0; border-top: 1px dashed rgba(20, 33, 61, 0.2); }
+.wel-perks li { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; font: 400 14px/1.45 var(--f-ui); color: var(--ink-2); }
+.wel-perks i { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #14213D; color: #FFB547; font: 700 14px/1 var(--f-ui); font-style: normal; }
+.wel-perks b { color: var(--ink); font-weight: 600; }
+.wel-perks a { color: var(--ink); font-weight: 600; }
+#sheet-welcome .wel-go { --cut: 72%; height: 64px; width: 100%;
+  background: linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)), linear-gradient(90deg, transparent var(--cut), #F4B676 var(--cut)), var(--apricot-print), var(--apricot-stock);
+  color: #14213D; box-shadow: var(--apricot-edge); }
+#sheet-welcome .wel-go .bt-main { font: 800 21px/1 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; }
+#sheet-welcome .wel-go .bt-stub { gap: 5px; }
+#sheet-welcome .wel-go .bt-stub small { order: -1; font: 500 9.5px/1 var(--f-mono); letter-spacing: 0.1em; opacity: 0.66; }
+#sheet-welcome .wel-go .bt-stub b { font: 800 24px/1 var(--f-display); }
+.wel-fine { margin: 12px 0 0; text-align: center; font: italic 400 14px/1.4 var(--f-serif); color: var(--ink-3); }
+@media (prefers-reduced-motion: reduce) { .wel-card, .wel-foil { animation: none; } }

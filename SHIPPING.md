@@ -224,3 +224,13 @@ Players' progress lives in their browser under one key (`karman:v1`), plus purch
 - [Workers static assets](https://developers.cloudflare.com/workers/static-assets/)
 - [Workers vs. Pages compatibility matrix](https://developers.cloudflare.com/workers/static-assets/compatibility-matrix/)
 - [Custom Domains for Workers](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
+
+
+## Thank-you emails to buyers (optional, recommended)
+Every buyer gets one thank-you email from hello@karman.day (replies land in your inbox via Email Routing). Until the key below is set, nothing is sent; buyers from before that can be thanked later from karman.day/dev → Thank-you emails.
+1. Make a free account at resend.com (3,000 emails/month free).
+2. Domains → Add domain → `karman.day`. Resend shows a few DNS records (an MX + TXT on a `send.` subdomain and a DKIM TXT). Add them in Cloudflare → karman.day → DNS (or use Resend's one-click Cloudflare button). They don't touch your existing Email Routing for hello@.
+3. Wait for "Verified", then API Keys → Create API key (permission: Sending access, domain: karman.day).
+4. Cloudflare → Workers & Pages → karman → Settings → Variables and Secrets → Add → type **Secret**, name `RESEND_API_KEY`, paste the key. Deploy.
+5. Open karman.day/dev → Thank-you emails: it should say On. Press "Thank N earlier buyers" once to thank everyone who bought before.
+Also worth turning on: Stripe → Settings → Customer emails → "Successful payments", so buyers get a receipt.

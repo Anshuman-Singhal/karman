@@ -283,6 +283,11 @@
     </div>
     <div id="pass-list"></div>
   </section>
+  <section class="passes" aria-labelledby="thx-h">
+    <h2 id="thx-h">Thank-you emails</h2>
+    <p class="sub">Every buyer gets one thank-you email from hello@karman.day the moment they pay (replies come to your inbox).</p>
+    <div id="thx-body"><p class="empty">Loading…</p></div>
+  </section>
 </div>
 <div id="tip" role="tooltip"></div>
 
@@ -569,6 +574,24 @@
     $('pass-share').addEventListener('click', () => lastPass && navigator.share({ text: passMsg(lastPass) }).catch(() => {}));
   }
 
+  /* ---------------------------------------------------------- thank-you emails */
+  async function loadThanks() {
+    try {
+      const r = await fetch('/api/admin/thanks', { headers: { authorization: `Bearer ${get(TOKEN_KEY)}` }, cache: 'no-store' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const s = await r.json();
+      $('thx-body').innerHTML = !s.on
+        ? `<p><span class="pill off">Off</span> Not sending yet: add a <b>RESEND_API_KEY</b> secret in Cloudflare (see SHIPPING.md · Thank-you emails). ${s.waiting ? `${s.waiting} buyer${s.waiting === 1 ? '' : 's'} will be waiting to be thanked.` : ''}</p>`
+        : `<p><span class="pill used">On</span> ${s.sent} sent.${s.waiting ? ` ${s.waiting} earlier buyer${s.waiting === 1 ? '' : 's'} never got one.` : ' Everyone has been thanked.'}</p>
+           ${s.waiting ? `<button class="btn primary" id="thx-send">Thank ${s.waiting} earlier buyer${s.waiting === 1 ? '' : 's'}</button>` : ''}`;
+      if ($('thx-send')) $('thx-send').onclick = async (e) => {
+        const b = e.currentTarget; b.disabled = true; b.textContent = 'Sending…';
+        try { const x = await (await fetch('/api/admin/thanks', { method: 'POST', headers: { authorization: `Bearer ${get(TOKEN_KEY)}` } })).json(); alert(`Sent ${x.sent}${x.failed ? `, ${x.failed} failed (try again later)` : ''}.`); } catch (err) { alert('Couldn’t send right now.'); }
+        loadThanks();
+      };
+    } catch (e) { $('thx-body').innerHTML = `<p class="empty">Couldn’t load (${esc(e.message)}).</p>`; }
+  }
+
   /* ---------------------------------------------------------- data + auth */
   async function load(fresh) {
     const token = get(TOKEN_KEY);
@@ -584,10 +607,12 @@
       $('gate').hidden = true; $('app').hidden = false;
       render();
       loadPasses();
+      loadThanks();
     } catch (e) {
       $('meta').textContent = `Couldn't load (${e.message}). Try Refresh.`;
       $('app').hidden = false;
       loadPasses();   // passes don't depend on the stats
+      loadThanks();
     } finally { $('refresh').textContent = 'Refresh'; }
   }
 

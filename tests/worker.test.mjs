@@ -59,6 +59,29 @@ check(db.prepare("SELECT unlimited FROM users WHERE sub = 'g-77'").get().unlimit
 check((await call('/api/stripe', { method: 'POST', headers: { 'stripe-signature': `t=${t},v1=${v1}` }, body: evt })).status === 200, 'signed webhook accepted');
 const sig77 = [...new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode('g-77')))].map((x) => x.toString(16).padStart(2, '0')).join('');
 check((await (await call('/api/me', { headers: { authorization: `Bearer g-77.${sig77}` } })).json()).unlimited === true, 'buyer is Unlimited after the webhook');
+check(!db.prepare("SELECT 1 FROM thanks WHERE sub = 'g-77'").get(), 'no thank-you email (or mark) without RESEND_API_KEY');
+
+// Thank-you email: sent once through Resend when the key is set, never twice
+{
+  env.RESEND_API_KEY = 're_test';
+  const sentMail = [];
+  const f0 = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).startsWith('https://api.resend.com/')) { sentMail.push(JSON.parse(init.body)); return new Response(JSON.stringify({ id: `em_${sentMail.length}` }), { status: 200 }); }
+    return f0(url, init);
+  };
+  db.exec("INSERT INTO users (sub, email) VALUES ('g-88', 'fan@b.c')");
+  const evt2 = JSON.stringify({ type: 'checkout.session.completed', data: { object: { id: 'cs_test_2', payment_status: 'paid', client_reference_id: 'g-88', customer_details: { email: 'stripe@b.c' } } } });
+  const t2 = Math.floor(Date.now() / 1000);
+  const s2 = [...new Uint8Array(await crypto.subtle.sign('HMAC', wkey, enc.encode(`${t2}.${evt2}`)))].map((x) => x.toString(16).padStart(2, '0')).join('');
+  await call('/api/stripe', { method: 'POST', headers: { 'stripe-signature': `t=${t2},v1=${s2}` }, body: evt2 });
+  check(sentMail.length === 1 && sentMail[0].to[0] === 'fan@b.c' && sentMail[0].reply_to === 'hello@karman.day' && /Unlimited/.test(sentMail[0].subject), 'buyer gets one thank-you email at their Google address');
+  check(db.prepare("SELECT id FROM thanks WHERE sub = 'g-88'").get().id === 'em_1', 'thank-you is marked with the message id');
+  await call('/api/stripe', { method: 'POST', headers: { 'stripe-signature': `t=${t2},v1=${s2}` }, body: evt2 });
+  check(sentMail.length === 1, 'a repeated webhook never emails twice');
+  globalThis.fetch = f0;
+  delete env.RESEND_API_KEY;
+}
 
 // Lost webhook: our record says unpaid, Stripe says paid → /api/me heals it.
 // A refunded payment never comes back.
@@ -177,6 +200,9 @@ check((await call(`/api/admin/passes/${mk.code}`, { method: 'DELETE', headers: A
 check((await call(`/api/admin/passes/PASS-AAAA-BBBB`, { method: 'DELETE' })).status === 401, 'only the owner can delete');
 check((await call('/api/admin/passes/PASS-NOPE-NOPE', { method: 'POST', headers: A, body: JSON.stringify({ active: false }) })).status === 404, 'unknown pass is a 404');
 check((await call('/api/admin/passes', { headers: { authorization: 'Bearer 9999999999999.forged' } })).status === 401, 'forged token cannot list passes');
+check((await call('/api/admin/thanks')).status === 401, 'thank-you status needs the owner');
+const th = await (await call('/api/admin/thanks', { headers: A })).json();
+check(th.on === false && th.sent === 1 && th.waiting >= 1, 'thank-you status: off, one sent, earlier buyers waiting');
 globalThis.fetch = prevFetch;
 
 console.log(fails ? `${fails} failed` : 'Worker checks passed.');

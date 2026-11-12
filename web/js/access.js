@@ -86,10 +86,8 @@ K.access = (() => {
     }
     if (code) {
       const ok = await redeem(code);
-      K.fx.toast(ok ? 'Unlimited unlocked. Keep flying.'
-        : lastRefusal === 'claimed' ? 'That pass is already in use on another device.'
-        : 'That unlock link isn’t valid any more.');
-      if (ok) K.ui.refreshAccess();
+      if (ok) { K.ui.welcome('pass'); K.ui.refreshAccess(); }
+      else K.fx.toast(lastRefusal === 'claimed' ? 'That pass is already in use on another device.' : 'That unlock link isn’t valid any more.');
       return;
     }
     const a = st();
@@ -105,7 +103,7 @@ K.access = (() => {
           const me = await api('/api/me', { headers: { authorization: `Bearer ${a.session}` } });
           if (me.unlimited) {
             grant('stripe', { session: a.session, pending: null, email: me.email || a.email || null, paidAt: me.paidAt || null });
-            K.fx.toast('Unlimited is yours. Keep flying.');
+            K.ui.welcome('paid');
             K.ui.refreshAccess();
             afterSignIn();
             return;

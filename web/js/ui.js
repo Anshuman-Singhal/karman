@@ -708,7 +708,7 @@ K.ui = (() => {
   function refreshAccess() {
     paintKeep();
     if (!$('sheet-archive').hidden) renderArchive();
-    if (!$('sheet-paywall').hidden && K.access.unlimited()) { closeSheet('paywall'); K.fx.toast('Unlimited unlocked. Keep flying.'); }
+    if (!$('sheet-paywall').hidden && K.access.unlimited()) { closeSheet('paywall'); if (Date.now() - welcomedAt > 3000) K.fx.toast('Unlimited unlocked. Keep flying.'); }
     if (!$('sheet-account').hidden) renderAccount();
     renderMenuAcct();
   }
@@ -806,6 +806,36 @@ K.ui = (() => {
     });
   }
 
+  /* ------------------------------------------------------------ welcome aboard
+     Shown once, at the moment Unlimited arrives: a thank-you for buyers, a
+     warm hello for pass holders, what's now theirs, and a direct line. */
+  let welcomedAt = 0;
+  function welcome(kind) {
+    welcomedAt = Date.now();
+    const paid = kind === 'paid';
+    const total = K.game.runsTotal(), left = K.game.runsLeft().length;
+    const mail = esc(K.CONFIG.CONTACT_EMAIL);
+    $('welcome-body').innerHTML = `
+      <div class="wel-card">
+        <div class="lic-strip">FIRST CLASS · KÁRMÁN AIR</div>
+        <span class="wel-foil" aria-hidden="true"><b>∞</b><small>FIRST<br>CLASS</small></span>
+        <p class="wel-eyebrow">PILOT Nº ${esc(String(K.ui.pilotNo()))}</p>
+        <h2 class="wel-h" id="wel-h">${paid ? 'Thank you.' : 'Welcome aboard.'}</h2>
+        <p class="wel-lede">${paid ? 'Unlimited is yours, for good. Your support genuinely keeps the balloon flying.' : 'Someone gave you a free pass: Unlimited is yours on this device. Enjoy every run.'}</p>
+        <ul class="wel-perks">
+          <li><i aria-hidden="true">∞</i><span><b>${left || total} Unlimited runs</b> to fly, seven new questions each. New runs land every Monday.</span></li>
+          <li><i aria-hidden="true">◷</i><span><b>The whole archive.</b> Every daily flight since Flight #1, from the calendar on the home screen.</span></li>
+          <li><i aria-hidden="true">✉</i><span><b>A direct line.</b> Ideas, a wrong answer, a question you’d love to see on a flight: <a href="mailto:${mail}?subject=${encodeURIComponent('KÁRMÁN Unlimited')}">${mail}</a>. Every message is read.</span></li>
+        </ul>
+      </div>
+      <button type="button" class="buy-ticket wel-go" id="wel-go"><span class="bt-main">Fly your first run</span><span class="bt-stub"><small>NEW</small><b>${left || total}</b></span></button>
+      <p class="wel-fine">${paid ? 'Find it any time under Menu → Unlimited.' : 'Find it any time under Menu → Unlimited.'}</p>`;
+    $('wel-go').onclick = () => { closeSheet('welcome'); setTimeout(() => K.game.keepFlying(), K.fx.reduced() ? 0 : 220); };
+    ['paywall', 'account', 'menu'].forEach((s) => { if (!$(`sheet-${s}`).hidden) closeSheet(s); });
+    setTimeout(() => openSheet('welcome'), K.fx.reduced() ? 0 : 260);
+    if (paid) K.audio.stamp();
+  }
+
   /* ------------------------------------------------------------ paywall */
   function renderPaywall() {
     $('pay-price').textContent = K.CONFIG.PRICE;
@@ -820,7 +850,7 @@ K.ui = (() => {
       if (!C.DEV || K.LIVE) { K.fx.toast('Payments are coming soon.'); return; }   // never simulate on the real site
       if (kind === 'restore') { K.fx.toast('Dev mode: no purchase to restore.'); return; }
       K.access.simulatePurchase();               // dev: pretend Stripe said yes
-      K.fx.toast('Dev mode: purchase simulated.');
+      welcome('paid');
       refreshAccess();
       return;
     }
@@ -1007,6 +1037,9 @@ K.ui = (() => {
         <span class="ac-stats"><span><b>${flown}</b>Flights</span><span><b>${st.cur}</b>Streak</span><span><b>${best ? best.toFixed(best < 10 ? 1 : 0) : 0}</b>Best km</span><span><b>${stamps}/${S.MILESTONES.length}</b>Stamps</span></span>
         <span class="ac-go">Open logbook <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>
       </button>
+      ${owned ? `<div class="ac-thanks"><span class="lic-fc" aria-hidden="true"><b>∞</b>FIRST CLASS</span>
+        <p>${a.via === 'code' ? 'Enjoy every run.' : 'Thank you for flying first class.'} Ideas, a wrong answer, or a question you’d love to see on a flight? Write to <a href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}?subject=${encodeURIComponent('KÁRMÁN Unlimited')}">${esc(K.CONFIG.CONTACT_EMAIL)}</a>. Every message is read.</p>
+        <a class="ac-suggest" href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}?subject=${encodeURIComponent('A question for a flight')}&body=${encodeURIComponent('Question:\nAnswer (with units):\nSource link:\n')}">Suggest a question <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a></div>` : ''}
       ${owned ? '' : `<button type="button" class="buy-ticket ac-buy" id="ac-buy"><span class="bt-main">Unlock Unlimited</span><span class="bt-stub"><b>${esc(K.CONFIG.PRICE)}</b><small>ONE-TIME</small></span></button>`}
       <div class="ac-links">
         ${signed ? '<button type="button" class="link-btn" id="ac-sync">Back up now</button>' : ''}
@@ -1065,6 +1098,7 @@ K.ui = (() => {
         </div>
       </div>
       ${top ? `<div class="lic-seal">${ink(top.id, S.tierIndex(counts[top.id]), { rot: 12 })}</div>` : ''}
+      ${K.access.unlimited() ? '<span class="lic-fc" title="Unlimited: first class"><b>∞</b>FIRST CLASS</span>' : ''}
     </div>`;
 
     // Passport
@@ -1187,7 +1221,7 @@ K.ui = (() => {
     if (document.fonts) document.fonts.ready.then(fitHome);
   }
 
-  return { parked, answerRow,
+  return { parked, answerRow, welcome,
     init, show, topbar, setAltitude, home, results, landing, closed, prepareLaunch, dockReady, dockIn, refreshAccess, startGoogle, renderAccount,
     calStep(d) { calM += d; if (calM < 0) { calM = 11; calY -= 1; } if (calM > 11) { calM = 0; calY += 1; } renderArchive(); },
     openSheet, closeSheet, dev, anchorBalloon, renderMenu, refreshUnits,

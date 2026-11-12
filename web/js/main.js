@@ -232,7 +232,7 @@
   $('code-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const ok = await K.access.redeem($('code-input').value);
-    if (ok) { K.fx.toast('Unlimited unlocked. Keep flying.'); K.ui.refreshAccess(); }
+    if (ok) { K.ui.welcome('pass'); K.ui.refreshAccess(); }
     else { K.fx.toast(K.access.lastRefusal === 'claimed' ? 'That pass is already in use on another device.' : 'That code isn’t valid.'); $('code-input').select(); }
   });
 

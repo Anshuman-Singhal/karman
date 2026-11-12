@@ -61,6 +61,15 @@ CREATE TABLE IF NOT EXISTS users (
   created        TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- One thank-you email per paying account (sent through Resend when
+-- RESEND_API_KEY is set). The row is the "sent" mark, so it never repeats.
+CREATE TABLE IF NOT EXISTS thanks (
+  sub      TEXT PRIMARY KEY,
+  email    TEXT,
+  id       TEXT,                       -- the email provider's message id
+  sent     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Unlimited/archive flights started by paying players (the refund rule:
 -- refundable only if there are no plays after paid_at).
 CREATE TABLE IF NOT EXISTS plays (

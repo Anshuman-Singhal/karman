@@ -20,6 +20,8 @@
      POST /api/admin/passes { note }                         → { code }     make one
      POST /api/admin/passes/:code { active }                 → { ok }       revoke / restore
      DELETE /api/admin/passes/:code                          → { ok }       delete for good
+     GET  /api/admin/thanks                                  → { on, sent, waiting }   buyer thank-you emails
+     POST /api/admin/thanks                                  → { sent, failed }        thank earlier buyers now
 
    Secrets (wrangler secret put …): STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
    SESSION_SECRET. Plain vars (wrangler.jsonc): GOOGLE_CLIENT_ID, PRICE_CENTS.
@@ -31,6 +33,7 @@
    ========================================================================== */
 
 import { SCHEMA } from './schema.js';
+import { sendThanks } from './thanks.js';
 
 const LAUNCH_UTC = Date.UTC(2026, 9, 7);   // keep in sync with web/js/config.js LAUNCH
 const LEGS = 7;                            // keep in sync with web/js/config.js LEGS
@@ -234,6 +237,7 @@ async function confirmPaid(env, sub) {
     const ch = cs.payment_intent && cs.payment_intent.latest_charge;
     if (ch && ch.refunded) { refunded = true; continue; }
     await markPaid(env, sub, cs.id);
+    await sendThanks(env, sub, cs.customer_details && cs.customer_details.email);   // the webhook was lost: thank them here instead
     return { unlimited: true, refunded: false };
   }
   return { unlimited: false, refunded };
@@ -295,6 +299,7 @@ async function postStripe(request, env) {
     await env.DB.prepare('INSERT OR IGNORE INTO checkouts (id, sub) VALUES (?, ?)').bind(o.id, o.client_reference_id).run();
     await env.DB.prepare('INSERT INTO users (sub) VALUES (?) ON CONFLICT(sub) DO NOTHING').bind(o.client_reference_id).run();
     await markPaid(env, o.client_reference_id, o.id);
+    await sendThanks(env, o.client_reference_id, o.customer_details && o.customer_details.email);   // once per account; no-op without RESEND_API_KEY
   }
   if (evt.type === 'charge.refunded' && o.refunded) {
     // A full refund (issued from the Stripe dashboard) removes access again.
@@ -436,6 +441,23 @@ async function isAdmin(request, env) {
 
 /** GET /api/admin/stats?me=<device>: everything on the dashboard in one go.
     `me` leaves the owner's own browser out of every count. */
+/* Thank-you emails to buyers: how many went out, how many paying accounts
+   haven't had one (bought before it existed, or before the key was set), and
+   a button's worth of POST to send those now. */
+async function adminThanks(request, env) {
+  if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
+  const waitingQ = "SELECT u.sub, u.email FROM users u LEFT JOIN thanks t ON t.sub = u.sub WHERE u.unlimited = 1 AND t.sub IS NULL AND u.email IS NOT NULL AND u.email != ''";
+  if (request.method === 'POST') {
+    const rows = (await env.DB.prepare(`${waitingQ} LIMIT 40`).all()).results || [];
+    let sent = 0, failed = 0;
+    for (const r of rows) { const s = await sendThanks(env, r.sub, r.email); if (s === 'sent') sent++; else if (s !== 'already') failed++; }
+    return json({ sent, failed, on: Boolean(env.RESEND_API_KEY) });
+  }
+  const sent = await env.DB.prepare('SELECT COUNT(*) AS c FROM thanks').first();
+  const waiting = await env.DB.prepare(`SELECT COUNT(*) AS c FROM (${waitingQ})`).first();
+  return json({ on: Boolean(env.RESEND_API_KEY), sent: sent.c || 0, waiting: waiting.c || 0 }, { headers: { 'cache-control': 'no-store' } });
+}
+
 async function getAdmin(request, env, ctx) {
   if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
   const u0 = new URL(request.url);
@@ -536,6 +558,7 @@ export default {
     if (url.pathname === '/api/hit' && request.method === 'POST') return postHit(request, env);
     if (url.pathname === '/api/admin/login' && request.method === 'POST') return postAdminLogin(request, env);
     if (url.pathname === '/api/admin/stats' && request.method === 'GET') return getAdmin(request, env, ctx);
+    if (url.pathname === '/api/admin/thanks') return adminThanks(request, env);
     const ap = url.pathname.match(/^\/api\/admin\/passes(?:\/([\w-]{3,40}))?$/);
     if (ap) return adminPasses(request, env, ap[1]);
     if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, { status: 404 });
