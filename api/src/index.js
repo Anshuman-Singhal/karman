@@ -124,6 +124,7 @@ async function postResult(request, env) {
     && typeof legs === 'string' && legs.length === LEGS && /^[01]+$/.test(legs)
     && typeof chips === 'string' && chips.length === LEGS && /^[0-4]+$/.test(chips);
   if (!ok) return json({ error: 'invalid result' }, { status: 422 });
+  if (await limited(request, env, 'result')) return tooMany();
 
   // INSERT OR IGNORE: a second submission from the same device is dropped, and
   // the follow-up statements (same batch, same transaction) run only when the
@@ -684,6 +685,7 @@ async function adminRebuild(request, env) {
   const from = latestFlight() - 14;
   await env.DB.batch([
     env.DB.prepare("INSERT INTO meta (k, v) VALUES ('rebuild_at', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(String(Date.now())),
+    env.DB.prepare("INSERT INTO meta (k, v) VALUES ('rebuild_from', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(String(from)),
     env.DB.prepare('DELETE FROM day_stats WHERE n >= ?').bind(from),
     env.DB.prepare('DELETE FROM cohort_ret WHERE n >= ?').bind(from - 30),
   ]);

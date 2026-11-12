@@ -97,6 +97,10 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
   const sqlNow = new Date(nowMs).toISOString().slice(0, 19).replace('T', ' ');
 
   const meta = Object.fromEntries((await all('SELECT k, v FROM meta')).map((r) => [r.k, r.v]));
+  // How many devices are left out right now: a frozen day remembers it, so rolled
+  // weekly/monthly counts are recounted once the exclusions change.
+  const exNow = (await one('SELECT COUNT(*) AS c FROM ignore_devices')).c || 0;
+  const rebuildFrom = Number(meta.rebuild_from || 0);
   const utcDay = sqlNow.slice(0, 10);
   const cuUsed = meta.cu_day === utcDay ? Number(meta.cu_rows || 0) : 0;
   /* May a catch-up step start now? It must fit, with the live reads still to come
@@ -115,7 +119,9 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
 
   /** Every number for one flight day d. live: skip what only a frozen day needs. prev: frozen d-1 (for rolling WAU/MAU). */
   async function dayNumbers(d, { live = false, withPilots = true, prev = null, lite = false, core = false } = {}) {
-    const rolled = !live && Boolean(prev && prev.mau != null && prev.wau != null);
+    // Roll forward from the day before, except: the day before was frozen under other
+    // exclusions, this is the first day re-frozen by a rebuild, or a weekly checkpoint.
+    const rolled = !live && Boolean(prev && prev.mau != null && prev.wau != null) && prev.exN === exNow && d !== rebuildFrom && d % 7 !== 0;
     const [agg, hist, hrs, vis, nv, np, roll, cor] = await Promise.all([
       one(`SELECT COUNT(*) AS fin, ROUND(AVG(pts), 1) AS avg, MAX(pts) AS best, SUM(pts >= ${MAX_PTS}) AS karman, ${LEG_COLS},
           SUM(${ex(d - 7, d - 1)}) AS gap7
@@ -127,7 +133,7 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
       withPilots ? one(`SELECT COUNT(*) AS nv, SUM(first_flight = first_seen) AS act, SUM(first_flight IS NOT NULL) AS fin FROM pilots WHERE first_seen = ? AND ${NOTME}`, d) : null,
       withPilots ? one(`SELECT COUNT(*) AS np FROM pilots WHERE first_flight = ? AND ${NOTME}`, d) : null,
       // weekly / monthly pilots roll forward from the day before: who entered the window today, who left it
-      live ? null : prev && prev.mau != null && prev.wau != null
+      live ? null : rolled
         // entered: flew on d and not in the previous window [d-30, d-1] / [d-7, d-1]; left: flew on d-30 / d-7 and not since
         ? one(`SELECT SUM(n = ?1 AND ${ex('?1 - 30', '?1 - 1')}) AS e30, SUM(n = ?1 AND ${ex('?1 - 7', '?1 - 1')}) AS e7,
               SUM(n = ?1 - 30 AND ${ex('?1 - 29', '?1')}) AS l30, SUM(n = ?1 - 7 AND ${ex('?1 - 6', '?1')}) AS l7
@@ -155,6 +161,7 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
       if (rolled) { out.wau = prev.wau + (roll.e7 || 0) - (roll.l7 || 0); out.mau = prev.mau + (roll.e30 || 0) - (roll.l30 || 0); } else { out.wau = roll.wau || 0; out.mau = roll.mau || 0; }
     }
     if (cor) out.core = cor.c || 0;
+    if (!live) out.exN = exNow;
     return out;
   }
 
@@ -204,6 +211,12 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
     }
     bfDone = rc === END && vc === END;
     backfill.pilots = bfDone ? 'done' : 'running';
+    // Device ids are random UUIDs, so how far a cursor has got through the id space
+    // estimates the share done (two passes: results, then visits).
+    const ALPHA = '-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz';
+    const frac = (c) => (c === END ? 1 : !c ? 0 : /^[0-9a-f]{8}/.test(c) ? parseInt(c.slice(0, 8), 16) / 2 ** 32
+      : (Math.max(0, ALPHA.indexOf(c[0])) + Math.max(0, ALPHA.indexOf(c[1] || '-')) / ALPHA.length) / ALPHA.length);
+    backfill.progress = Math.round(((frac(rc) + frac(vc)) / 2) * 1000) / 1000;
     Object.assign(metaW, { pilots_bf_r: rc, pilots_bf_v: vc, pilots_bf_n: String(backfill.devices), pilots_bf: bfDone ? 'done' : 'running' });
   }
 

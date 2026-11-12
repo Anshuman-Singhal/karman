@@ -429,6 +429,14 @@ globalThis.fetch = prevFetch;
   rb = await stats2();
   check(rb.backfill.pendingDays === 0, '...and resumes the next day');
   check(day(rb, T - 2).fin === raw(T - 2) - 1, 'after a rebuild, newly excluded devices leave the frozen days too');
+  const distinctX = (lo, hi) => db2.prepare('SELECT COUNT(DISTINCT device) c FROM results WHERE n BETWEEN ? AND ? AND n < 1000000 AND device NOT IN (SELECT device FROM ignore_devices)').get(lo, hi).c;
+  const offRoll = (x, from) => { const bad = []; for (let n = from; n <= T - 2; n++) { const d = day(x, n); if (d.wau !== distinctX(n - 6, n) || d.mau !== distinctX(n - 29, n)) bad.push(n); } return bad; };
+  check(offRoll(rb, T - 14).length === 0, `after a rebuild, rolled weekly/monthly pilots re-converge to the new exclusions (${offRoll(rb, T - 14).join(',')})`);
+  // exclusions change with no rebuild: the next day frozen sees a different count and recounts
+  db2.exec(`INSERT INTO ignore_devices (device) VALUES ('dev-c5-a-001'); DELETE FROM day_stats WHERE n >= ${T - 4}`);
+  rb = await stats2();
+  check(offRoll(rb, T - 4).length === 0 && day(rb, T - 4).exN === 3, `a later exclusion is picked up by the next frozen day (${offRoll(rb, T - 4).join(',')})`);
+  db2.exec("DELETE FROM ignore_devices WHERE device = 'dev-c5-a-001'");
   db2.exec("DELETE FROM ignore_devices WHERE device = 'dev-loyal-0001'");
 
   // cost bound: the backfill takes at most 1000 devices per side per build, and nothing freezes until it is done
