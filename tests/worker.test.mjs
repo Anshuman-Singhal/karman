@@ -213,7 +213,7 @@ check(th.on === false && th.sent === 1 && th.waiting >= 1, 'thank-you status: of
   db.exec("INSERT INTO users (sub, email, unlimited) VALUES ('g-old', 'old@b.c', 1)");
   const sendOld = await (await call('/api/admin/thanks', { method: 'POST', headers: A })).json();
   const oldMail = mails.find((m) => m.to[0] === 'old@b.c');
-  check(sendOld.sent >= 1 && oldMail && /for a while/.test(oldMail.text) && /small welcome card/.test(oldMail.text), 'earlier buyers get the "for a while" email');
+  check(sendOld.sent >= 1 && oldMail && /for a while/.test(oldMail.text) && /See your welcome card/.test(oldMail.text), 'earlier buyers get the "for a while" email');
   check(tr.test === 'sent' && mails.length >= 1 && mails[0].to[0] === 'me@x.y' && /^\[Test\]/.test(mails[0].subject) && !db.prepare("SELECT 1 FROM thanks WHERE email = 'me@x.y'").get(), 'a test copy goes out and marks nobody');
   globalThis.fetch = f0; delete env.RESEND_API_KEY;
 }
