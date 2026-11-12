@@ -159,9 +159,15 @@ K.stats = (() => {
       }).then((r) => { if (r && r.ok) stampIt(key, stamp); else sentEv.delete(mem); }, () => sentEv.delete(mem));
     } catch (e) { sentEv.delete(mem); }
   }
+  // Only the game's own errors: scripts on this origin (not extensions, not
+  // third-party widgets such as Google sign-in).
+  const ours = (url) => { try { return new URL(url, location.href).origin === location.origin; } catch (e) { return false; } };
   if (typeof addEventListener === 'function') {
-    addEventListener('error', () => event('error'));
-    addEventListener('unhandledrejection', () => event('error'));
+    addEventListener('error', (e) => { if (e && e.filename && ours(e.filename)) event('error'); });
+    addEventListener('unhandledrejection', (e) => {
+      const stack = e && e.reason && e.reason.stack ? String(e.reason.stack) : '';
+      if (stack && stack.includes(location.origin)) event('error');
+    });
   }
 
   return { submit, report, get, percentile, live, sampling, hit, event, get down() { return down; } };

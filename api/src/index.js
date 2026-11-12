@@ -39,7 +39,7 @@
 
 import { SCHEMA } from './schema.js';
 import { sendThanks, sendTest } from './thanks.js';
-import { buildDashboard, EVENT_KINDS } from './dash.js';
+import { buildDashboard, EVENT_KINDS, maskEmail } from './dash.js';
 
 const LAUNCH_UTC = Date.UTC(2026, 9, 7);   // keep in sync with web/js/config.js LAUNCH
 const LEGS = 7;                            // keep in sync with web/js/config.js LEGS
@@ -58,17 +58,41 @@ const json = (data, init = {}) => new Response(JSON.stringify(data), {
   ...init,
   headers: { 'content-type': 'application/json; charset=utf-8', ...(init.headers || {}) },
 });
-const changesOf = (r) => (r && r.meta && r.meta.changes != null ? r.meta.changes : r && r.changes) || 0;
 const DEVICE_RE = /^[\w-]{8,64}$/;
 /* Crawlers and link unfurlers that run JS would otherwise mint a "visitor"
    per fetch. Real in-app browsers (Twitter, Instagram…) are not matched. */
 const BOT_UA = /(?<!cu)bot[/\-\s;)]|bot$|crawler|spider|slurp|headlesschrome|lighthouse|facebookexternalhit|embedly|whatsapp\/|google-inspectiontool|bingpreview|petalbot/i;
 const isBot = (request) => BOT_UA.test(request.headers.get('user-agent') || '');
 
+/* Rate limit for the anonymous write endpoints (hit, event, report), per
+   client IP. Uses the Workers rate-limiting binding when one is configured
+   (env.LIMITER, see SHIPPING.md), else a small fixed window per isolate.
+   Fails open: any error means "allowed", so a real player is never blocked
+   by the limiter itself. Over the limit the request is answered 429 and
+   nothing is written (the game simply retries another time). */
+const buckets = new Map();
+async function limited(request, env, scope, per = 30) {
+  const ip = request.headers.get('cf-connecting-ip');
+  if (!ip) return false;
+  const key = `${scope}:${ip}`;
+  try {
+    if (env.LIMITER && typeof env.LIMITER.limit === 'function') return !(await env.LIMITER.limit({ key })).success;
+    const now = Date.now();
+    let b = buckets.get(key);
+    if (!b || now - b.t >= 60e3) {
+      if (buckets.size > 5000) buckets.clear();
+      b = { t: now, n: 0 }; buckets.set(key, b);
+    }
+    b.n += 1;
+    return b.n > per;
+  } catch (e) { return false; }
+}
+const tooMany = () => new Response(null, { status: 429 });
+
 /* pilots: one row per device (the dashboard's pre-aggregation). A finished
    daily flight moves first/last/count/streak; written only when the result
    row itself was new, so a resubmission never counts twice. */
-const PILOT_RESULT = `INSERT INTO pilots (device, first_seen, first_flight, last_flight, flights, streak) VALUES (?1, ?2, ?2, ?2, 1, 1)
+const PILOT_RESULT = `INSERT INTO pilots (device, first_seen, first_flight, last_flight, flights, streak) SELECT ?1, ?2, ?2, ?2, 1, 1 WHERE changes() = 1
   ON CONFLICT(device) DO UPDATE SET
     first_seen = MIN(first_seen, excluded.first_seen),
     first_flight = COALESCE(MIN(first_flight, excluded.first_flight), excluded.first_flight),
@@ -76,7 +100,7 @@ const PILOT_RESULT = `INSERT INTO pilots (device, first_seen, first_flight, last
                   WHEN last_flight >= excluded.last_flight THEN streak ELSE 1 END,
     last_flight = MAX(COALESCE(last_flight, 0), excluded.last_flight),
     flights = flights + 1`;
-const PILOT_HIT = `INSERT INTO pilots (device, first_seen, first_src, country, mobile) VALUES (?1, ?2, ?3, ?4, ?5)
+const PILOT_HIT = `INSERT INTO pilots (device, first_seen, first_src, country, mobile) SELECT ?1, ?2, ?3, ?4, ?5 WHERE changes() = 1
   ON CONFLICT(device) DO UPDATE SET
     first_src = CASE WHEN first_src IS NULL AND first_seen >= excluded.first_seen THEN excluded.first_src ELSE first_src END,
     country = COALESCE(country, excluded.country), mobile = COALESCE(mobile, excluded.mobile)`;
@@ -87,21 +111,39 @@ async function postResult(request, env) {
   const { device, pts, legs, chips, run } = body || {};
   const isRun = Number.isInteger(run) && run >= 1 && run <= 99999;   // a numbered Unlimited run
   const n = isRun ? RUN_BASE + run : body && body.n;
-  // Daily results: today's flight, or yesterday's for someone who started
-  // before midnight. Older flights are archive replays or a dev picker, never stats.
-  const T = latestFlight();
-  const ok = (isRun || (Number.isInteger(n) && n >= Math.max(1, T - 1) && n <= T))
+  // Daily results: today's flight (with ten minutes' grace for a fast clock),
+  // yesterday's for someone who started before midnight, and for the first two
+  // hours of a day the one before that too. Older flights are archive replays
+  // or a dev picker, never stats. The dashboard only freezes a day once it can
+  // no longer receive results (see TC in getAdmin).
+  const now = Date.now();
+  const hi = latestFlight(now + 10 * 60e3), lo = Math.max(1, latestFlight(now - 2 * 36e5) - 1);
+  const ok = (isRun || (Number.isInteger(n) && n >= lo && n <= hi))
     && typeof device === 'string' && DEVICE_RE.test(device)
     && Number.isInteger(pts) && pts >= 0 && pts <= MAX_PTS
     && typeof legs === 'string' && legs.length === LEGS && /^[01]+$/.test(legs)
     && typeof chips === 'string' && chips.length === LEGS && /^[0-4]+$/.test(chips);
   if (!ok) return json({ error: 'invalid result' }, { status: 422 });
 
-  // INSERT OR IGNORE: a second submission from the same device is dropped.
-  const r = await env.DB.prepare('INSERT OR IGNORE INTO results (n, device, pts, legs, chips) VALUES (?, ?, ?, ?, ?)')
-    .bind(n, device, pts, legs, chips).run();
-  if (!isRun && changesOf(r)) {
-    try { await env.DB.prepare(PILOT_RESULT).bind(device, n).run(); } catch (e) { console.warn('pilots', e && e.message); }
+  // INSERT OR IGNORE: a second submission from the same device is dropped, and
+  // the follow-up statements (same batch, same transaction) run only when the
+  // row was new, so nothing is ever counted twice.
+  const stmts = [env.DB.prepare('INSERT OR IGNORE INTO results (n, device, pts, legs, chips) VALUES (?, ?, ?, ?, ?)').bind(n, device, pts, legs, chips)];
+  if (!isRun) stmts.push(env.DB.prepare(PILOT_RESULT).bind(device, n));
+  else {
+    // Unlimited runs are counted per day as they land (the dashboard never re-reads them),
+    // and paid runs mark the device as an Unlimited pilot that day. The owner's devices are left out.
+    const day = latestFlight(now);
+    stmts.push(
+      env.DB.prepare(`INSERT INTO counters (day, kind, n) SELECT ?, ?, 1 WHERE changes() = 1 AND NOT EXISTS (SELECT 1 FROM ignore_devices WHERE device = ?)
+        ON CONFLICT(day, kind) DO UPDATE SET n = n + 1`).bind(day, run === 1 ? 'runs_free' : 'runs_paid', device),
+    );
+    if (run > 1) stmts.push(env.DB.prepare("INSERT OR IGNORE INTO events (day, kind, device) SELECT ?, 'run', ? WHERE changes() = 1").bind(day, device));
+  }
+  try { await env.DB.batch(stmts); } catch (e) {
+    // the result itself matters most: keep it even if the bookkeeping failed
+    console.warn('result batch', e && e.message);
+    await env.DB.prepare('INSERT OR IGNORE INTO results (n, device, pts, legs, chips) VALUES (?, ?, ?, ?, ?)').bind(n, device, pts, legs, chips).run();
   }
   return new Response(null, { status: 204 });
 }
@@ -147,6 +189,7 @@ async function postReport(request, env) {
   try { b = await request.json(); } catch { return json({ error: 'bad json' }, { status: 400 }); }
   const ok = b && typeof b.qid === 'string' && /^[\w-]{2,40}$/.test(b.qid) && typeof b.device === 'string' && /^[\w-]{8,64}$/.test(b.device);
   if (!ok) return json({ error: 'invalid' }, { status: 422 });
+  if (await limited(request, env, 'report')) return tooMany();
   await env.DB.prepare('INSERT OR IGNORE INTO reports (qid, device, n) VALUES (?, ?, ?)').bind(b.qid, b.device, Number(b.n) || 0).run();
   return new Response(null, { status: 204 });
 }
@@ -343,6 +386,11 @@ async function postStripe(request, env) {
   const o = evt.data && evt.data.object;
   const paidEvent = evt.type === 'checkout.session.completed' || evt.type === 'checkout.session.async_payment_succeeded';
   if (paidEvent && o.payment_status === 'paid' && o.client_reference_id) {
+    // Stripe retries webhooks. A retry of a payment that has since been fully
+    // refunded must not hand Unlimited back (markPaid clears the refund mark).
+    const prior = await env.DB.prepare('SELECT amount, refunded FROM payments WHERE session = ?').bind(o.id).first();
+    const legacy = !prior && await env.DB.prepare('SELECT 1 AS x FROM users u JOIN refunds r ON r.sub = u.sub WHERE u.sub = ? AND u.stripe_session = ?').bind(o.client_reference_id, o.id).first();
+    if ((prior && prior.refunded >= prior.amount) || legacy) return new Response('ok (refunded)');
     await env.DB.prepare('INSERT OR IGNORE INTO checkouts (id, sub) VALUES (?, ?)').bind(o.id, o.client_reference_id).run();
     await env.DB.prepare('INSERT INTO users (sub) VALUES (?) ON CONFLICT(sub) DO NOTHING').bind(o.client_reference_id).run();
     await markPaid(env, o.client_reference_id, o);
@@ -357,8 +405,10 @@ async function postStripe(request, env) {
     if (sub) {
       const amount = Number.isInteger(o.amount) ? o.amount : Number(env.PRICE_CENTS || 599);
       const refunded = Number.isInteger(o.amount_refunded) ? o.amount_refunded : (o.refunded ? amount : 0);
-      const stmts = [env.DB.prepare(`INSERT INTO payments (session, sub, amount, currency, refunded, refunded_at) VALUES (?, ?, ?, ?, ?, datetime('now'))
-        ON CONFLICT(session) DO UPDATE SET refunded = excluded.refunded, refunded_at = excluded.refunded_at`).bind(cs.id, sub, amount, o.currency || 'usd', refunded)];
+      // Out-of-order refund events never lower the refunded total.
+      const stmts = [env.DB.prepare(`INSERT INTO payments (session, sub, amount, currency, at, refunded, refunded_at) VALUES (?, ?, ?, ?, COALESCE(?, datetime('now')), ?, datetime('now'))
+        ON CONFLICT(session) DO UPDATE SET refunded = MAX(refunded, excluded.refunded), refunded_at = excluded.refunded_at`)
+        .bind(cs.id, sub, amount, o.currency || 'usd', cs.created ? sqlTime(cs.created) : null, refunded)];
       if (o.refunded) stmts.push(
         env.DB.prepare('UPDATE users SET unlimited = 0 WHERE sub = ?').bind(sub),
         env.DB.prepare('INSERT OR REPLACE INTO refunds (sub) VALUES (?)').bind(sub),
@@ -464,12 +514,12 @@ async function postHit(request, env) {
   const country = request.cf && typeof request.cf.country === 'string' ? request.cf.country.slice(0, 2) : null;
   const mobile = /Mobi|Android|iPhone|iPad/i.test(request.headers.get('user-agent') || '') ? 1 : 0;
   if (isBot(request)) return new Response(null, { status: 204 });
+  if (await limited(request, env, 'hit', 60)) return tooMany();
   const day = latestFlight();
-  const r = await env.DB.prepare('INSERT OR IGNORE INTO visits (day, device, src, country, mobile) VALUES (?, ?, ?, ?, ?)')
-    .bind(day, b.device, src, country, mobile).run();
-  if (changesOf(r)) {
-    try { await env.DB.prepare(PILOT_HIT).bind(b.device, day, src, country, mobile).run(); } catch (e) { console.warn('pilots', e && e.message); }
-  }
+  await env.DB.batch([
+    env.DB.prepare('INSERT OR IGNORE INTO visits (day, device, src, country, mobile) VALUES (?, ?, ?, ?, ?)').bind(day, b.device, src, country, mobile),
+    env.DB.prepare(PILOT_HIT).bind(b.device, day, src, country, mobile),
+  ]);
   return new Response(null, { status: 204 });
 }
 
@@ -482,9 +532,13 @@ async function postEvent(request, env) {
   try { b = await request.json(); } catch { return json({ error: 'bad json' }, { status: 400 }); }
   if (!b || typeof b.device !== 'string' || !DEVICE_RE.test(b.device) || !EVENT_KINDS.includes(b.kind)) return json({ error: 'invalid' }, { status: 422 });
   if (isBot(request)) return new Response(null, { status: 204 });
+  if (await limited(request, env, 'event')) return tooMany();
   const day = latestFlight();
-  const r = await env.DB.prepare('INSERT OR IGNORE INTO events (day, kind, device) VALUES (?, ?, ?)').bind(day, b.kind, b.device).run();
-  if (changesOf(r)) await env.DB.prepare('INSERT INTO counters (day, kind, n) VALUES (?, ?, 1) ON CONFLICT(day, kind) DO UPDATE SET n = n + 1').bind(day, b.kind).run();
+  await env.DB.batch([
+    // the owner's own devices are never counted
+    env.DB.prepare('INSERT OR IGNORE INTO events (day, kind, device) SELECT ?1, ?2, ?3 WHERE NOT EXISTS (SELECT 1 FROM ignore_devices WHERE device = ?3)').bind(day, b.kind, b.device),
+    env.DB.prepare('INSERT INTO counters (day, kind, n) SELECT ?, ?, 1 WHERE changes() = 1 ON CONFLICT(day, kind) DO UPDATE SET n = n + 1').bind(day, b.kind),
+  ]);
   return new Response(null, { status: 204 });
 }
 
@@ -520,7 +574,6 @@ async function isAdmin(request, env) {
 /* Thank-you emails to buyers: how many went out, how many paying accounts
    haven't had one (bought before it existed, or before the key was set), and
    a button's worth of POST to send those now. */
-const maskEmail = (e) => { const [u, d] = String(e || '').split('@'); return d ? `${u.slice(0, 2)}•••@${d}` : ''; };
 async function adminThanks(request, env) {
   if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
   const waitingQ = "SELECT u.sub, u.email FROM users u LEFT JOIN thanks t ON t.sub = u.sub WHERE u.unlimited = 1 AND t.sub IS NULL AND u.email IS NOT NULL AND u.email != ''";
@@ -568,7 +621,7 @@ async function getAdmin(request, env, ctx) {
   let health = null;
   try { health = await (await getHealth(env, ctx)).json(); } catch { /* shown as unknown */ }
   const body = await buildDashboard(env, {
-    T: latestFlight(), launch: LAUNCH_UTC, priceCents: Number(env.PRICE_CENTS || 599), health, stripeGet, d1Usage,
+    T: latestFlight(), TC: latestFlight(Date.now() - 2 * 36e5), launch: LAUNCH_UTC, priceCents: Number(env.PRICE_CENTS || 599), health, stripeGet, d1Usage,
   });
   const text = JSON.stringify(body);
   ctx.waitUntil(caches.default.put(cacheKey, new Response(text, { headers: { 'content-type': 'application/json', 'cache-control': 'public, max-age=600', 'x-built': String(body.builtAt) } })));
@@ -625,8 +678,12 @@ async function adminIgnore(request, env) {
    the current exclusions. Older days stay as they were. */
 async function adminRebuild(request, env) {
   if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
+  // At most once an hour: re-freezing costs a few hundred thousand rows at scale.
+  const last = await env.DB.prepare("SELECT v FROM meta WHERE k = 'rebuild_at'").first();
+  if (last && Date.now() - Number(last.v) < 36e5) return json({ error: 'once an hour', next: Number(last.v) + 36e5 }, { status: 429 });
   const from = latestFlight() - 14;
   await env.DB.batch([
+    env.DB.prepare("INSERT INTO meta (k, v) VALUES ('rebuild_at', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(String(Date.now())),
     env.DB.prepare('DELETE FROM day_stats WHERE n >= ?').bind(from),
     env.DB.prepare('DELETE FROM cohort_ret WHERE n >= ?').bind(from - 30),
   ]);

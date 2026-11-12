@@ -165,21 +165,24 @@ CREATE TABLE IF NOT EXISTS cohort_ret (
 );
 
 -- Anonymous product events (paywall seen, buy pressed, shared, pass redeemed,
--- an error): at most one row per device per kind per flight day. No cookies,
--- nothing personal: the same random device id as /api/hit. Purged after 60 days.
+-- an error; 'run' = flew a paid Unlimited run): at most one row per device per
+-- kind per flight day. No cookies, nothing personal: the same random device id
+-- as /api/hit. Purged after 60 days. WITHOUT ROWID: the key is the row, so
+-- each event is one write, not two.
 CREATE TABLE IF NOT EXISTS events (
   day      INTEGER NOT NULL,
   kind     TEXT    NOT NULL,
   device   TEXT    NOT NULL,
   PRIMARY KEY (day, kind, device)
-);
--- The same, pre-counted per day: what the dashboard reads.
+) WITHOUT ROWID;
+-- Per-day counts the dashboard reads: distinct devices per event kind, and
+-- Unlimited runs finished ('runs_free' = the one free run, 'runs_paid').
 CREATE TABLE IF NOT EXISTS counters (
   day      INTEGER NOT NULL,
   kind     TEXT    NOT NULL,
   n        INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (day, kind)
-);
+) WITHOUT ROWID;
 
 -- What Stripe actually charged (amount_total, in the smallest currency unit)
 -- and refunded, one row per paid Checkout session. est = 1: filled in from
@@ -221,3 +224,9 @@ CREATE TABLE IF NOT EXISTS meta (
   k        TEXT PRIMARY KEY,
   v        TEXT
 );
+-- When this version first ran: Unlimited runs from then on are counted as they
+-- land; older ones are counted once by the dashboard. Kept forever (OR IGNORE).
+INSERT OR IGNORE INTO meta (k, v) VALUES ('live_from', datetime('now'));
+
+-- "Paid flights started this week" without reading every play ever logged.
+CREATE INDEX IF NOT EXISTS plays_by_at ON plays (at);

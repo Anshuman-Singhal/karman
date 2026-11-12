@@ -68,7 +68,7 @@ K.access = (() => {
     lastRefusal = null;
     try {
       const res = await api(unlockUrl(code));
-      if (res.valid) { grant('code', { code }); if (K.stats) K.stats.event('pass_redeem'); return true; }
+      if (res.valid) { grant('code', { code }); try { K.stats.event('pass_redeem'); } catch (e) { /* stats only */ } return true; }
       lastRefusal = res.reason || null;
     } catch (e) { /* offline or invalid */ }
     return false;

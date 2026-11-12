@@ -143,7 +143,8 @@ a { color: inherit; }
 .view-head p { margin: 6px 0 0; color: var(--ink-2); max-width: 640px; }
 
 /* deltas + status */
-.d { font: 500 12px/1.2 var(--f-mono); white-space: nowrap; }
+.d { font: 500 12px/1.3 var(--f-mono); white-space: nowrap; }
+.d.flat { white-space: normal; overflow-wrap: anywhere; }
 .d.up { color: var(--up); } .d.down { color: var(--down); } .d.flat { color: var(--ink-3); }
 .d .vs { color: var(--ink-3); font-family: var(--f-ui); font-size: 12px; margin-left: 4px; }
 .st { display: inline-flex; align-items: center; gap: 6px; font: 600 10.5px/1 var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase; }
@@ -490,6 +491,17 @@ tr.off td:not(.acts) { opacity: 0.5; }
   .banner { flex-wrap: wrap; }
 }
 @media (min-width: 641px) { .only-sm { display: none !important; } }
+.idx { font: 500 12px var(--f-mono); color: var(--ink-3); letter-spacing: .04em; }
+.mini .v .idx, .kpi .val .idx { font: 600 15px var(--f-mono); color: var(--ink-3); letter-spacing: .06em; vertical-align: middle; }
+.self-start { align-self: start; }
+.passes-tbl td:first-child { overflow-wrap: anywhere; max-width: 200px; }
+.rows .st + .mono { margin-left: 6px; }
+.bar2 { position: relative; }
+.bar2.crit-off::after { content: ""; position: absolute; right: 6px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--crit); box-shadow: 0 0 0 3px rgba(196, 64, 42, .18); }
+@media (max-width: 640px) {
+  .banner { flex-direction: column; align-items: stretch; gap: 8px; }
+  .banner .btn { width: 100%; }
+}
 
 .gate h1 { color: var(--hero); }
 .mix span:first-child { box-shadow: inset 0 0 0 0.5px rgba(20, 33, 61, 0.15); }
@@ -630,7 +642,8 @@ tr.off td:not(.acts) { opacity: 0.5; }
   const ETF = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' });
   const etParts = (ms) => Object.fromEntries(ETF.formatToParts(new Date(ms)).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]));
   const flightOf = (ms) => { const p = etParts(ms); return Math.round((Date.UTC(p.year, p.month - 1, p.day) - D.launch) / 864e5) + 1; };
-  const etNow = () => { const ms = Date.now(), p = etParts(ms); return { n: flightOf(ms), h: (p.hour % 24) + p.minute / 60, hour: p.hour % 24, minute: p.minute }; };
+  const etAt = (ms) => { const p = etParts(ms); return { n: flightOf(ms), h: (p.hour % 24) + p.minute / 60, hour: p.hour % 24, minute: p.minute }; };
+  const etNow = () => etAt(Date.now());
   const msOf = (s) => Date.parse(`${String(s).replace(' ', 'T')}Z`);
   const dateOf = (n, o = { month: 'short', day: 'numeric' }) => new Date(D.launch + (n - 1) * 864e5).toLocaleDateString('en-US', { timeZone: 'UTC', ...o });
   const wdOf = (n) => new Date(D.launch + (n - 1) * 864e5).getUTCDay();
@@ -655,11 +668,13 @@ tr.off td:not(.acts) { opacity: 0.5; }
     target: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="2.4"/></svg>',
     share: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 5l3-3 3 3"/><path d="M3 9v4h10V9"/></svg>',
     balloon: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 3c-3.3 0-6 2.6-6 6 0 3.6 4 6.6 5 9h2c1-2.4 5-5.4 5-9 0-3.4-2.7-6-6-6z"/><path d="M10 21h4"/></svg>',
+    plane: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M2.5 13.5l19-8-6.5 15-3-6.5z"/><path d="M12 14l9.5-8.5"/></svg>',
+    cloudoff: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5H4a3 3 0 0 1-.4-6 4.5 4.5 0 0 1 6.9-2.4M12.4 7.4a2.6 2.6 0 0 1-.6 5.1H8"/><path d="M2 2l12 12"/></svg>',
     chev: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg>',
     trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>',
   };
   const st = (kind, label) => `<span class="st ${kind}">${IC[kind === 'act' ? 'act' : kind] || ''}${esc(label)}</span>`;
-  const empty = (title, hint) => `<div class="empty">${IC.balloon}<b>${esc(title)}</b>${hint ? `<span>${esc(hint)}</span>` : ''}</div>`;
+  const empty = (title, hint) => `<div class="empty">${IC.plane}<b>${esc(title)}</b>${hint ? `<span>${esc(hint)}</span>` : ''}</div>`;
 
   /* ---------------------------------------------------------- tooltip + chart helpers */
   const tip = $('tip');
@@ -673,11 +688,18 @@ tr.off td:not(.acts) { opacity: 0.5; }
   }
   const hideTip = () => { tip.style.opacity = 0; };
   const R = (k, v) => `<div class="r"><span>${k}</span><b>${v}</b></div>`;
+  /* A "nice" axis top close to the data: steps 1, 2, 2.5, 3, 4, 5, 6, 8 (×10ⁿ), trying a tick
+     count either side of the one asked for, so charts aren't left half empty. */
   function niceMax(v, ticks = 4) {
     v = Math.max(v, 1);
-    const raw = v / ticks, p = 10 ** Math.floor(Math.log10(raw)), f = raw / p;
-    const step = Math.max(1, (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p);
-    return { step, top: Math.ceil(v / step) * step };
+    let best = null;
+    for (const t of [ticks, ticks + 1, Math.max(2, ticks - 1)]) {
+      const raw = v / t, p = 10 ** Math.floor(Math.log10(raw)), f = raw / p;
+      const step = Math.max(1, [1, 2, 2.5, 3, 4, 5, 6, 8, 10].find((x) => f <= x + 1e-9) * p);
+      const top = Math.ceil(v / step - 1e-9) * step;
+      if (!best || top < best.top) best = { step, top };
+    }
+    return best;
   }
   const W = (el) => Math.max(260, el.clientWidth || 600);
   function grid(s, { L, Rr, top, step, y, fmtY = fmt, w, bot = 0 }) {
@@ -744,9 +766,9 @@ tr.off td:not(.acts) { opacity: 0.5; }
     return `<div style="display:flex;align-items:flex-end;gap:2px;height:${h}px" aria-hidden="true">${vals.map((v, i) => `<span style="flex:1;height:${v > 0 ? Math.max(3, (v / max) * h) : 1}px;border-radius:2px 2px 0 0;background:${i === n - 1 ? 'var(--amber-strong)' : v > 0 ? 'rgba(20,33,61,.4)' : 'rgba(20,33,61,.12)'}"></span>`).join('')}</div>`;
   }
   const sign = (x) => (x > 0 ? '+' : x < 0 ? '−' : '');
-  const delta = (p, vs) => (p == null || !isFinite(p) ? `<span class="d flat">■<span class="vs">${vs ? `${vs.replace(/^vs /, '')}: too early to compare` : 'first reading'}</span></span>`
+  const delta = (p, vs) => (p == null || !isFinite(p) ? `<span class="d flat" title="${vs ? `${esc(vs)}: not enough data yet` : 'first reading'}">■ ${vs ? 'too early' : 'first reading'}</span>`
     : `<span class="d ${p >= 0.5 ? 'up' : p <= -0.5 ? 'down' : 'flat'}">${p >= 0.5 ? '▲' : p <= -0.5 ? '▼' : '■'} ${sign(Math.round(p))}${Math.abs(Math.round(p))}%<span class="vs">${vs}</span></span>`);
-  const deltaPt = (pp, vs) => (pp == null || !isFinite(pp) ? `<span class="d flat">■<span class="vs">first reading</span></span>`
+  const deltaPt = (pp, vs) => (pp == null || !isFinite(pp) ? `<span class="d flat" title="${esc(vs || '')}: no earlier reading yet">■ first reading</span>`
     : `<span class="d ${Math.round(pp) > 0 ? 'up' : Math.round(pp) < 0 ? 'down' : 'flat'}">${Math.round(pp) > 0 ? '▲' : Math.round(pp) < 0 ? '▼' : '■'} ${sign(Math.round(pp))}${Math.abs(Math.round(pp))} pts<span class="vs">${vs}</span></span>`);
   const flat = (text, vs = '') => `<span class="d flat">${text}${vs ? `<span class="vs">${vs}</span>` : ''}</span>`;
   const RAMP = [[239, 230, 210], [201, 214, 234], [142, 174, 221], [79, 127, 200], [31, 63, 134]];
@@ -764,7 +786,11 @@ tr.off td:not(.acts) { opacity: 0.5; }
     const T = D.T;
     const day = (n) => { const d = D.days[n - 1]; return d && !d.pending ? d : null; };
     const now = etNow();
-    const H = now.n === T ? now.h : now.n > T ? 24 : 0;
+    // Same-time comparisons are made at the moment the numbers were built, not "now":
+    // a 10-minute-old copy compared with the 7-day curve at the current minute would read low.
+    const snap = etAt(D.builtAt);
+    const H = snap.n === T ? snap.h : snap.n > T ? 24 : 0;
+    const idx = D.backfill.pilots !== 'done';
     const cum = (hours, t) => { if (!hours) return 0; const f = Math.floor(t); let s = 0; for (let i = 0; i < Math.min(f, 24); i++) s += hours[i]; return f < 24 ? s + hours[f] * (t - f) : s; };
     const today = day(T) || { n: T, fin: 0, legs: [0, 0, 0, 0, 0, 0, 0], mix: Array.from({ length: 7 }, () => [0, 0, 0, 0, 0]), hist: Array(11).fill(0), hours: Array(24).fill(0), opened: 0, fo: 0, np: 0, nv: 0, act: 0, avg: 0, karman: 0, landed: [0, 0, 0, 0, 0], ev: {} };
     const prev = []; for (let k = 1; k <= 7; k++) { const d = day(T - k); if (d && d.fin) prev.push(d); }
@@ -776,7 +802,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
     const vsPace = avgNow >= 10 ? (today.fin / avgNow - 1) * 100 : null;   // too early in the day: no delta
     const wk = day(T - 7), wkNow = wk ? cum(wk.hours, H) : 0;
     const vsWk = wkNow >= 10 ? (today.fin / wkNow - 1) * 100 : null;
-    const npAvgNow = prev.length ? mean(prev.map((d) => d.np)) * shareNow : null;
+    const npAvgNow = prev.length && !idx ? mean(prev.map((d) => d.np || 0)) * shareNow : null;
     const vsNp = npAvgNow >= 3 ? (today.np / npAvgNow - 1) * 100 : null;
     // retention pooled over closed cohorts
     const cohorts = D.cohorts.filter((c) => c.size > 0);
@@ -794,12 +820,12 @@ tr.off td:not(.acts) { opacity: 0.5; }
     const allPilots = sum(D.days.filter((d) => !d.pending).map((d) => d.np || 0));
     const runway = K.daily.lastFlightNumber() - T;
     // spikes for annotations: a day with 3× the median newcomers
-    const nps = D.days.filter((d) => !d.pending && d.n < T).map((d) => d.np);
+    const nps = D.days.filter((d) => !d.pending && d.n < T && d.np != null).map((d) => d.np);
     const medNp = median(nps) || 0;
-    const spikes = D.days.filter((d) => !d.pending && d.n < T && medNp && d.np >= Math.max(20, medNp * 3)).map((d) => d.n);
+    const spikes = D.days.filter((d) => !d.pending && d.n < T && medNp && d.np != null && d.np >= Math.max(20, medNp * 3)).map((d) => d.n);
     const events = EVENTS.length ? EVENTS : spikes.slice(0, 2).map((n) => ({ n, label: `Spike · +${fmt(day(n).np)} new` }));
     const hit = today.fin ? sum(today.legs) / (today.fin * 7) : null;
-    return { T, day, now, H, cum, today, yday: day(T - 1), prev, avgBy, shareAt, shareNow, proj, avgNow, vsPace, wk, wkNow, vsWk, npAvgNow, vsNp,
+    return { T, day, now, snap, idx, H, cum, today, yday: day(T - 1), prev, avgBy, shareAt, shareNow, proj, avgNow, vsPace, wk, wkNow, vsWk, npAvgNow, vsNp,
       cohorts, pool, d1, d1p, d7, d7p, d30, d30p, pays, rev7, rev7p, gross, refunds, refundsN, sales7, kept, allPilots, runway, events, spikes, hit, tsAgo };
   }
 
@@ -819,8 +845,8 @@ tr.off td:not(.acts) { opacity: 0.5; }
     if (X.runway < 7) out.push({ lvl: 'crit', tag: 'Broken · Questions', t: X.runway > 0 ? `Only ${X.runway} day${X.runway === 1 ? '' : 's'} of questions left.` : 'The schedule has run out: reserve flights are flying.', more: ' Run the weekly restock.', btn: 'Stock', href: '#flight', tab: 'flight' });
     else if (X.runway < 14) out.push({ lvl: 'warn', tag: 'Check · Questions', t: `${X.runway} days of questions left.`, more: ' Restock this week.', btn: 'Stock', href: '#flight', tab: 'flight' });
     else ok.push(`${X.runway} days stocked`);
-    const hr = X.now.hour;
-    if (X.now.n === D.T && hr >= 11 && hr <= 23 && X.prev.length >= 3) {
+    const hr = X.snap.hour;
+    if (X.snap.n === D.T && hr >= 11 && hr <= 23 && X.prev.length >= 3) {
       const last3 = X.cum(X.today.hours, X.H) - X.cum(X.today.hours, X.H - 3), usual = X.avgBy(X.H) - X.avgBy(X.H - 3);
       if (last3 === 0 && usual >= 4) out.push({ lvl: 'crit', tag: 'Broken · Site?', t: 'No finished flights in the last 3 hours.', more: ` Usually about ${Math.round(usual)}. Check the game loads.`, btn: 'Open game', href: '/', tab: 'flight' });
     }
@@ -832,12 +858,14 @@ tr.off td:not(.acts) { opacity: 0.5; }
     const d1 = D.health && D.health.d1;
     if (d1 && d1.rowsRead / d1.limitRead > 0.5) out.push({ lvl: 'warn', tag: 'Check · Database', t: `D1 reads at ${pct(d1.rowsRead, d1.limitRead)}% of today's cap.`, more: ' Resets at 00:00 UTC.', btn: 'Data', href: '#tools', tab: 'tools' });
     else if (d1) ok.push(`DB reads ${pct(d1.rowsRead, d1.limitRead)}% of cap`);
-    if (X.vsPace != null && X.vsPace <= -30 && X.now.n === D.T && hr >= 10) out.push({ lvl: 'warn', tag: 'Check · Traffic', t: `Today is ${Math.abs(Math.round(X.vsPace))}% behind the 7-day pace.`, btn: 'Growth', href: '#growth', tab: 'growth' });
+    const wr = d1 && d1.rowsWritten != null ? d1.rowsWritten : D.health.writesEst;
+    if (wr != null && wr > 70000) out.push({ lvl: 'warn', tag: 'Check · Database writes', t: `${d1 && d1.rowsWritten != null ? 'D1 writes today' : 'About'} ${fmt(Math.round(wr / 1000))}k of the 100k daily writes${d1 && d1.rowsWritten != null ? '' : ' (yesterday, estimated)'}.`, more: ' Writes over the cap fail until 00:00 UTC.', btn: 'Data', href: '#tools', tab: 'tools' });
+    if (X.vsPace != null && X.vsPace <= -30 && X.snap.n === D.T && hr >= 10) out.push({ lvl: 'warn', tag: 'Check · Traffic', t: `Today is ${Math.abs(Math.round(X.vsPace))}% behind the 7-day pace.`, btn: 'Growth', href: '#growth', tab: 'growth' });
     if (TH && !TH.on) out.push({ lvl: 'warn', tag: 'Check · Thank-you emails', t: 'Thank-you emails are off.', more: ' Add the RESEND_API_KEY secret in Cloudflare.', btn: 'Emails', href: '#tools', tab: 'tools' });
     else if (TH && TH.late) out.push({ lvl: 'warn', tag: 'Check · Thank-you emails', t: `${TH.late} buyer${TH.late === 1 ? '' : 's'} got no thank-you a day after paying.`, more: ' The automatic send failed: check Resend.', btn: 'Emails', href: '#tools', tab: 'tools' });
     else if (TH && TH.on) ok.push('Emails on');
     if (D.passes.stale) out.push({ lvl: 'act', tag: 'To do · Passes', t: `${D.passes.stale} free pass${D.passes.stale === 1 ? '' : 'es'} unused for 2+ weeks.`, btn: 'Passes', href: '#tools', tab: 'tools' });
-    if (D.backfill.pilots !== 'done' || D.backfill.pendingDays) out.push({ lvl: 'info', tag: 'Catching up · History', t: D.backfill.pilots !== 'done' ? `Indexing pilots (${fmt(D.backfill.devices)} so far).` : `${D.backfill.pendingDays} older day${D.backfill.pendingDays === 1 ? '' : 's'} still to freeze.`, more: ' A few Refreshes finish it.', btn: 'Refresh', act: 'refresh', tab: 'tools' });
+    if (D.backfill.pilots !== 'done' || D.backfill.pendingDays) out.push({ lvl: 'info', tag: 'Catching up · History', t: D.backfill.pilots !== 'done' ? `Indexing pilots: ${fmt(D.backfill.devices)} so far. New-pilot and retention numbers show when it's done.` : `${D.backfill.pendingDays} older day${D.backfill.pendingDays === 1 ? '' : 's'} still to freeze.`, more: ' Each Refresh does a budgeted slice.', btn: 'Refresh', act: 'refresh', tab: 'tools' });
     const order = { crit: 0, warn: 1, act: 2, info: 3 };
     out.sort((a, b) => order[a.lvl] - order[b.lvl]);
     return { list: out, ok };
@@ -848,23 +876,23 @@ tr.off td:not(.acts) { opacity: 0.5; }
   /* ================================================================== BRIEFING */
   function briefing(el) {
     const T = D.T, t = X.today, A = alerts();
-    const left = X.now.n === T ? 24 - X.H : 0;
+    const left = X.now.n === T ? 24 - X.now.h : 0;   // the rail is the live clock; the numbers are as of the build
     const leftTxt = left > 0 ? `${Math.floor(left)}h ${Math.round((left % 1) * 60)}m left` : 'day closed';
-    const at = X.now.n === T ? clock(X.now.hour, X.now.minute) : 'midnight';
+    const at = X.snap.n === T ? clock(X.snap.hour, X.snap.minute) : 'midnight';
     const crit = A.list.filter((a) => a.lvl === 'crit');
     let head;
-    if (!t.fin) head = X.now.n === T && X.now.hour < 6 ? 'The first pilots are on their way.' : 'Waiting for the first pilots.';
+    if (!t.fin) head = X.snap.n === T && X.snap.hour < 6 ? 'The first pilots are on their way.' : 'Waiting for the first pilots.';
     else if (X.vsPace == null) head = `${fmt(t.fin)} pilots so far today.`;
     else if (X.vsPace >= 10) head = 'Running ahead of the week.';
     else if (X.vsPace <= -10) head = 'A quieter day than usual.';
     else head = 'Right on pace.';
-    if (X.now.n === T && X.now.hour < 6 && t.fin && X.prev.length) head = 'Early hours, early birds.';
+    if (X.snap.n === T && X.snap.hour < 6 && t.fin && X.prev.length) head = 'Early hours, early birds.';
     const topSrc = (() => { const r = D.acquisition.filter((a) => a.n === T && a.src !== 'direct' && a.src !== 'unknown').sort((a, b) => b.nv - a.nv)[0]; return r && r.nv >= 3 ? r.src : null; })();
     const pv = X.vsPace, pw = X.vsWk;
     const word = (p) => (p >= 0 ? 'above' : 'below');
     const para = !t.fin ? `Nobody has finished #${T} yet. Yesterday ${fmt(X.yday ? X.yday.fin : 0)} pilots flew.`
-      : `<b>${fmt(t.fin)} pilot${t.fin === 1 ? '' : 's'}</b> ${t.fin === 1 ? 'has' : 'have'} flown #${T} by ${at}${pv != null ? `, <b>${Math.abs(Math.round(pv))}% ${word(pv)}</b> the 7-day pace` : ''}${pw != null ? `<span class="hide-sm"> and ${Math.abs(Math.round(pw))}% ${word(pw)} last ${WD[wdOf(T)]}</span>` : ''}.${X.proj ? ` On track for about <b>${fmt(X.proj)}</b>.` : ''} <b>${fmt(t.np)} ${t.np === 1 ? 'is' : 'are'} new</b>${topSrc ? `, mostly from ${esc(topSrc)}` : ''}.${crit.length ? `<span class="hide-sm"> ${crit.length === 1 ? `One thing is broken: ${esc(crit[0].tag.split('· ')[1].toLowerCase())}.` : `${crit.length} things are broken.`}</span>` : ''}`;
-    const fr = t.opened ? pct(t.fo, t.opened) : null;
+      : `<b>${fmt(t.fin)} pilot${t.fin === 1 ? '' : 's'}</b> ${t.fin === 1 ? 'has' : 'have'} flown #${T} by ${at}${pv != null ? `, <b>${Math.abs(Math.round(pv))}% ${word(pv)}</b> the 7-day pace` : ''}${pw != null ? `<span class="hide-sm"> and ${Math.abs(Math.round(pw))}% ${word(pw)} last ${WD[wdOf(T)]}</span>` : ''}.${X.proj ? ` On track for about <b>${fmt(X.proj)}</b>.` : ''}${X.idx ? '' : ` <b>${fmt(t.np)} ${t.np === 1 ? 'is' : 'are'} new</b>${topSrc ? `, mostly from ${esc(topSrc)}` : ''}.`}${crit.length ? `<span class="hide-sm"> ${crit.length === 1 ? `One thing is broken: ${esc(crit[0].tag.split('· ')[1].toLowerCase())}.` : `${crit.length} things are broken.`}</span>` : ''}`;
+    const fr = t.opened && t.fin ? pct(t.fo, t.opened) : null;
     const runsT = (D.unlimited.runsByDay[T] || [0, 0]);
     const flog = [['Hit rate', X.hit != null ? `${Math.round(X.hit * 100)}%` : '—'], ['Avg climb', t.fin ? `${Math.round(t.avg / 7)} km` : '—'], ['Reached Kármán', fmt(t.karman)], ['Finish rate', fr != null ? `${fr}%` : '—'], ['Unlimited runs', fmt(sum(runsT))]];
     const alertHtml = A.list.slice(0, 4).map((a) => `<div class="alert ${a.lvl === 'crit' ? 'crit' : ''} ${a.lvl === 'info' ? 'info' : ''}">
@@ -877,7 +905,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
         <div class="eyebrow"><span class="m-flight">Flight #${T} · </span>Today so far<span class="m-flight"> · <span class="amb">${leftTxt}</span></span></div>
         <h1>${esc(head)}</h1>
         <p>${para}</p>
-        <div class="dayrail hide-sm"><span class="eyebrow">12 AM</span><div class="rail"><span style="width:${(Math.min(24, X.H) / 24) * 100}%"></span></div><span class="eyebrow">Midnight · <span class="amb">${leftTxt}</span></span></div>
+        <div class="dayrail hide-sm"><span class="eyebrow">12 AM</span><div class="rail"><span style="width:${(Math.min(24, X.now.n === T ? X.now.h : 24) / 24) * 100}%"></span></div><span class="eyebrow">Midnight · <span class="amb">${leftTxt}</span></span></div>
         <div class="flog hide-sm">${flog.map(([k, v]) => `<div><span class="eyebrow">${k}</span><b>${v}</b></div>`).join('')}</div>
       </div>
       <div class="span-5">
@@ -910,14 +938,16 @@ tr.off td:not(.acts) { opacity: 0.5; }
     // KPI cluster
     const last = (f, n = 28) => { const a = []; for (let k = n; k >= 1; k--) { const d = X.day(T - k); a.push(d ? f(d) : null); } return a; };
     const avg7 = mean(X.prev.map((d) => d.fin));
-    const npAvg7 = mean(X.prev.map((d) => d.np));
+    const npAvg7 = mean(X.prev.map((d) => d.np || 0));
+    const IDX = '<span class="idx">indexing…</span>';
     const d1Series = X.cohorts.filter((c) => c.ret[1] != null).slice(-28).map((c) => (c.ret[1] / c.size) * 100);
     const revDays = []; for (let k = 27; k >= 0; k--) revDays.push(sum(X.pays.filter((p) => flightOf(msOf(p.at)) === T - k).map((p) => p.amount)) / 100);
     const yc = D.yesterdayCohort;
     const kpis = [
-      { lab: 'Pilots today', tag: 'so far', val: fmt(t.fin), d: [delta(X.vsPace, 'vs 7-day pace'), delta(X.vsWk, `vs last ${WD[wdOf(T)]}, same time`)], sp: spark([...last((d) => d.fin), X.proj], { base: avg7, partial: X.now.n === T && X.proj != null }) },
-      { lab: 'New pilots', tag: 'so far', val: fmt(t.np), d: [delta(X.vsNp, 'vs 7-day pace'), t.nv ? flat(`${pct(t.act, t.nv)}%`, 'of new visitors finished') : flat('—', 'no new visitors yet')], sp: spark([...last((d) => d.np), X.shareNow > 0.05 ? t.np / X.shareNow : null], { base: npAvg7, partial: X.now.n === T && X.shareNow > 0.05 }) },
-      { lab: 'Back next day', tag: X.d1 ? `D1 · #${X.d1.a}–#${X.d1.b}` : 'D1', val: X.d1 ? `${Math.round(X.d1.v)}<small>%</small>` : '—', d: [X.d1 ? deltaPt(X.d1p ? X.d1.v - X.d1p.v : null, 'vs prior 7 cohorts') : flat('■', 'needs 3 days of data'), yc.size ? flat(`${yc.back} of ${yc.size}`, `from #${yc.n} back today so far`) : flat('—', `no newcomers on #${yc.n}`)], sp: spark(d1Series, { base: X.d1p ? X.d1p.v : null }) },
+      { lab: 'Pilots today', tag: 'so far', val: fmt(t.fin), d: [delta(X.vsPace, 'vs 7-day pace'), delta(X.vsWk, `vs last ${WD[wdOf(T)]}, same time`)], sp: spark([...last((d) => d.fin), X.proj], { base: avg7, partial: X.snap.n === T && X.proj != null }) },
+      X.idx ? { lab: 'New pilots', tag: 'so far', val: IDX, d: [flat('■ after indexing', ''), ''], sp: '<div style="height:40px"></div>' }
+        : { lab: 'New pilots', tag: 'so far', val: fmt(t.np), d: [delta(X.vsNp, 'vs 7-day pace'), t.nv ? flat(`${pct(t.act, t.nv)}%`, 'of new visitors finished') : flat('—', 'no new visitors yet')], sp: spark([...last((d) => d.np), X.shareNow > 0.05 ? t.np / X.shareNow : null], { base: npAvg7, partial: X.snap.n === T && X.shareNow > 0.05 }) },
+      { lab: 'Back next day', tag: X.d1 ? `D1 · #${X.d1.a}–#${X.d1.b}` : 'D1', val: X.d1 ? `${Math.round(X.d1.v)}<small>%</small>` : X.idx ? IDX : '—', d: [X.d1 ? deltaPt(X.d1p ? X.d1.v - X.d1p.v : null, 'vs prior 7 cohorts') : flat(X.idx ? '■ after indexing' : '■ needs 3 closed days'), !yc ? '' : yc.size ? flat(`${yc.back} of ${yc.size}`, `from #${yc.n} back today so far`) : flat('—', `no newcomers on #${yc.n}`)], sp: spark(d1Series, { base: X.d1p ? X.d1p.v : null }) },
       { lab: 'Revenue', tag: '7 days', val: moneySplit(X.rev7), d: [delta(X.rev7p ? (X.rev7 / X.rev7p - 1) * 100 : null, 'vs prior 7 days'), flat(`${X.sales7} sale${X.sales7 === 1 ? '' : 's'}`, `· ${money(X.gross - X.refunds)} all time`)], sp: sparkBars(revDays) },
     ];
     $('cluster').innerHTML = kpis.map((k) => `<div class="kpi"><div class="lab"><span class="eyebrow" style="color:var(--ink-2)">${k.lab}</span><span class="eyebrow">${k.tag}</span></div><div class="val">${k.val}</div><div class="deltas">${k.d[0]}${k.d[1].replace('class="d ', 'class="d d2 ')}</div><div class="spark">${k.sp}</div></div>`).join('');
@@ -935,7 +965,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
   function paceChart(el, ro) {
     const T = D.T, t = X.today, prev = X.prev;
     if (!prev.length) { el.innerHTML = empty('Not enough days yet', 'The pace chart needs at least one complete day.'); return; }
-    const NOW = Math.min(24, X.H), isT = X.now.n === T;
+    const NOW = Math.min(24, X.H), isT = X.snap.n === T;
     const w = W(el), h = w < 500 ? 200 : 236, L = 40, Rr = 58, T0 = 26, B = 24;
     const finals = prev.map((d) => d.fin), avgF = mean(finals);
     const projTot = X.proj || t.fin;
@@ -969,7 +999,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
     s.push(`<rect class="hot" x="${L}" y="0" width="${w - L - Rr}" height="${h}"/></svg>`);
     el.innerHTML = s.join('');
     const svg = el.querySelector('svg'), vl = svg.querySelector('.vline');
-    const roDefault = isT ? `<b>${fmt(t.fin)}</b> by ${clock(X.now.hour, X.now.minute)} · 7-day avg <b>${fmt(Math.round(X.avgBy(NOW)))}</b>` : `<b>${fmt(t.fin)}</b> today · 7-day avg <b>${fmt(Math.round(avgF))}</b>`;
+    const roDefault = isT ? `<b>${fmt(t.fin)}</b> by ${clock(X.snap.hour, X.snap.minute)} · 7-day avg <b>${fmt(Math.round(X.avgBy(NOW)))}</b>` : `<b>${fmt(t.fin)}</b> today · 7-day avg <b>${fmt(Math.round(avgF))}</b>`;
     ro.innerHTML = roDefault;
     const move = (e) => {
       const b = svg.getBoundingClientRect(), px = (e.clientX - b.left) * (w / b.width);
@@ -1005,7 +1035,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
     const s7 = X.pays.filter((p) => X.tsAgo(p.at) < 7 * 864e5).length, sp = X.pays.filter((p) => X.tsAgo(p.at) >= 7 * 864e5 && X.tsAgo(p.at) < 14 * 864e5).length;
     if (s7 || sp) out.push([s7 >= sp ? 'up' : 'down', s7 > sp ? 'Sales picked up:' : s7 < sp ? 'Sales slowed:' : 'Sales are steady:', `${s7} this week vs ${sp} last week${D.health.stripe && !D.health.stripe.ok ? ', while payments are broken. Fix first, then judge.' : '.'}`]);
     // streaks
-    if (out.length < 4 && D.active.streak7) out.push(['loop', `${fmt(D.active.streak7)} pilot${D.active.streak7 === 1 ? ' is' : 's are'} on a 7+ day streak.`, `The longest running streak is ${D.active.bestStreak} days.`]);
+    if (out.length < 4 && D.active && D.active.streak7) out.push(['loop', `${fmt(D.active.streak7)} pilot${D.active.streak7 === 1 ? ' is' : 's are'} on a 7+ day streak.`, `The longest running streak is ${D.active.bestStreak} days.`]);
     return out.slice(0, 4);
   }
   const trim = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
@@ -1017,19 +1047,21 @@ tr.off td:not(.acts) { opacity: 0.5; }
     const dau = mean(fins(T - 7, T - 1)), dauP = mean(fins(T - 14, T - 8));
     const wk = day(T - 7), mo = day(T - 30);
     const wauP = wk && wk.wau, mauP = mo && mo.mau;
-    const npW = (a, b) => { let s = 0; for (let n = a; n <= b; n++) { const d = day(n); if (d) s += d.np; } return s; };
+    const npW = (a, b) => { let s = 0; for (let n = a; n <= b; n++) { const d = day(n); if (d) s += d.np || 0; } return s; };
+    const A = D.active, IDX = '<span class="idx">indexing…</span>', after = flat('■ after indexing');
     const actW = (a, b) => { let x = 0, y = 0; for (let n = a; n <= b; n++) { const d = day(n); if (d) { x += d.act; y += d.nv; } } return y ? (x / y) * 100 : null; };
-    const stick = D.active.mau ? (dau / D.active.mau) * 100 : null, stickP = wk && wk.mau ? (mean(fins(T - 14, T - 8)) / wk.mau) * 100 : null;
+    // a week ago: the 7 days ending on #T-7 against that day's monthly pilots
+    const stick = A && A.mau ? (dau / A.mau) * 100 : null, stickP = wk && wk.mau ? (mean(fins(T - 13, T - 7)) / wk.mau) * 100 : null;
     const early = mean(fins(Math.max(1, T - 36), Math.max(1, T - 30))) || mean(fins(1, 7));
     const ratio = early ? dau / early : null;
-    const spike = X.spikes.length ? X.spikes.reduce((a, b) => (day(a).np >= day(b).np ? a : b)) : null;
+    const spike = X.spikes.length && !X.idx ? X.spikes.reduce((a, b) => (day(a).np >= day(b).np ? a : b)) : null;
     const sc = spike && D.cohorts.find((c) => c.n === spike);
     const lastK = sc && Math.max(...Object.keys(sc.ret).map(Number));
     const title = !ratio ? 'Early days.' : `${ratio > 1.15 ? 'Steady climb' : ratio < 0.9 ? 'Cooling off' : 'Holding steady'}${spike ? ', one big spike.' : '.'}`;
     const story = `${ratio ? `Daily pilots are ${ratio >= 1 ? 'up' : 'down'} ${ratio >= 1.95 ? `${ratio.toFixed(1)}×` : `${Math.abs(Math.round((ratio - 1) * 100))}%`} in 30 days (7-day average ${fmt(Math.round(dau))}).` : ''}${spike ? ` The #${spike} spike brought ${fmt(day(spike).np)} newcomers${sc && lastK >= 7 ? `; ${pct(sc.ret[lastK], sc.size)}% were still flying ${lastK} days later` : ''}.` : ''}`;
     el.innerHTML = viewHead('Growth · every day since launch', title, story) + `<div class="grid">
       <div class="span-12 panel">
-        <div class="ph"><div><h2>Pilots per day</h2><div class="sub">Everyone who finished the daily flight since launch: returning pilots and first-timers. The tick is everyone who opened the game.</div></div><div class="readout" id="ro-daily"></div></div>
+        <div class="ph"><div><h2>Pilots per day</h2><div class="sub">Everyone who finished the daily flight since launch: returning pilots and first-timers. The tick is everyone who opened the game.${X.idx ? ' <b>The new / returning split appears once pilots are indexed.</b>' : ''}</div></div><div class="readout" id="ro-daily"></div></div>
         <div class="legend"><span><i style="background:var(--c1)"></i>Returning</span><span><i style="background:var(--c2)"></i>New</span><span><i class="tick-key"></i>Opened the game</span><span><i style="background:repeating-linear-gradient(135deg,rgba(201,120,0,.7) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 0 1px var(--amber-strong)"></i>Today's pace</span></div>
         <div class="chart" id="c-daily"></div>
       </div>
@@ -1049,18 +1081,19 @@ tr.off td:not(.acts) { opacity: 0.5; }
     </div>`;
     $('g-minis').innerHTML = minis([
       ['Daily pilots', fmt(Math.round(dau)), 'DAU · 7-day avg', delta(dauP ? (dau / dauP - 1) * 100 : null, 'vs prior week')],
-      ['Weekly pilots', fmt(D.active.wau), 'WAU · flew in 7 days', delta(wauP ? (D.active.wau / wauP - 1) * 100 : null, 'vs a week ago')],
-      ['Monthly pilots', fmt(D.active.mau), 'MAU · flew in 30 days', delta(mauP ? (D.active.mau / mauP - 1) * 100 : null, 'vs 30 days ago')],
-      ['Stickiness', stick != null ? `${Math.round(stick)}<small>%</small>` : '—', 'DAU ÷ MAU', deltaPt(stick != null && stickP != null ? stick - stickP : null, 'vs a week ago')],
-      ['New pilots', fmt(npW(T - 7, T - 1)), '7 complete days', delta(npW(T - 14, T - 8) ? (npW(T - 7, T - 1) / npW(T - 14, T - 8) - 1) * 100 : null, 'vs prior week')],
-      ['Activation', actW(T - 7, T - 1) != null ? `${Math.round(actW(T - 7, T - 1))}<small>%</small>` : '—', 'new visitors who finish day one', deltaPt(actW(T - 7, T - 1) != null && actW(T - 14, T - 8) != null ? actW(T - 7, T - 1) - actW(T - 14, T - 8) : null, 'vs prior week')],
+      ['Weekly pilots', A ? fmt(A.wau) : IDX, 'WAU · flew in 7 days', A ? delta(wauP ? (A.wau / wauP - 1) * 100 : null, 'vs a week ago') : after],
+      ['Monthly pilots', A ? fmt(A.mau) : IDX, 'MAU · flew in 30 days', A ? delta(mauP ? (A.mau / mauP - 1) * 100 : null, 'vs 30 days ago') : after],
+      ['Stickiness', stick != null ? `${Math.round(stick)}<small>%</small>` : A ? '—' : IDX, 'DAU ÷ MAU', A ? deltaPt(stick != null && stickP != null ? stick - stickP : null, 'vs a week ago') : after],
+      ['New pilots', X.idx ? IDX : fmt(npW(T - 7, T - 1)), '7 complete days', X.idx ? after : delta(npW(T - 14, T - 8) ? (npW(T - 7, T - 1) / npW(T - 14, T - 8) - 1) * 100 : null, 'vs prior week')],
+      ['Activation', X.idx ? IDX : actW(T - 7, T - 1) != null ? `${Math.round(actW(T - 7, T - 1))}<small>%</small>` : '—', 'new visitors who finish day one', X.idx ? after : deltaPt(actW(T - 7, T - 1) != null && actW(T - 14, T - 8) != null ? actW(T - 7, T - 1) - actW(T - 14, T - 8) : null, 'vs prior week')],
     ]);
     dailyChart($('c-daily'), $('ro-daily'), false);
-    sourcesTable($('t-src'));
+    if (X.idx) $('t-src').innerHTML = empty('Indexing pilots…', `${fmt(D.backfill.devices)} devices so far. Sources appear when it's done.`); else sourcesTable($('t-src'));
     sharesChart($('c-shares'), $('ro-sh'));
     const dn = (() => { try { return new Intl.DisplayNames(['en'], { type: 'region' }); } catch (e) { return null; } })();
     const g = D.geo7, tot = g.total;
-    if (!tot) $('geo').innerHTML = empty('No new visitors this week', '');
+    if (X.idx) $('geo').innerHTML = empty('Indexing pilots…', 'Countries appear when it\'s done.');
+    else if (!tot) $('geo').innerHTML = empty('No new visitors this week', '');
     else {
       const top = g.countries.slice(0, 5), rest = sum(g.countries.slice(5).map((c) => c[1]));
       const rows = top.map(([c, n]) => [c === '??' ? 'Unknown' : dn ? dn.of(c) : c, n]); if (rest) rows.push([`Other (${g.countries.length - 5})`, rest]);
@@ -1079,10 +1112,10 @@ tr.off td:not(.acts) { opacity: 0.5; }
   function dailyChart(el, ro, compact) {
     const T = D.T, day = X.day;
     const cols = [];
-    for (let n = 1; n <= T; n++) { const d = day(n); cols.push(d ? { n, fin: d.fin, np: Math.min(d.np, d.fin), open: d.opened, today: n === T } : { n, missing: true, fin: 0, np: 0, open: 0 }); }
+    for (let n = 1; n <= T; n++) { const d = day(n); cols.push(d ? { n, fin: d.fin, np: Math.min(d.np || 0, d.fin), open: d.opened, today: n === T } : { n, missing: true, fin: 0, np: 0, open: 0 }); }
     if (cols.filter((c) => !c.missing).length < 2) { el.innerHTML = empty('Not enough days yet', ''); return; }
-    const proj = X.proj && X.now.n === T ? X.proj : null;
-    const w = W(el), small = w < 560, h = compact ? (small ? 130 : 150) : (small ? 230 : 290), L = 40, Rr = 8, T0 = compact ? 22 : 30, B = 22;
+    const proj = X.proj && X.snap.n === T ? X.proj : null;
+    const w = W(el), small = w < 560, h = compact ? (small ? 140 : 160) : (small ? 240 : 300), L = 40, Rr = 8, T0 = compact ? 34 : 40, B = 22;
     const { step, top } = niceMax(Math.max(...cols.map((c) => Math.max(c.fin, c.open, c.today && proj ? proj : 0))), compact ? 2 : 4);
     const n = cols.length, bw = (w - L - Rr) / n, gap = Math.max(1, Math.min(4, bw * 0.22)), cw = bw - gap;
     const x = (i) => L + i * bw + gap / 2, xc = (i) => x(i) + cw / 2, y = (v) => T0 + (h - T0 - B) * (1 - v / top);
@@ -1098,14 +1131,16 @@ tr.off td:not(.acts) { opacity: 0.5; }
       if (c.np > 0) s.push(`<path d="${barPath(x(i), y(0) - hr - (ret > 0 && hn > 3 ? 1.5 : 0), cw, Math.max(1, hn - (ret > 0 && hn > 3 ? 1.5 : 0)), r)}" fill="var(--c2)"${op}/>`);
       if (c.today && proj && proj > c.fin) {
         s.push(`<path d="${barPath(x(i), y(c.fin) - 1.5, cw, (h - T0 - B) * ((proj - c.fin) / top), r)}" fill="url(#hatch)" stroke="var(--amber-strong)" stroke-width=".8"/>`);
-        if (!compact || !small) s.push(`<text x="${x(i) + cw}" y="${y(proj) - 7}" text-anchor="end" class="lbl" style="fill:var(--amber-ink)">${small ? `PACE ${fmt(proj)}` : `TODAY · PACE ${fmt(proj)}`} ▾</text>`);
+        // a cream pill anchored right, above the top gridline, with a dotted leader to the cap
+        const lab = `${small ? 'PACE' : 'TODAY · PACE'} ${fmt(proj)}`, pw = lab.length * 6.6 + 14, px = Math.min(w - Rr - pw, x(i) + cw - pw + 4), py = 4;
+        s.push(`<line x1="${xc(i)}" x2="${xc(i)}" y1="${py + 18}" y2="${y(proj) - 2}" stroke="var(--amber-strong)" stroke-dasharray="1.5 2.5"/><rect x="${px}" y="${py}" width="${pw}" height="18" rx="9" fill="var(--s1)" stroke="var(--amber-strong)" stroke-width=".8"/><text x="${px + pw / 2}" y="${py + 12.5}" text-anchor="middle" class="lbl" style="fill:var(--amber-ink)">${lab}</text>`);
       }
-      if (c.open) s.push(`<line x1="${x(i) - Math.min(1.5, gap / 2)}" x2="${x(i) + cw + Math.min(1.5, gap / 2)}" y1="${y(c.open)}" y2="${y(c.open)}" stroke="var(--ink)" stroke-width="${cw < 6 ? 1.5 : 2}" stroke-linecap="round"${c.today ? ' stroke-opacity=".5"' : ''}/>`);
+      if (c.open) s.push(`<line x1="${x(i) - Math.min(1.5, gap / 2)}" x2="${x(i) + cw + Math.min(1.5, gap / 2)}" y1="${y(c.open)}" y2="${y(c.open)}" stroke="rgba(20,33,61,.55)" stroke-width="${cw < 6 ? 1.5 : 2}" stroke-linecap="round"${c.today ? ' stroke-opacity=".6"' : ''}/>`);
     });
     X.events.forEach((e) => {
       const i = e.n - 1, c = cols[i];
       if (!c || c.missing) return;
-      const right = i > n * 0.62, lab = small ? e.label.replace(/^Spike · /, '') : e.label;
+      const right = i > n * 0.62 || i > n - 6, lab = small ? e.label.replace(/^Spike · /, '') : e.label;
       s.push(`<line x1="${xc(i)}" x2="${xc(i)}" y1="${T0 - 10}" y2="${y(Math.max(c.fin, c.open)) - 4}" stroke="rgba(20,33,61,.45)" stroke-dasharray="2 3"/><circle cx="${xc(i)}" cy="${T0 - 10}" r="3" fill="var(--ink)"/><text x="${xc(i) + (right ? -7 : 7)}" y="${T0 - 6.5}" text-anchor="${right ? 'end' : 'start'}" class="lbl" style="fill:var(--ink)">${esc(lab.toUpperCase())}</text>`);
     });
     const every = Math.max(1, Math.ceil(n / (small ? 4 : compact ? 8 : 12)));
@@ -1171,6 +1206,10 @@ tr.off td:not(.acts) { opacity: 0.5; }
   /* ================================================================== RETENTION */
   function retention(el) {
     const T = D.T, t = X.today;
+    if (X.idx || !D.active) {
+      el.innerHTML = viewHead('Retention · cohorts by first flight', 'Indexing pilots…', `Retention needs every pilot's first and last flight. ${fmt(D.backfill.devices)} devices indexed so far; each Refresh does a budgeted slice.`) + `<div class="panel">${empty('Retention appears when indexing is done', 'Nothing here would be right until then, so nothing is shown.')}</div>`;
+      return;
+    }
     const retShare = t.fin ? ((t.fin - t.np) / t.fin) * 100 : null;
     const retShareP = X.prev.length ? mean(X.prev.map((d) => (d.fin ? ((d.fin - d.np) / d.fin) * 100 : 0))) : null;
     const d1 = X.d1;
@@ -1193,7 +1232,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
       ['Back next day', d1 ? `${Math.round(d1.v)}<small>%</small>` : '—', d1 ? `D1 · cohorts #${d1.a}–#${d1.b}` : 'D1 · needs closed days', d1 ? deltaPt(X.d1p ? d1.v - X.d1p.v : null, 'vs prior 7') : flat('■', 'first reading soon')],
       ['Back after a week', X.d7 ? `${Math.round(X.d7.v)}<small>%</small>` : '—', X.d7 ? `D7 · cohorts #${X.d7.a}–#${X.d7.b}` : 'D7 · needs 9 days', X.d7 ? deltaPt(X.d7p ? X.d7.v - X.d7p.v : null, 'vs prior 7') : flat('■', 'not yet')],
       ['Back after a month', X.d30 ? `${Math.round(X.d30.v)}<small>%</small>` : '—', X.d30 ? `D30 · cohorts #${X.d30.a}–#${X.d30.b}` : 'D30 · needs 32 days', X.d30 ? deltaPt(X.d30p ? X.d30.v - X.d30p.v : null, 'vs prior 7') : flat('■', 'not yet')],
-      ['Core pilots', fmt(D.active.core), 'flew 5+ of the last 7 days', flat(`${pct(D.active.core, D.active.wau)}%`, 'of weekly pilots')],
+      ['Core pilots', D.core ? fmt(D.core.c) : '—', D.core ? `flew 5+ of the 7 days to #${D.core.n}` : 'flew 5+ of 7 days', D.core ? delta(D.core.prev ? (D.core.c / D.core.prev - 1) * 100 : null, 'vs the week before') : flat('■ after the next freeze')],
       ['Returning share', retShare != null ? `${Math.round(retShare)}<small>%</small>` : '—', 'of today\'s pilots', deltaPt(retShare != null && retShareP != null ? retShare - retShareP : null, 'vs 7-day avg')],
       ['Streak 7+', fmt(D.active.streak7), 'pilots on a 7+ day streak', flat(`best ${D.active.bestStreak}`, `· ${fmt(D.active.streak3)} on 3+`)],
     ]);
@@ -1248,16 +1287,21 @@ tr.off td:not(.acts) { opacity: 0.5; }
     if (X.spikes[0] && X.spikes[0] > 7) grp(`#${X.spikes[0]} spike`, 'var(--c3)', X.spikes[0], X.spikes[0]);
     grp('Recent 2 weeks', 'var(--c2)', T - 22, T - 9);
     if (!groups.length) { el.innerHTML = empty('Not enough closed days yet', 'Curves appear once a cohort has two closed days.'); return; }
-    const w = W(el), h = w < 500 ? 200 : 276, L = 34, Rr = 96, T0 = 8, B = 22;
+    const w = W(el), h = innerWidth <= 640 ? 230 : 330, L = 34, Rr = 112, T0 = 10, B = 22;
     const top = Math.max(20, Math.ceil(Math.max(...groups.flatMap((g) => g[2].map((p) => p[1]))) / 20) * 20);
     const x = (k) => L + ((k - 1) / 29) * (w - L - Rr), y = (v) => T0 + (h - T0 - B) * (1 - v / top);
     const s = [`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Retention curves">`]; grid(s, { L, Rr, top, step: 20, y, w, fmtY: (v) => `${v}%` });
     [1, 7, 14, 30].forEach((k) => s.push(`<text x="${x(k)}" y="${h - 6}" text-anchor="middle">D${k}</text>`));
-    const ends = [];
-    groups.forEach(([nm, c, pts]) => {
-      s.push(`<polyline points="${pts.map(([k, v]) => `${x(k)},${y(v)}`).join(' ')}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`);
-      const [lk, lv] = pts[pts.length - 1]; let ly = y(lv) + 3.5; while (ends.some((e) => Math.abs(e - ly) < 13)) ly += 13; ends.push(ly);
-      s.push(`<circle cx="${x(lk)}" cy="${y(lv)}" r="3.5" fill="${c}" stroke="var(--s1)" stroke-width="2"/><text x="${x(lk) + 8}" y="${ly}" style="fill:var(--ink-2);font-family:var(--f-ui);font-size:11.5px">${esc(nm)} · ${Math.round(lv)}%</text>`);
+    groups.forEach(([, c, pts]) => s.push(`<polyline points="${pts.map(([k, v]) => `${x(k)},${y(v)}`).join(' ')}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`));
+    // direct labels in the right gutter, at least 14px apart, with a leader from each line's end
+    const labs = groups.map(([nm, c, pts]) => { const [lk, lv] = pts[pts.length - 1]; return { nm, c, px: x(lk), py: y(lv), ly: y(lv), v: lv }; }).sort((a, b2) => a.py - b2.py);
+    labs.forEach((l, i) => { if (i && l.ly - labs[i - 1].ly < 14) l.ly = labs[i - 1].ly + 14; });
+    const over = labs.length ? labs[labs.length - 1].ly - (h - B - 4) : 0;
+    if (over > 0) labs.forEach((l) => { l.ly -= over; });
+    const gx = w - Rr + 10;
+    labs.forEach((l) => {
+      s.push(`<path d="M${l.px},${l.py} L${gx - 6},${l.ly}" fill="none" stroke="${l.c}" stroke-opacity=".45" stroke-dasharray="2 2"/>`);
+      s.push(`<circle cx="${l.px}" cy="${l.py}" r="3.5" fill="${l.c}" stroke="var(--s1)" stroke-width="2"/><text x="${gx}" y="${l.ly + 4}" style="fill:var(--ink-2);font-family:var(--f-ui);font-size:11.5px">${esc(l.nm)} · ${Math.round(l.v)}%</text>`);
     });
     el.innerHTML = s.join('') + '</svg>';
   }
@@ -1277,7 +1321,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
     s.push(`<rect class="cross" y="${T0}" height="${h - T0 - B}" fill="rgba(20,33,61,.05)" style="opacity:0"/>`);
     vals.forEach((v, i) => s.push(`<path d="${barPath(x(i), y(0), cw, y(0) - y(v), 2)}" fill="${i >= 4 ? 'var(--c1)' : 'rgba(47,95,179,.38)'}"/>`));
     [0, 4, 9, 19, 30].forEach((i) => s.push(`<text x="${x(i) + cw / 2}" y="${h - 6}" text-anchor="middle">${i === 30 ? '31+' : i + 1}</text>`));
-    s.push(`<text x="${x(4)}" y="${T0 + 10}" class="lbl" style="fill:var(--ink-2)">5+ DAYS FLOWN →</text>`);
+    s.push(`<line x1="${x(4) + cw / 2}" x2="${x(4) + cw / 2}" y1="${T0 + 14}" y2="${Math.max(T0 + 16, y(vals[4]) - 3)}" stroke="var(--ink-3)" stroke-dasharray="2 2"/><text x="${x(4) + cw / 2 - 3}" y="${T0 + 10}" class="lbl" style="fill:var(--ink-2)">▸ 5+ DAYS FLOWN</text>`);
     s.push(`<rect class="hot" x="${L}" y="0" width="${w - L}" height="${h}"/></svg>`);
     el.innerHTML = s.join('');
     hover(el, null, { n, xAt: (i) => x(i) + cw / 2, bw, onIdx: (i) => ({ tip: `<div class="h">${i === 30 ? '31+ days' : `${i + 1} day${i ? 's' : ''}`} flown</div>${R('Pilots', fmt(vals[i]))}${R('Share', `${pct(vals[i], tot)}%`)}` }) });
@@ -1308,7 +1352,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
         <div><div class="cat">${esc(q.cat)}${pills}</div><div class="q">${esc(q.q)}</div></div>
         <div class="ans">${esc(Number(q.answer).toLocaleString('en-US'))} <span>${esc(q.unit || '')}</span></div>
         <div class="rate"><b style="color:${r != null && r < 30 ? 'var(--down)' : 'var(--hero)'}">${r != null ? `${r}%` : '—'}</b><div class="ibar"><span style="width:${r || 0}%;background:${r != null && r < 30 ? 'var(--down)' : 'var(--c1)'}"></span></div></div>
-        <div class="mixwrap">${mt ? mix(m) : '<div class="mix"></div>'}<div class="ml"><span>${top >= 0 ? `mostly ${WN[top]}` : 'no picks yet'}</span><span>${top >= 0 ? `${pct(m[top], mt)}%` : ''}</span></div></div></div>`;
+        <div class="mixwrap">${mt ? mix(m) : '<div class="mix"></div>'}<div class="ml"><span>${top >= 0 ? `${WN[top]} leads` : 'no picks yet'}</span><span>${top >= 0 ? `${pct(m[top], mt)}%` : ''}</span></div></div></div>`;
     }).join('');
     altChart($('c-alt'), $('ro-alt'));
     diffChart($('c-diff'), $('ro-diff'));
@@ -1359,7 +1403,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
     const w = W(el), h = 210, L = 36, R2 = 12, T0 = 12, B = 24;
     const x = (i) => L + (i / (fl.length - 1)) * (w - L - R2), y = (v) => T0 + (h - T0 - B) * (1 - v / 80);
     const s = [`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Hit rate per flight">`];
-    s.push(`<rect x="${L}" y="${y(60)}" width="${w - L - R2}" height="${y(40) - y(60)}" fill="rgba(31,138,110,.10)"/><text x="${w - R2 - 4}" y="${y(60) + 13}" text-anchor="end" class="lbl" style="fill:var(--c2)">TARGET</text>`);
+    s.push(`<rect x="${L}" y="${y(60)}" width="${w - L - R2}" height="${y(40) - y(60)}" fill="rgba(31,138,110,.10)"/><text x="${L + 6}" y="${y(40) + 13}" class="lbl" style="fill:var(--c2);paint-order:stroke;stroke:var(--s1);stroke-width:4px;stroke-linejoin:round">TARGET 40–60%</text>`);
     grid(s, { L, Rr: R2, top: 80, step: 20, y, w, fmtY: (v) => `${v}%` });
     s.push(`<rect class="cross" y="${T0}" height="${h - T0 - B}" fill="rgba(20,33,61,.05)" style="opacity:0"/>`);
     s.push(`<polyline points="${fl.map((f, i) => `${x(i)},${y(f.v)}`).join(' ')}" fill="none" stroke="var(--c1)" stroke-width="2" stroke-linejoin="round"/>`);
@@ -1379,9 +1423,10 @@ tr.off td:not(.acts) { opacity: 0.5; }
     const net = X.gross - X.refunds;
     const c60 = M.checkouts.d60, fu = M.funnel30;
     const conv = X.allPilots ? (X.kept / X.allPilots) * 100 : null;
-    const paidFlights = X.pays.filter((p) => p.firstFlight).map((p) => flightOf(msOf(p.at)) - p.firstFlight);
-    const daysToBuy = paidFlights.length >= 3 ? median(paidFlights) : null;
-    const story = `${c60.started ? `Checkout ${c60.paid / c60.started >= 0.7 ? 'is healthy' : 'leaks'}: ${pct(c60.paid, c60.started)}% of people who start one pay.` : 'No checkouts in the last 60 days.'}${fu.paywall ? ` Of the pilots who saw the paywall in 30 days, ${pct(fu.buy, fu.paywall)}% pressed Buy.` : ''}`;
+    const paidFlights = X.pays.filter((p) => p.flights != null).map((p) => p.flights);
+    const toBuy = paidFlights.length >= 3 ? median(paidFlights) : null;
+    const broken = alerts().list.find((a) => a.tag === 'Broken · Payments' || a.tag === 'Broken · Checkout');
+    const story = broken ? `Payments need fixing first: ${esc(broken.t.replace(/\.$/, ''))}.${esc(broken.more || '')} Treat the conversion numbers below with care until then.` : `${c60.started ? `Checkout ${c60.paid / c60.started >= 0.7 ? 'is healthy' : 'leaks'}: ${pct(c60.paid, c60.started)}% of people who start one pay.` : 'No checkouts in the last 60 days.'}${fu.paywall ? ` Of the pilots who saw the paywall in 30 days, ${pct(fu.buy, fu.paywall)}% pressed Buy.` : ''}`;
     const refunds7 = X.pays.filter((p) => p.refundedAt && X.tsAgo(p.refundedAt) < 7 * 864e5).length;
     el.innerHTML = viewHead('Money &amp; Unlimited · all time', `${money(net)} from ${fmt(X.kept)} pilot${X.kept === 1 ? '' : 's'}.`, story) +
       (h && !h.ok ? `<div class="banner" style="margin-bottom:20px">${st('crit', 'Broken')}<span class="t">${esc(alerts().list.find((a) => a.tag === 'Broken · Payments') ? alerts().list.find((a) => a.tag === 'Broken · Payments').t + alerts().list.find((a) => a.tag === 'Broken · Payments').more : 'The payment setup needs attention.')} See the checklist in Tools.</span><a class="btn sm" href="#tools">Checklist</a></div>` : '') + `<div class="grid">
@@ -1389,8 +1434,8 @@ tr.off td:not(.acts) { opacity: 0.5; }
       <div class="span-7 panel"><div class="ph"><div><h2>Revenue by week</h2><div class="sub">Gross, before Stripe fees · refunds below the line · weeks start Monday (ET)</div></div><div class="readout" id="ro-rev"></div></div>
         <div class="legend"><span><i style="background:var(--c1)"></i>Sales</span><span><i style="background:var(--c3)"></i>Refunds</span></div><div class="chart" id="c-rev"></div></div>
       <div class="span-5 panel"><div class="ph"><div><h2>Paywall funnel</h2><div class="sub" id="fun-sub"></div></div></div><div class="funnel" id="funnel"></div></div>
-      <div class="span-7 panel"><div class="ph"><div><h2>Unlimited runs per day</h2><div class="sub">Practice runs finished by buyers and pass holders (free runs not included)</div></div><div class="readout" id="ro-unl"></div></div><div class="chart" id="c-unl"></div></div>
-      <div class="span-5 panel"><div class="ph"><h2>Latest buyers</h2><span class="eyebrow">Tap to reveal</span></div><ul class="rows" id="buyers"></ul></div>
+      <div class="span-7 panel self-start"><div class="ph"><div><h2>Unlimited runs per day</h2><div class="sub">Practice runs finished by buyers and pass holders (free runs not included)</div></div><div class="readout" id="ro-unl"></div></div><div class="chart" id="c-unl"></div></div>
+      <div class="span-5 panel"><div class="ph"><h2>Latest buyers</h2><span class="eyebrow">Emails masked</span></div><ul class="rows" id="buyers"></ul></div>
     </div>`;
     const est = X.pays.filter((p) => p.est).length;
     $('m-minis').innerHTML = minis([
@@ -1399,7 +1444,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
       ['Paid conversion', conv != null ? `${conv < 10 ? conv.toFixed(1) : Math.round(conv)}<small>%</small>` : '—', 'buyers ÷ all pilots ever', flat(`${fmt(X.kept)} of ${fmt(X.allPilots)}`)],
       ['Checkout → paid', c60.started ? `${pct(c60.paid, c60.started)}<small>%</small>` : '—', `${fmt(c60.paid)} of ${fmt(c60.started)} accounts · 60 days`, flat(c60.started && c60.paid / c60.started >= 0.7 ? '■ healthy' : c60.started ? '■ leaking' : '■ no data')],
       ['Refunds', fmt(X.refundsN), `${money(X.refunds)} · ${pct(X.refundsN, X.pays.length)}% of sales`, flat(refunds7 ? `${refunds7} this week` : 'none this week')],
-      ['Flights to buy', daysToBuy != null ? fmt(Math.round(daysToBuy * 10) / 10) : '—', 'median, first flight → paid', flat(daysToBuy != null ? `■ ${paidFlights.length} buyers` : '■ new metric', daysToBuy != null ? '' : 'counts from this update')],
+      ['Flights to buy', toBuy != null ? fmt(Math.round(toBuy * 10) / 10) : '—', 'median daily flights flown before paying', flat(toBuy != null ? `■ ${paidFlights.length} buyers` : '■ new metric', toBuy != null ? '' : 'counts from this update')],
     ]);
     revChart($('c-rev'), $('ro-rev'));
     const sinceTxt = fu.since ? `since #${fu.since}` : '';
@@ -1415,9 +1460,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
     });
     $('funnel').innerHTML = fh + (!fu.paywall ? '<p class="note-sm">Paywall views and Buy taps are counted from this update on.</p>' : '');
     unlChart($('c-unl'), $('ro-unl'));
-    const mask = (e) => { const [u, dm] = String(e || '').split('@'); return dm ? `${u.slice(0, 2)}•••@${dm}` : 'unknown'; };
-    $('buyers').innerHTML = M.buyers.length ? M.buyers.map((b) => `<li><span class="mask" role="button" tabindex="0" data-full="${esc(b.email || 'unknown')}">${esc(mask(b.email))}</span><span style="display:flex;gap:10px;align-items:center">${b.src ? `<span class="pill">${esc(b.src)}</span>` : ''}<span class="mono" style="color:var(--ink-3);font-size:12px;width:46px;text-align:right">${shortDate(b.at)}</span></span></li>`).join('') : `<li style="display:block">${empty('No buyers yet', '')}</li>`;
-    $('buyers').querySelectorAll('.mask').forEach((n) => n.addEventListener('click', () => { n.textContent = n.dataset.full; n.classList.remove('mask'); }));
+    $('buyers').innerHTML = M.buyers.length ? M.buyers.map((b) => `<li><span class="mono" style="font-size:12.5px">${esc(b.email || 'unknown')}</span><span style="display:flex;gap:10px;align-items:center">${b.src ? `<span class="pill">${esc(b.src)}</span>` : ''}<span class="mono" style="color:var(--ink-3);font-size:12px;width:46px;text-align:right">${shortDate(b.at)}</span></span></li>`).join('') : `<li style="display:block">${empty('No buyers yet', '')}</li>`;
   }
 
   function revChart(el, ro) {
@@ -1454,8 +1497,8 @@ tr.off td:not(.acts) { opacity: 0.5; }
     const wkRuns = sum(data.slice(-7).map((d) => d.v));
     ro.innerHTML = `<b>${fmt(wkRuns)}</b> runs · <b>${fmt(U.pilotsWeek)}</b> pilots this week`;
     if (!sum(data.map((d) => d.v))) { el.innerHTML = empty('No Unlimited runs in two weeks', `${fmt(U.freeRunPilots)} pilots have tried the free run.`); return; }
-    const w = W(el), h = 150, L = 32, T0 = 8, B = 20;
-    const { step, top } = niceMax(Math.max(...data.map((d) => d.v)), 2);
+    const w = W(el), h = 190, L = 32, T0 = 8, B = 20;
+    const { step, top } = niceMax(Math.max(...data.map((d) => d.v)), 3);
     const n = data.length, bw = (w - L) / n, cw = bw * 0.6;
     const x = (i) => L + i * bw + (bw - cw) / 2, y = (v) => T0 + (h - T0 - B) * (1 - v / top);
     const s = [`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Unlimited runs per day">`]; grid(s, { L, Rr: 0, top, step, y, w });
@@ -1491,7 +1534,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
     const h = D.health.stripe, d1 = D.health.d1;
     const okS = (t = 'OK') => st('ok', t), bad = (t = 'Missing') => st('crit', t), wn = (t) => st('warn', t);
     const rows = !h ? [['Payments', wn('Unknown')]] : [
-      ['Stripe key', h.stripe_key === 'missing' ? bad() : `${okS()} <span class="mono" style="color:var(--ink-3);font-size:11px">${esc(h.stripe_key.mode)} · ${esc(h.stripe_key.type)}</span>`],
+      ['Stripe key', h.stripe_key === 'missing' ? bad() : `${okS()}<span class="mono" style="color:var(--ink-3);font-size:11px;margin-left:6px">${esc(h.stripe_key.mode)} · ${esc(h.stripe_key.type)}</span>`],
       ['Can create checkouts', h.can_create_checkout ? okS() : bad('No')],
       ['Can read payments & refunds', h.can_read_checkout && h.can_read_payment_intents && h.can_read_charges ? okS() : bad('No')],
       ['Stripe webhook secret', h.webhook_secret === 'set' ? okS() : h.webhook_secret === 'missing' ? bad() : wn('Check')],
@@ -1513,6 +1556,8 @@ tr.off td:not(.acts) { opacity: 0.5; }
       const c = D.cost;
       rows.push(`<li><span class="k">Numbers built</span><span class="v">${clockET(D.builtAt)} · cached 10 min</span></li>`);
       rows.push(`<li><span class="k">Rows read by that build</span><span class="v">${c.rowsRead ? `≈ ${fmt(Math.round(c.rowsRead / 100) / 10)}k of 200k budget` : 'not reported'} · ${c.queries} queries</span></li>`);
+      const d1 = D.health.d1, wr = d1 && d1.rowsWritten != null ? d1.rowsWritten : D.health.writesEst;
+      if (wr != null) rows.push(`<li><span class="k">${d1 && d1.rowsWritten != null ? 'D1 writes today' : 'Writes yesterday (est.)'}</span><span class="v">≈ ${fmt(Math.round(wr / 100) / 10)}k of 100k</span></li>`);
       rows.push(`<li><span class="k">History</span><span class="v">${D.backfill.pilots === 'done' && !D.backfill.pendingDays ? 'all frozen' : `${D.backfill.pilots === 'done' ? '' : 'indexing pilots · '}${D.backfill.pendingDays} day${D.backfill.pendingDays === 1 ? '' : 's'} to freeze`}${c.frozen.length ? ` · froze ${c.frozen.length} this build` : ''}</span></li>`);
     }
     rows.push('<li><span class="k">Fresh build</span><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn sm" type="button" id="rebuild">Re-freeze 14 days</button><button class="btn sm" type="button" data-act="refresh">Rebuild now</button></span></li>');
@@ -1613,7 +1658,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
       ${!TH.on ? '<p class="note-sm" style="margin:0 0 12px">Not sending: add a <b>RESEND_API_KEY</b> secret in Cloudflare (SHIPPING.md · Thank-you emails).</p>' : ''}
       ${recent.length ? `<div class="eyebrow" style="margin-bottom:4px">Latest sends</div><ul class="rows thx-log">${recent.map((r) => `<li><span class="mono" style="font-size:12px">${esc(r.email || 'unknown')}</span><span style="display:flex;gap:10px;align-items:center"><span class="pill">${r.kind === 'earlier' ? 'earlier buyer' : 'new buyer'}</span><span class="mono" style="color:var(--ink-3);font-size:12px;width:46px;text-align:right">${shortDate(r.sent)}</span></span></li>`).join('')}</ul>` : '<p class="note-sm" style="margin:0">No thank-you emails sent yet.</p>'}
       ${TH.on ? `<form class="field" id="thx-test" style="margin-top:14px"><input id="thx-to" type="email" value="karman.daily@gmail.com" aria-label="Send a test copy to"><button class="btn sm" type="submit">Send test to me</button></form>
-      <p class="note-sm">Every buyer is thanked automatically when they pay. The test sends the new-buyer email and marks nobody.</p>` : ''}`;
+      <p class="note-sm">Every buyer is thanked once, automatically, when they pay; refunded buyers stay in the count. Test sends aren't counted and mark nobody.</p>` : ''}`;
     if ($('thx-test')) $('thx-test').onsubmit = async (e) => {
       e.preventDefault();
       const b = e.currentTarget.querySelector('button'), was = b.textContent; b.disabled = true; b.textContent = 'Sending…';
@@ -1657,7 +1702,7 @@ tr.off td:not(.acts) { opacity: 0.5; }
   function refreshChrome() {
     tickHeader();
     const b = [];
-    if (loadErr) b.push(`<div class="banner">${st('crit', 'Offline')}<span class="t">Couldn't reach the stats (${esc(loadErr)}).${D ? ` Showing the copy from ${clockET(D.builtAt)}.` : ''}</span><button class="btn sm" type="button" data-act="retry">Retry</button></div>`);
+    if (loadErr) b.push(`<div class="banner"><span class="st crit">${IC.cloudoff}Offline</span><span class="t">Couldn't reach the stats (${esc(loadErr)}).${D ? ` Showing the copy from ${clockET(D.builtAt)}.` : ''}</span><button class="btn sm" type="button" data-act="retry">Retry</button></div>`);
     else if (D && Date.now() - D.builtAt > 60 * 6e4 && current === 'briefing') b.push(`<div class="banner stale">${st('warn', 'Stale')}<span class="t">These numbers are ${ago(D.builtAt).replace(' ago', '')} old.</span><button class="btn sm" type="button" data-act="refresh">Refresh</button></div>`);
     $('banners').innerHTML = b.join('');
     if (!D) return;
@@ -1666,6 +1711,9 @@ tr.off td:not(.acts) { opacity: 0.5; }
     const toolsN = A.filter((a) => a.tab === 'tools' && a.lvl !== 'info').length;
     $('badge-money').hidden = !money; $('badge-money').textContent = money;
     $('badge-tools').hidden = !toolsN; $('badge-tools').textContent = toolsN;
+    const tb = $('tabs'), off = () => { const bm = $('badge-money'); if (bm.hidden) return false; const r = bm.getBoundingClientRect(), rb = tb.getBoundingClientRect(); return r.right > rb.right - 20 || r.left < rb.left; };
+    document.querySelector('.bar2').classList.toggle('crit-off', off());
+    if (!tb.dataset.wired) { tb.dataset.wired = '1'; tb.addEventListener('scroll', () => document.querySelector('.bar2').classList.toggle('crit-off', off()), { passive: true }); }
   }
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]');
@@ -1700,6 +1748,8 @@ tr.off td:not(.acts) { opacity: 0.5; }
     show(v);
     refreshChrome();
     if (changed) scrollTo(0, 0);
+    const at = document.querySelector('.tab[aria-selected="true"]');
+    if (at && at.scrollIntoView) { const tb = $('tabs'), r = at.getBoundingClientRect(), rb = tb.getBoundingClientRect(); if (r.left < rb.left || r.right > rb.right - 24) tb.scrollLeft += r.left - rb.left - (rb.width - r.width) / 2; }
     hideTip();
   }
   addEventListener('hashchange', go);

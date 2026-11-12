@@ -157,6 +157,12 @@ const r3 = await (await call('/api/stats/r3')).json();
 check(r3.players === 2 && r3.run === true, 'run stats count only that run');
 check((await (await call('/api/stats/r4')).json()).players === 0, 'other runs are separate');
 check((await runPost(0, 'device-run-0003', 100)).status === 422, 'run 0 rejected');
+{
+  const ctr = (k) => (db.prepare('SELECT n FROM counters WHERE day = ? AND kind = ?').get(T, k) || {}).n || 0;
+  await runPost(3, 'device-run-0001', 400);       // a resubmission
+  await runPost(1, 'device-run-0004', 100);       // the free run
+  check(ctr('runs_paid') === 2 && ctr('runs_free') === 1 && db.prepare("SELECT COUNT(*) c FROM events WHERE kind = 'run' AND day = ?").get(T).c === 2, 'Unlimited runs are counted as they land (resubmissions never), paid ones mark the pilot');
+}
 
 // visits: first open of the day per device, source cleaned up
 const hit = (device, src, ua = 'Mozilla/5.0 (iPhone)') => call('/api/hit', { method: 'POST', headers: { 'content-type': 'application/json', 'user-agent': ua }, body: JSON.stringify({ device, src }) });
@@ -266,6 +272,16 @@ globalThis.fetch = prevFetch;
   check(!db.prepare("SELECT 1 FROM visits WHERE device = 'device-bot-0001'").get(), 'link unfurlers are not visitors');
   await hit('device-cubot-001', 'x', 'Mozilla/5.0 (Linux; Android 11; CUBOT X30 Build/RP1A) Mobile');
   check(Boolean(db.prepare("SELECT 1 FROM visits WHERE device = 'device-cubot-001'").get()), 'a real phone whose name contains "bot" still counts');
+  db.exec("INSERT INTO ignore_devices (device) VALUES ('device-own-ev01')");
+  await ev('share', 'device-own-ev01');
+  check(cnt('share') === 1 && !db.prepare("SELECT 1 FROM events WHERE device = 'device-own-ev01'").get(), "the owner's devices send no events");
+  db.exec("DELETE FROM ignore_devices WHERE device = 'device-own-ev01'");
+  // rate limit per IP (fails open without an IP); over the limit nothing is written
+  const evIp = (ip, i) => call('/api/event', { method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': ip }, body: JSON.stringify({ device: `device-rl-${String(i).padStart(4, '0')}`, kind: 'share' }) });
+  const codes = []; for (let i = 0; i < 32; i++) codes.push((await evIp('203.0.113.9', i)).status);
+  check(codes.slice(0, 30).every((x) => x === 204) && codes[30] === 429 && codes[31] === 429, 'events are rate-limited per IP (30 a minute)');
+  check((await evIp('203.0.113.10', 99)).status === 204, '...other IPs are unaffected');
+  check(!db.prepare("SELECT 1 FROM events WHERE device = 'device-rl-0031'").get(), '...and a refused event writes nothing');
   const p0 = db.prepare("SELECT * FROM pilots WHERE device = 'device-zzz-999'").get();
   check(p0 && p0.first_seen === T && p0.first_src === 'other' && p0.first_flight === null && p0.flights === 0, 'a first visit creates the pilot row with its source');
 }
@@ -287,6 +303,12 @@ globalThis.fetch = prevFetch;
   check(pay('cs_pay_1').refunded === 200 && db.prepare("SELECT unlimited FROM users WHERE sub = 'g-pay'").get().unlimited === 1, 'a partial refund is recorded and keeps access');
   await sign({ type: 'charge.refunded', data: { object: { payment_intent: 'pi_pay', amount: 479, amount_refunded: 479, refunded: true, currency: 'eur' } } });
   check(pay('cs_pay_1').refunded === 479 && db.prepare("SELECT unlimited FROM users WHERE sub = 'g-pay'").get().unlimited === 0 && db.prepare("SELECT 1 FROM refunds WHERE sub = 'g-pay'").get(), 'a full refund is recorded and removes access');
+  await sign({ type: 'charge.refunded', data: { object: { payment_intent: 'pi_pay', amount: 479, amount_refunded: 200, refunded: false, currency: 'eur' } } });
+  check(pay('cs_pay_1').refunded === 479, 'a late, smaller refund event never lowers the refunded total');
+  await sign({ type: 'checkout.session.completed', data: { object: { id: 'cs_pay_1', payment_status: 'paid', client_reference_id: 'g-pay', amount_total: 479, currency: 'eur' } } });
+  check(db.prepare("SELECT unlimited FROM users WHERE sub = 'g-pay'").get().unlimited === 0 && db.prepare("SELECT 1 FROM refunds WHERE sub = 'g-pay'").get(), 'a retried "paid" webhook after a full refund does not hand Unlimited back');
+  await sign({ type: 'checkout.session.completed', data: { object: { id: 'cs_pay_2', payment_status: 'paid', client_reference_id: 'g-pay', amount_total: 479, currency: 'eur' } } });
+  check(db.prepare("SELECT unlimited FROM users WHERE sub = 'g-pay'").get().unlimited === 1, '...but buying again (a new session) does');
   globalThis.fetch = f0;
 }
 
@@ -299,6 +321,9 @@ globalThis.fetch = prevFetch;
   const D2 = { batch: async (list) => Promise.all(list.map((x) => x.run())), prepare: (sql) => { const st = db2.prepare(sql); let args = []; const o = {
     bind: (...a) => { args = a; return o; }, run: async () => st.run(...args), first: async () => st.get(...args) ?? null, all: async () => ({ results: st.all(...args) }) }; return o; } };
   const env2 = { DB: D2, SESSION_SECRET: 'test-secret', PRICE_CENTS: '599', ASSETS: env.ASSETS };
+  // Pin the clock to mid-afternoon (ET) of today's flight, so "closed days" don't depend on when the tests run.
+  const realNow = Date.now;
+  Date.now = () => LAUNCH + (T - 1) * 864e5 + 20 * 36e5;
   const call2 = (path, init) => worker.fetch(new Request(`https://karman.day${path}`, init), env2, ctx);
   const at = (n, h = 14) => new Date(LAUNCH + (n - 1) * 864e5 + (h + 5) * 36e5).toISOString().slice(0, 19).replace('T', ' ');
   const R = db2.prepare('INSERT INTO results (n, device, pts, legs, chips, created) VALUES (?, ?, ?, ?, ?, ?)');
@@ -310,6 +335,8 @@ globalThis.fetch = prevFetch;
   fly('dev-c5-a-001', T - 5, 100, 'x.com'); fly('dev-c5-a-001', T - 4); fly('dev-c5-a-001', T - 3);
   fly('dev-gap-00001', T - 12); fly('dev-gap-00001', T - 2);
   fly('dev-yday-0001', T - 1, 300, 'google.com'); fly('dev-yday-0001', T);
+  fly('dev-wk-000001', T - 12); fly('dev-wk-000001', T - 5);            // exactly 7 days apart: leaves and re-enters the weekly window
+  fly('dev-mo-000001', T - 36); fly('dev-mo-000001', T - 6);            // exactly 30 days apart: the monthly window
   V.run(T - 1, 'dev-visit-0001', 'reddit.com', 'CA', 0, at(T - 1));
   R.run(1000001, 'dev-loyal-0001', 300, '1111111', '2222222', at(T - 1)); R.run(1000003, 'dev-loyal-0001', 300, '1111111', '2222222', at(T));
   R.run(1000003, 'dev-owner-0001', 300, '1111111', '2222222', at(T));
@@ -317,16 +344,17 @@ globalThis.fetch = prevFetch;
   db2.exec(`INSERT INTO users (sub, email, unlimited, paid_at, stripe_session) VALUES ('g-buyer1', 'b1@x.y', 1, '${at(T - 4)}', 'cs_b1'), ('g-owner', 'own@x.y', 1, '${at(T - 4)}', 'cs_own')`);
   db2.exec(`INSERT INTO payments (session, sub, amount, at) VALUES ('cs_own', 'g-owner', 599, '${at(T - 4)}')`);
   db2.exec(`INSERT INTO reports (qid, device, n, created) VALUES ('q-own', 'dev-owner-0001', ${T}, datetime('now')), ('q-real', 'dev-loyal-0001', ${T}, datetime('now'))`);
+  db2.exec("UPDATE meta SET v = '2099-01-01 00:00:00' WHERE k = 'live_from'");   // every run above predates the live counters
   const stats2 = async (q = '?fresh=1') => (await call2(`/api/admin/stats${q}`, { headers: { authorization: `Bearer ${token}` } })).json();
 
-  let b = await stats2(), builds = 1, maxFrozen = b.cost.frozen.length;
+  let b = await stats2(), builds = 1;
   check(b.backfill.pilots === 'done' && b.cost.backfilled > 0, 'the first build backfills pilots for devices from before the table');
   const pr = (d) => db2.prepare('SELECT * FROM pilots WHERE device = ?').get(d);
   check(pr('dev-loyal-0001').flights === 13 && pr('dev-loyal-0001').first_flight === T - 12 && pr('dev-loyal-0001').last_flight === T && pr('dev-loyal-0001').streak === 13, 'backfill: flights, first, last and streak from the raw results');
   check(pr('dev-gap-00001').flights === 2 && pr('dev-gap-00001').streak === 1, 'backfill: a gap resets the streak');
   check(pr('dev-visit-0001').first_seen === T - 1 && pr('dev-visit-0001').first_src === 'reddit.com' && pr('dev-visit-0001').first_flight === null, 'backfill: visit-only devices get their first source');
-  while (b.backfill.pendingDays && builds < 15) { b = await stats2(); builds++; maxFrozen = Math.max(maxFrozen, b.cost.frozen.length); }
-  check(b.backfill.pendingDays === 0 && maxFrozen <= 5, `closed days freeze at most 5 per build (${builds} builds)`);
+  while ((b.backfill.pendingDays || b.backfill.pendingCohorts) && builds < 15) { b = await stats2(); builds++; }
+  check(b.backfill.pendingDays === 0 && b.backfill.pendingCohorts === 0 && b.closedThrough === T - 2 && b.cost.frozen[0] === 1, `catch-up finishes within the row budget, oldest day first (${builds} builds)`);
   const rows0 = db2.prepare('SELECT n, data, updated FROM day_stats ORDER BY n').all();
   check(rows0.length === T - 2 && rows0[rows0.length - 1].n === T - 2, 'every closed day (n <= today - 2) is frozen, today and yesterday stay live');
   const b2 = await stats2();
@@ -338,7 +366,17 @@ globalThis.fetch = prevFetch;
   check(day(b2, T - 2).react === 1 && day(b2, T - 3).np === 3 && day(b2, T - 3).nv === 3 && day(b2, T - 3).act === 3, 'new pilots, activation and "back after 7+ days" per day');
   check(day(b2, T).fin === 2 && day(b2, T - 1).fin === 3 && day(b2, T).closed === false, 'today and yesterday are live and leave the owner out');
   check(day(b2, T - 2).hours.reduce((a, x) => a + x, 0) === raw(T - 2) && day(b2, T - 2).hours[14] === raw(T - 2), 'finishes by Eastern hour');
-  check(day(b2, T - 2).wau === 6 && day(b2, T - 5).wau === 2 && day(b2, T - 5).mau === 3, 'weekly and monthly pilots frozen per day');
+  check(day(b2, T - 2).wau === 8 && day(b2, T - 5).wau === 4 && day(b2, T - 5).mau === 5, 'weekly and monthly pilots frozen per day');
+  const distinct = (a, z) => db2.prepare("SELECT COUNT(DISTINCT device) c FROM results WHERE n BETWEEN ? AND ? AND n < 1000000 AND device != 'dev-owner-0001'").get(a, z).c;
+  const rollBad = [];
+  for (let n = 1; n <= T - 2; n++) { const d = day(b2, n); if (d.wau !== distinct(n - 6, n) || d.mau !== distinct(n - 29, n)) rollBad.push(n); }
+  check(rollBad.length === 0, `weekly/monthly pilots rolled forward day by day equal a full recount (${rollBad.join(',')})`);
+  const core = db2.prepare("SELECT COUNT(*) c FROM (SELECT device FROM results WHERE n BETWEEN ? AND ? AND device != 'dev-owner-0001' GROUP BY device HAVING COUNT(*) >= 5)").get(T - 8, T - 2).c;
+  check(b2.core && b2.core.n === T - 2 && b2.core.c === core, 'core pilots (5+ of 7 days) frozen with the day, not re-read every build');
+  const dueBad = [];
+  for (let c = 1; c <= T - 3; c++) { const r = b2.cohorts.find((x) => x.n === c); for (const k of b2.retK) if (c + k <= T - 2 && (!r || r.ret[k] == null)) dueBad.push(`${c}+${k}`); }
+  check(dueBad.length === 0, `every retention window that has closed is filled, D30 included (${dueBad.slice(0, 5).join(',')})`);
+  check(b2.money.buyers.every((x) => /•••@/.test(x.email)), 'buyer emails leave the Worker masked');
   // closed-window retention
   const coh = (n) => b2.cohorts.find((c) => c.n === n);
   check(coh(T - 3) && coh(T - 3).size === 3 && coh(T - 3).ret['1'] === 1 && !('2' in coh(T - 3).ret), 'D1 is written once its day has closed; D2 (yesterday) is not');
@@ -346,10 +384,11 @@ globalThis.fetch = prevFetch;
   check(!coh(T - 2) && !coh(T - 1), 'no retention at all for cohorts whose next day is still open');
   check(b2.yesterdayCohort.size === 1 && b2.yesterdayCohort.back === 1, "yesterday's newcomers back today (live, so far)");
   // pilots-based live numbers, owner left out
-  check(b2.active.mau === 7 && b2.active.streak7 === 1 && b2.active.bestStreak === 13 && b2.active.regulars.today === 1, 'monthly pilots, streaks and regulars leave the owner out');
+  check(b2.active.mau === 9 && b2.active.streak7 === 1 && b2.active.bestStreak === 13 && b2.active.regulars.today === 1, 'monthly pilots, streaks and regulars leave the owner out');
   check(b2.acquisition.some((a) => a.src === 'reddit.com' && a.nv === 3 && a.n === T - 3), 'acquisition by first source');
   check(b2.reports.length === 1 && b2.reports[0].qid === 'q-real', "the owner's own reports are left out");
-  check(b2.unlimited.paidRuns === 1 && b2.unlimited.freeRunPilots === 1, "Unlimited runs: free and paid apart, the owner's left out");
+  check(b2.unlimited.paidRuns === 1 && b2.unlimited.freeRunPilots === 1 && b2.unlimited.pilotsWeek === 1 && b2.unlimited.runsByDay[T][1] === 1, "Unlimited runs: older ones counted once into the counters, free and paid apart, the owner's left out");
+  check(db2.prepare("SELECT v FROM meta WHERE k = 'runs_bf'").get().v === 'done' && (await stats2()).unlimited.paidRuns === 1, '...and never counted twice');
   // money: owner's purchase left out; older purchase backfilled once as an estimate
   check(b2.money.payments.length === 1 && b2.money.payments[0].amount === 599 && b2.money.payments[0].est === 1, "older purchases are backfilled (estimated without Stripe); the owner's own is left out");
   check(db2.prepare("SELECT COUNT(*) c FROM payments WHERE sub = 'g-buyer1'").get().c === 1, 'the payment backfill runs once');
@@ -364,6 +403,7 @@ globalThis.fetch = prevFetch;
     if (u.startsWith('https://api.stripe.com/')) return new Response('{}', { status: 200 });
     return f0(url, init);
   };
+  db2.exec("DELETE FROM meta WHERE k = 'pay_bf_day'");     // the purchase backfill looks again once a day
   await stats2();
   globalThis.fetch = f0;
   const pb2 = db2.prepare("SELECT * FROM payments WHERE sub = 'g-buyer2'").get();
@@ -373,7 +413,21 @@ globalThis.fetch = prevFetch;
   // rebuild re-freezes the last 14 days with the current exclusions
   db2.exec("INSERT INTO ignore_devices (device) VALUES ('dev-loyal-0001')");
   check((await call2('/api/admin/rebuild', { method: 'POST', headers: { authorization: `Bearer ${token}` } })).status === 200, 'rebuild accepted');
-  let rb = await stats2(); for (let i = 0; i < 6 && rb.backfill.pendingDays; i++) rb = await stats2();
+  check((await call2('/api/admin/rebuild', { method: 'POST', headers: { authorization: `Bearer ${token}` } })).status === 429, 'rebuild at most once an hour');
+  // a tiny row budget: one freeze per build (the first step may always run), oldest day first
+  env2.DASH_LIMITS = { soft: 1 };
+  let rb = await stats2();
+  const order = [rb.cost.frozen.join(',')];
+  rb = await stats2(); order.push(rb.cost.frozen.join(','));
+  check(order[0] === String(T - 14) && order[1] === String(T - 13), `catch-up is sliced by the row budget, oldest first (${order.join(' then ')})`);
+  // the daily catch-up budget: spent → no catch-up until the next UTC day
+  env2.DASH_LIMITS = { daily: 1 };
+  rb = await stats2();
+  check(rb.cost.frozen.length === 0 && rb.cost.cohorts.length === 0 && rb.backfill.pendingDays > 0, 'catch-up stops once the daily budget is spent');
+  db2.exec("UPDATE meta SET v = '2000-01-01' WHERE k = 'cu_day'");
+  delete env2.DASH_LIMITS;
+  rb = await stats2();
+  check(rb.backfill.pendingDays === 0, '...and resumes the next day');
   check(day(rb, T - 2).fin === raw(T - 2) - 1, 'after a rebuild, newly excluded devices leave the frozen days too');
   db2.exec("DELETE FROM ignore_devices WHERE device = 'dev-loyal-0001'");
 
@@ -381,13 +435,14 @@ globalThis.fetch = prevFetch;
   const db3 = new DatabaseSync(':memory:');
   db3.exec(fs.readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8'));
   const D3 = { batch: D2.batch, prepare: (sql) => { const st = db3.prepare(sql); let args = []; const o = { bind: (...a) => { args = a; return o; }, run: async () => st.run(...args), first: async () => st.get(...args) ?? null, all: async () => ({ results: st.all(...args) }) }; return o; } };
-  const env3 = { ...env2, DB: D3 };
+  const env3 = { ...env2, DB: D3, DASH_LIMITS: { soft: 1500 } };
   const R3 = db3.prepare('INSERT INTO results (n, device, pts, legs, chips, created) VALUES (?, ?, ?, ?, ?, ?)'), V3 = db3.prepare('INSERT INTO visits (day, device, src, created) VALUES (?, ?, ?, ?)');
   for (let i = 0; i < 2300; i++) { const d = `dev-bulk-${String(i).padStart(5, '0')}`; R3.run(T - 3, d, 100, '1000000', '0000000', at(T - 3)); V3.run(T - 3, d, 'direct', at(T - 3)); }
   const st3 = async () => (await worker.fetch(new Request('https://karman.day/api/admin/stats?fresh=1', { headers: { authorization: `Bearer ${token}` } }), env3, ctx)).json();
   const c1 = await st3();
-  check(c1.cost.backfilled === 2000 && c1.backfill.pilots === 'running' && c1.cost.frozen.length === 0 && c1.cost.cohorts.length === 0, 'backfill is bounded per build (1000 devices a side) and freezing waits for it');
-  await st3(); const c3 = await st3();
+  check(c1.cost.backfilled > 0 && c1.cost.backfilled < 2300 && c1.backfill.pilots === 'running' && c1.cost.frozen.length === 0 && c1.cost.cohorts.length === 0, 'backfill is sliced by the row budget and freezing waits for it');
+  check(c1.active === null && c1.yesterdayCohort === null && c1.acquisition.length === 0 && c1.days[T - 1].nv === undefined, 'while pilots are indexing, no pilots-based number is shown (rather than a wrong one)');
+  let c3 = await st3(); for (let i = 0; i < 10 && c3.backfill.pilots !== 'done'; i++) c3 = await st3();
   check(c3.backfill.pilots === 'done' && db3.prepare('SELECT COUNT(*) c FROM pilots').get().c === 2300 && db3.prepare('SELECT SUM(flights) s FROM pilots').get().s === 2300, '...and completes, counting every device once');
 
   // the 10-minute edge copy, and Refresh throttled to one build a minute
@@ -397,6 +452,20 @@ globalThis.fetch = prevFetch;
   const h1 = await hdr(''), h2 = await hdr(''), h3 = await hdr('?fresh=1');
   check(h1 === 'miss' && h2 === 'hit' && h3 === 'throttled', `cached for 10 minutes; Refresh within a minute is served the copy (${h1}/${h2}/${h3})`);
   globalThis.caches = c0;
+  Date.now = realNow;
+}
+
+/* ------------------------------------------------------------------ the SQL day bucketing used by one-off backfills matches the Worker's */
+{
+  const { flightSql, etFlightHour } = await import('../api/src/dash.js');
+  const dbx = new DatabaseSync(':memory:');
+  const expr = flightSql('c', LAUNCH, Date.UTC(2027, 6, 1));
+  let bad = 0;
+  for (let ms = Date.UTC(2026, 9, 7); ms < Date.UTC(2027, 11, 31); ms += 3600e3 * 5 + 60e3 * 17) {
+    const c = new Date(ms).toISOString().slice(0, 19).replace('T', ' ');
+    if (dbx.prepare(`SELECT ${expr} AS n FROM (SELECT ? AS c)`).get(c).n !== etFlightHour(ms, LAUNCH).n) bad++;
+  }
+  check(bad === 0, `SQL flight-of-timestamp matches the Worker across DST (${bad} off)`);
 }
 
 /* ------------------------------------------------------------------ Eastern-time arithmetic matches Intl */
@@ -414,9 +483,9 @@ globalThis.fetch = prevFetch;
 /* ------------------------------------------------------------------ client beacons: off with ?dev, once a day otherwise */
 {
   const vm = await import('node:vm');
-  const load = (search) => {
+  const load = (search, hostname = 'karman.day') => {
     const posts = [], ls = new Map();
-    const c = { console, Date, Math, JSON, Promise, Set, Map, URLSearchParams, setTimeout, location: { protocol: 'https:', hostname: 'karman.day', search, pathname: '/' },
+    const c = { console, Date, Math, JSON, Promise, Set, Map, URLSearchParams, setTimeout, location: { protocol: 'https:', hostname, search, pathname: '/', href: `https://${hostname}/`, origin: `https://${hostname}` },
       localStorage: { getItem: (k) => (ls.has(k) ? ls.get(k) : null), setItem: (k, v) => ls.set(k, String(v)) },
       fetch: (url, init) => { posts.push([url, init && init.body]); return Promise.resolve({ ok: true, json: async () => ({}) }); },
       addEventListener() {}, document: { referrer: '' }, navigator: { onLine: true } };
@@ -434,6 +503,9 @@ globalThis.fetch = prevFetch;
   await new Promise((r) => setTimeout(r, 5));
   liveS.K.stats.event('share');
   const evPosts = liveS.posts.filter((p) => p[0].endsWith('/api/event'));
+  const prev = load('', 'karman.someone.workers.dev');
+  prev.K.stats.event('share'); prev.K.stats.hit();
+  check(prev.K.stats.live() === false && prev.posts.length === 0, 'a workers.dev preview never writes to the production stats');
   check(liveS.K.stats.live() === true && evPosts.length === 2 && JSON.parse(evPosts[0][1]).kind === 'share', 'events go out once per kind per day');
   liveS.K.stats.hit(); liveS.K.stats.hit();
   await new Promise((r) => setTimeout(r, 5));
