@@ -282,6 +282,16 @@ globalThis.fetch = prevFetch;
   check(codes.slice(0, 30).every((x) => x === 204) && codes[30] === 429 && codes[31] === 429, 'events are rate-limited per IP (30 a minute)');
   check((await evIp('203.0.113.10', 99)).status === 204, '...other IPs are unaffected');
   check(!db.prepare("SELECT 1 FROM events WHERE device = 'device-rl-0031'").get(), '...and a refused event writes nothing');
+  // the share stamp: two new kinds; and the dashboard's players who shared in the last 7 days
+  check((await ev('nudge_seen')).status === 204 && (await ev('nudge_seen', 'device-ev-00002')).status === 204 && (await ev('nudge_tap')).status === 204, 'share-stamp events accepted');
+  check(cnt('nudge_seen') === 2 && cnt('nudge_tap') === 1, '...and counted per kind');
+  db.prepare("INSERT INTO events (day, kind, device) VALUES (?, 'share', 'device-old-sh01'), (?, 'share', 'device-own-sh01'), (?, 'share', 'device-ev-00001')").run(T - 7, T - 1, T - 3);
+  db.exec("INSERT INTO ignore_devices (device) VALUES ('device-own-sh01')");
+  const sharers = db.prepare("SELECT COUNT(DISTINCT device) c FROM events WHERE kind = 'share' AND day BETWEEN ? AND ? AND device NOT IN (SELECT device FROM ignore_devices)").get(T - 6, T).c;
+  const sh = (await (await call('/api/admin/stats?fresh=1', { headers: AH })).json()).sharing;
+  check(sh && sh.from === Math.max(1, T - 6) && sh.players === sharers && sharers >= 30,
+    `Sharing: players who shared in the last 7 days, each counted once, the owner left out (${JSON.stringify(sh)} vs ${sharers})`);
+  db.exec("DELETE FROM ignore_devices WHERE device = 'device-own-sh01'");
   const p0 = db.prepare("SELECT * FROM pilots WHERE device = 'device-zzz-999'").get();
   check(p0 && p0.first_seen === T && p0.first_src === 'other' && p0.first_flight === null && p0.flights === 0, 'a first visit creates the pilot row with its source');
 }

@@ -32,7 +32,7 @@ const PAY_BF_MAX = 8;          // older purchases looked up on Stripe per day
 export const RET_K = [1, 2, 3, 4, 5, 6, 7, 14, 21, 28, 30];
 const KEEP_EVENTS = 60;        // days of per-device event rows kept
 const FULL_DAYS = 35;          // older frozen days keep totals only (no hours / histogram)
-export const EVENT_KINDS = ['paywall_view', 'buy_click', 'share', 'pass_redeem', 'error', 'stats_down'];
+export const EVENT_KINDS = ['paywall_view', 'buy_click', 'share', 'pass_redeem', 'error', 'stats_down', 'nudge_seen', 'nudge_tap'];
 export const maskEmail = (e) => { const [u, d] = String(e || '').split('@'); return d ? `${u.slice(0, 2)}•••@${d}` : ''; };
 
 /* ---------------------------------------------------------- Eastern time
@@ -308,7 +308,8 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
   const liveR0 = cost.rowsRead;
   const liveDays = []; for (let n = Math.max(1, CLOSED + 1); n <= T; n++) liveDays.push(n);
   const runDays = []; for (let n = Math.max(1, T - 29); n <= T; n++) runDays.push(n);
-  const [liveNums, yCoh, act, acq, geo, counters, runTotals, runPilots, pays, checkouts, buyers, acct, passes, reports, excluded] = await Promise.all([
+  const shareDays = []; for (let n = Math.max(1, T - 6); n <= T; n++) shareDays.push(n);
+  const [liveNums, yCoh, act, acq, geo, counters, runTotals, runPilots, sharers, pays, checkouts, buyers, acct, passes, reports, excluded] = await Promise.all([
     Promise.all(liveDays.map((n) => dayNumbers(n, { live: true, withPilots: bfDone }))),
     bfDone ? one(`SELECT COUNT(*) AS size, SUM(EXISTS (SELECT 1 FROM results q WHERE q.device = p.device AND q.n = ?)) AS back FROM pilots p WHERE first_flight = ? AND ${NOTME}`, T, T - 1) : null,
     // one pass over the month's pilots: active counts, streaks, regulars and days flown
@@ -323,6 +324,9 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
     all('SELECT day, kind, n FROM counters WHERE day >= ?', T - 89),
     all("SELECT kind, SUM(n) AS s FROM counters WHERE kind IN ('runs_free', 'runs_paid') GROUP BY kind"),
     one(`SELECT COUNT(DISTINCT device) AS m, COUNT(DISTINCT CASE WHEN day >= ? THEN device END) AS w FROM events WHERE day IN (${runDays.join(',')}) AND kind = 'run'`, T - 6),
+    // players who shared in the last 7 days, each counted once ((day, kind) lead the key: index seeks;
+    // the per-day share and share-stamp counts are already in days[].ev)
+    one(`SELECT COUNT(DISTINCT device) AS p FROM events WHERE day IN (${shareDays.join(',')}) AND kind = 'share' AND ${NOTME}`),
     all(`SELECT p.amount, p.currency, p.at, p.refunded, p.refunded_at, p.est, cs.src, cs.first_flight, cs.flights
       FROM payments p LEFT JOIN checkout_src cs ON cs.id = p.session WHERE p.${NOTSUB} ORDER BY p.at`),
     all(`SELECT sub, created FROM checkouts WHERE created >= datetime('now', '-60 days') AND ${NOTSUB}`),
@@ -406,6 +410,7 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
       },
       accounts: acct.accounts || 0, saves: acct.saves || 0, plays7: acct.plays7 || 0,
     },
+    sharing: { from: shareDays[0], players: (sharers && sharers.p) || 0 },
     unlimited: { runsByDay, freeRunPilots: rt.runs_free || 0, paidRuns: rt.runs_paid || 0, pilots30: runPilots.m || 0, pilotsWeek: runPilots.w || 0 },
     passes: { made: passes.made || 0, active: passes.active || 0, claimed: passes.claimed || 0, stale: passes.stale || 0 },
     reports,
