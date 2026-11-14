@@ -104,7 +104,7 @@ section.s:first-child { margin-top: 0; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; min-width: 0; }
 .ph { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; margin-bottom: 12px; }
 .ph h3 { margin: 0; font-size: 16px; font-weight: 600; }
-.ph .sub { color: var(--ink-3); font-size: 13.5px; margin-top: 2px; }
+.ph .sub { color: var(--ink-3); font-size: 13.5px; margin-top: 2px; text-wrap: pretty; }
 .readout { font-size: 14px; color: var(--ink-2); min-height: 21px; }
 .readout b { color: var(--ink); font-weight: 600; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13.5px; color: var(--ink-2); margin: 0 0 8px; }
@@ -121,7 +121,7 @@ section.s:first-child { margin-top: 0; }
 .alert.ok { border-left-color: var(--ok); }
 .alert .ic { flex: none; width: 18px; height: 18px; color: var(--warn); }
 .alert.crit .ic { color: var(--crit); } .alert.ok .ic { color: var(--ok); } .alert.info .ic { color: var(--info); }
-.alert .t { flex: 1; min-width: 0; }
+.alert .t { flex: 1; min-width: 0; text-wrap: pretty; }
 .alert .t b { font-weight: 600; }
 .alert .t span { color: var(--ink-2); }
 .prog { height: 6px; border-radius: 3px; background: var(--sunk); margin-top: 8px; max-width: 360px; overflow: hidden; }
@@ -133,10 +133,10 @@ section.s:first-child { margin-top: 0; }
 .tiles.k3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; min-width: 0; text-decoration: none; color: inherit; display: block; }
 a.tile:hover { border-color: var(--line-2); }
-.tile .lab { font-size: 14.5px; font-weight: 500; color: var(--ink-2); }
+.tile .lab { font-size: 14.5px; font-weight: 500; color: var(--ink-2); text-wrap: balance; }
 .tile .val { font-size: 46px; font-weight: 600; line-height: 1.05; letter-spacing: -0.02em; margin: 8px 0; }
 .tile .val small { font-size: 0.55em; font-weight: 500; color: var(--ink-3); letter-spacing: 0; margin-left: 2px; }
-.tile .ctx { font-size: 14px; color: var(--ink-2); line-height: 1.45; }
+.tile .ctx { font-size: 14px; color: var(--ink-2); line-height: 1.45; text-wrap: pretty; }
 .tile .ctx + .ctx { margin-top: 2px; color: var(--ink-3); }
 .tiles.compact .val { font-size: 32px; margin: 6px 0; }
 .tile.idx .val { font-size: 22px; color: var(--ink-3); font-weight: 500; margin: 14px 0 12px; letter-spacing: 0; }
@@ -159,7 +159,7 @@ a.tile:hover { border-color: var(--line-2); }
 /* ---------- tables + lists ---------- */
 table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 th { text-align: left; font-weight: 500; font-size: 13px; color: var(--ink-3); padding: 0 10px 8px 0; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
-td { padding: 10px 10px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+td { padding: 10px 10px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
 tr:last-child td { border-bottom: 0; }
 th.n, td.n { text-align: right; }
 th:last-child, td:last-child { padding-right: 0; }
@@ -180,8 +180,9 @@ th:last-child, td:last-child { padding-right: 0; }
 .rows { list-style: none; margin: 0; padding: 0; }
 .rows li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 14.5px; }
 .rows li:last-child { border-bottom: 0; }
-.rows .r { display: flex; align-items: center; gap: 12px; color: var(--ink-3); font-size: 13.5px; white-space: nowrap; }
-.rows .r .d { min-width: 44px; text-align: right; }
+.rows li > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.rows .r { display: flex; align-items: center; justify-content: flex-end; gap: 12px; color: var(--ink-3); font-size: 13.5px; min-width: 0; text-align: right; overflow-wrap: anywhere; }
+.rows .r .d { min-width: 44px; text-align: right; white-space: nowrap; flex: none; }
 .st { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 14px; white-space: nowrap; }
 .st svg { width: 16px; height: 16px; }
 .st.ok { color: var(--ok); } .st.crit { color: var(--crit); } .st.warn { color: var(--warn); } .st.na { color: var(--ink-3); font-weight: 500; }
@@ -191,8 +192,8 @@ th:last-child, td:last-child { padding-right: 0; }
 .nums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .nums .lab { font-size: 14px; font-weight: 500; color: var(--ink-2); }
 .nums .v { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.2; margin: 4px 0 2px; }
-.nums .v.na { font-size: 17px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; margin: 9px 0 5px; }
 .nums .ctx { font-size: 13.5px; color: var(--ink-3); }
+.nums .ctx:has(.upt, .dnt) { color: var(--ink-2); }
 .sent { font-size: 15px; margin-bottom: 6px; }
 .sent b { font-size: 24px; font-weight: 600; }
 
@@ -202,7 +203,7 @@ th:last-child, td:last-child { padding-right: 0; }
 .field input::placeholder { color: var(--ink-3); }
 .field .btn { height: 38px; }
 .acts { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
-tr.off td { color: var(--ink-3); }
+tr.off td, tr.minor td { color: var(--ink-3); }
 .ticket { display: grid; grid-template-columns: 1fr 190px; background: #FFF9EC; border: 1px solid rgba(201, 120, 0, 0.45); border-radius: 14px; margin-top: 14px; overflow: hidden; }
 .ticket .main { padding: 16px 20px; min-width: 0; }
 .ticket .stubp { padding: 16px 20px; border-left: 2px dashed rgba(201, 120, 0, 0.45); display: flex; flex-direction: column; justify-content: center; gap: 10px; }
@@ -328,7 +329,7 @@ tr.off td { color: var(--ink-3); }
     <div class="sh"><h2>Tools</h2></div>
     <div class="grid">
       <div class="panel c12">
-        <div class="ph"><div><h3>Reported answers</h3><div class="sub">Questions players flagged as wrong, last 60 days. The Monday restock re-checks anything with 2 or more.</div></div></div>
+        <div class="ph"><div><h3>Reported answers</h3><div class="sub">Questions players flagged as wrong, last 60 days. The Monday restock re-checks anything with 2 or more.</div></div><span id="rep-pill"></span></div>
         <div id="reports"></div>
       </div>
       <div class="panel c7">
@@ -429,7 +430,7 @@ tr.off td { color: var(--ink-3); }
     if (d === 0) return `<span>${same}</span>`;
     return `<span class="${d > 0 ? 'upt' : 'dnt'}">${d > 0 ? '▲' : '▼'} ${fmt(Math.abs(d))} ${d > 0 ? more : less}</span>`;
   };
-  const changeMoney = (cur, base) => { const d = cur - base; return d === 0 ? '<span>Same as last week</span>' : `<span class="${d > 0 ? 'upt' : 'dnt'}">${d > 0 ? '▲' : '▼'} ${money(Math.abs(d))} ${d > 0 ? 'more' : 'less'} than last week</span>`; };
+  const changeMoney = (cur, base, when) => { const d = cur - base; return d === 0 ? `<span>Same as ${when}</span>` : `<span class="${d > 0 ? 'upt' : 'dnt'}">${d > 0 ? '▲' : '▼'} ${money(Math.abs(d))} ${d > 0 ? 'more' : 'less'} than ${when}</span>`; };
   const idxPanel = (what) => `<div class="panel c12">${empty(`${what} show when counting finishes`, `Counting past players: ${Math.round(D.backfill.progress * 100)}% done. Nothing is shown until it's right.`)}</div>`;
   const tile = ({ lab, val, ctx = [], href, idxNote }) => (val == null
     ? `<div class="tile idx"><div class="lab">${lab}</div><div class="val">Counting…</div><div class="ctx">${idxNote || 'Shows when counting finishes.'}</div></div>`
@@ -440,9 +441,13 @@ tr.off td { color: var(--ink-3); }
   const showTip = (x, y, html) => { tip.innerHTML = html; tip.style.opacity = 1; const r = tip.getBoundingClientRect(); let l = x + 14, tp = y - r.height - 12; if (l + r.width > innerWidth - 8) l = x - r.width - 14; if (tp < 8) tp = y + 18; tip.style.left = `${Math.max(8, l)}px`; tip.style.top = `${tp}px`; };
   const hideTip = () => { tip.style.opacity = 0; };
   const R = (k, v) => `<div class="r"><span>${k}</span><b>${v}</b></div>`;
-  document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.chart svg')) hideTip(); });
+  /* every chart's reset, by its svg: a tap outside a chart resets the others; a scroll hides the tip */
+  const resets = new Map();
+  document.addEventListener('pointerdown', (e) => { const on = e.target.closest('.chart svg'); resets.forEach((r, svg) => { if (svg !== on) r(true); }); if (!on) hideTip(); });
   addEventListener('scroll', hideTip, { passive: true });
   /* a "nice" axis top close to the data, trying a tick count either side of the one asked for */
+  /* text width at a chart font, so a label is never wider than its bar's slot */
+  const measure = (() => { let c = null; return (txt, font) => { try { c = c || document.createElement('canvas').getContext('2d'); c.font = `${font} "Instrument Sans", system-ui, sans-serif`; return c.measureText(txt).width; } catch (e) { return txt.length * 7; } }; })();
   function niceMax(v, ticks = 4) {
     v = Math.max(v, 1); let best = null;
     for (const tk of [ticks, ticks + 1, Math.max(2, ticks - 1)]) {
@@ -463,8 +468,12 @@ tr.off td { color: var(--ink-3); }
       if (hl) { hl.setAttribute('x', xAt(i) - bw / 2); hl.setAttribute('width', bw); hl.style.opacity = 1; }
       showTip(e.clientX, e.clientY, r.tip);
     };
-    const reset = () => { if (ro && dflt != null) ro.innerHTML = onIdx(dflt).ro; if (hl) hl.style.opacity = 0; hideTip(); };
-    svg.addEventListener('pointermove', at); svg.addEventListener('pointerdown', at); svg.addEventListener('pointerleave', reset);
+    const reset = (keepTip) => { if (ro && dflt != null) ro.innerHTML = onIdx(dflt).ro; if (hl) hl.style.opacity = 0; if (!keepTip) hideTip(); };
+    /* a mouse leaving resets; a finger lifting doesn't (pointerleave follows pointerup on touch), so a
+       tapped readout and tooltip stay until a tap elsewhere or a scroll */
+    svg.addEventListener('pointermove', at); svg.addEventListener('pointerdown', at);
+    svg.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') reset(); });
+    resets.set(svg, reset);
     reset();
   }
 
@@ -492,14 +501,16 @@ tr.off td { color: var(--ink-3); }
     const fOf = (s) => (s ? flightOf(msOf(s)) : null);
     const salesIn = (a, b) => pays.filter((p) => fOf(p.at) >= a && fOf(p.at) <= b);
     const refundsIn = (a, b) => pays.filter((p) => p.refunded && fOf(p.refundedAt) >= a && fOf(p.refundedAt) <= b);
-    const sales7 = salesIn(T - 6, T), sales7p = salesIn(T - 13, T - 7);
-    const npW = (a, b) => { let s = 0; for (let n = a; n <= b; n++) { const d = day(n); if (d) s += d.np || 0; } return s; };
+    /* last week is cut at the same moment (builtAt − 7 days), so a part-day is compared with a part-day */
+    const sales7 = salesIn(T - 6, T), sales7p = salesIn(T - 13, T - 7).filter((p) => msOf(p.at) < D.builtAt - 7 * 864e5);
+    /* new players over saved days only: null while any day in the window is still being counted */
+    const npW = (a, b) => { let s = 0; for (let n = Math.max(1, a); n <= b; n++) { const d = day(n); if (!d || d.np == null) return null; s += d.np; } return s; };
     const evW = (k, a, b) => { let s = 0; for (let n = Math.max(1, a); n <= b; n++) { const d = D.days[n - 1]; s += (d && d.ev && d.ev[k]) || 0; } return s; };
     return {
       T, day, idx, H, snapN, snap, builtClock, cum, t, yd, ydNow, dau, dauP, prev, avgBy, cohorts, d1: pool(1), d7: pool(7),
       pays, salesIn, refundsIn, sales7, sales7p, ref7: refundsIn(T - 6, T), gross7: sum(sales7.map((p) => p.amount)), gross7p: sum(sales7p.map((p) => p.amount)),
       gross: sum(pays.map((p) => p.amount)), refunds: sum(pays.map((p) => p.refunded)), refundsN: pays.filter((p) => p.refunded).length,
-      salesToday: pays.filter((p) => fOf(p.at) === T), allPlayers: sum(D.days.filter((d) => !d.pending).map((d) => d.np || 0)), npW, evW,
+      salesToday: pays.filter((p) => fOf(p.at) === T), allPlayers: D.backfill.pendingDays ? null : sum(D.days.map((d) => d.np || 0)), npW, evW,
       f: K.daily.get(T), runway: K.daily.lastFlightNumber() - T, lastFlight: K.daily.lastFlightNumber(),
     };
   }
@@ -580,8 +591,10 @@ tr.off td { color: var(--ink-3); }
       }
       if (labelAll || (i === maxI && !c.today)) s.push(`<text class="${c.today ? 'v tv' : 'v'}" x="${xc(i)}" y="${y(c.fin) - 5}" text-anchor="middle">${fmt(c.fin)}</text>`);
     });
-    const gap0 = cols.findIndex((c) => !c.missing);
-    if (gap0 >= 3) s.push(`<text x="${(x(0) + x(gap0 - 1) + cw) / 2}" y="${y(0) - 12}" text-anchor="middle" style="font-size:13px">Earlier days appear as counting finishes</text>`);
+    let run = [0, 0];   // the longest run of days still being counted: [start, length]
+    for (let i = 0, k = 0; i < n; i++) { k = cols[i].missing ? k + 1 : 0; if (k > run[1]) run = [i - k + 1, k]; }
+    const gapTxt = `${run[0] === 0 ? 'Earlier days appear' : 'These days appear'} as counting finishes`;
+    if (run[1] >= 3 && measure(gapTxt, '500 13px') <= run[1] * bw) s.push(`<text x="${(x(run[0]) + x(run[0] + run[1] - 1) + cw) / 2}" y="${y(0) - 12}" text-anchor="middle" style="font-size:13px">${gapTxt}</text>`);
     cols.forEach((c, i) => {
       const fromEnd = n - 1 - i;
       if (c.today) s.push(`<text x="${xc(i) + cw / 2}" y="${hgt - 6}" text-anchor="end" style="fill:var(--amber-ink);font-weight:700">Today</text>`);
@@ -616,7 +629,7 @@ tr.off td { color: var(--ink-3); }
       s.push(`<text class="v" x="${xc(i)}" y="${y(v) - 5}" text-anchor="middle">${fmt(v)}</text>`);
       s.push(`<text x="${xc(i)}" y="${y(0) + 16}" text-anchor="middle">${i === 14 ? '15+' : i + 1}</text>`);
     });
-    s.push(`<text x="${(L + w - Rr) / 2}" y="${hgt - 4}" text-anchor="middle" style="fill:var(--ink-2)">Days played in the last 30 days</text>`);
+    s.push(`<text x="${(L + w - Rr) / 2}" y="${hgt - 4}" text-anchor="middle" style="fill:var(--ink-2)">Days played since launch</text>`);
     s.push(`<rect class="hot" x="${L}" y="0" width="${w - L - Rr}" height="${hgt}"/></svg>`);
     el.innerHTML = s.join('');
     hover(el, null, { n, xAt: xc, bw, onIdx: (i) => ({ tip: `<div class="h">Played ${i === 14 ? '15 or more days' : `${i + 1} day${i ? 's' : ''}`}</div>${R('Players', fmt(bins[i]))}${R('Out of', fmt(tot))}` }) });
@@ -625,16 +638,22 @@ tr.off td { color: var(--ink-3); }
 
   /* ---------------------------------------------------------- chart: sales by week (7 whole days counted back from today) */
   function salesChart(el, ro) {
-    const T = D.T, list = [];
-    for (let e = T; e >= 1 && list.length < 12; e -= 7) {
+    const T = D.T, all = [];
+    for (let e = T; e >= 1 && all.length < 12; e -= 7) {
       const a = Math.max(1, e - 6), sl = X.salesIn(a, e), rf = X.refundsIn(a, e);
-      list.unshift({ a, e, cur: e === T, sales: sl.length, gross: sum(sl.map((p) => p.amount)), refN: rf.length, ref: sum(rf.map((p) => p.refunded)) });
+      all.unshift({ a, e, cur: e === T, sales: sl.length, gross: sum(sl.map((p) => p.amount)), refN: rf.length, ref: sum(rf.map((p) => p.refunded)) });
     }
     const span = (b) => { const m1 = dateOf(b.a, { month: 'short' }), m2 = dateOf(b.e, { month: 'short' }); return `${dateOf(b.a)}–${m1 === m2 ? dateOf(b.e, { day: 'numeric' }) : dateOf(b.e)}`; };
-    if (!sum(list.map((b) => b.sales))) { el.innerHTML = empty('No sales yet', ''); ro.innerHTML = ''; return; }
+    const note = $('sales-note');
+    if (!sum(all.map((b) => b.sales))) { el.innerHTML = empty('No sales yet', ''); ro.innerHTML = ''; if (note) note.hidden = true; return; }
     const w = Math.max(300, el.clientWidth), small = w < 560, hgt = small ? 230 : 250, L = 4, Rr = 4, T0 = 24, B = 46;
-    const top = Math.max(...list.map((b) => b.gross)) * 1.05;
+    /* as many bars as fit: every slot is at least as wide as the widest label ("Last 7 days") */
+    const xf = small ? 11 : 11.5, minSlot = measure('Last 7 days', `700 ${xf}px`) + 3;
+    const list = all.slice(-Math.max(1, Math.min(all.length, Math.floor((w - L - Rr) / minSlot))));
     const n = list.length, bw = (w - L - Rr) / n, cw = Math.min(64, bw * 0.62);
+    /* one label per bar: the date span when every span fits its slot, else just the start date */
+    const useSpan = list.every((b) => b.cur || measure(span(b), `500 ${xf}px`) + 6 <= bw);
+    const top = Math.max(...list.map((b) => b.gross), 1) * 1.05;
     const xc = (i) => L + i * bw + bw / 2, y = (v) => T0 + (hgt - T0 - B) * (1 - v / top);
     const s = [`<svg viewBox="0 0 ${w} ${hgt}" role="img" aria-label="Sales by week">`];
     s.push(`<rect class="hl" y="0" height="${hgt - 4}" fill="rgba(20,33,61,.05)" rx="4" style="opacity:0"/>`);
@@ -643,16 +662,20 @@ tr.off td { color: var(--ink-3); }
       const last = b.cur;
       if (b.gross) s.push(`<path d="${barPath(xc(i) - cw / 2, y(0), cw, y(0) - y(b.gross), 4)}" fill="var(--blue)"${last ? ' fill-opacity=".5"' : ''}/>`);
       s.push(`<text class="v${last ? ' tv' : ''}" x="${xc(i)}" y="${y(b.gross) - 6}" text-anchor="middle">${small ? `$${Math.round(b.gross / 100)}` : money(b.gross)}</text>`);
-      s.push(`<text x="${xc(i)}" y="${y(0) + 17}" text-anchor="middle" style="${last ? 'fill:var(--amber-ink);font-weight:700' : 'fill:var(--ink-2)'}">${last ? 'Last 7 days' : span(b)}</text>`);
+      s.push(`<text x="${xc(i)}" y="${y(0) + 17}" text-anchor="middle" style="font-size:${xf}px;${last ? 'fill:var(--amber-ink);font-weight:700' : 'fill:var(--ink-2)'}">${last ? 'Last 7 days' : useSpan ? span(b) : dateOf(b.a)}</text>`);
       s.push(`<text x="${xc(i)}" y="${y(0) + 33}" text-anchor="middle">${small && !last ? `${b.sales}` : `${b.sales} sale${b.sales === 1 ? '' : 's'}`}</text>`);
     });
     s.push(`<rect class="hot" x="${L}" y="0" width="${w - L - Rr}" height="${hgt}"/></svg>`);
     el.innerHTML = s.join('');
-    hover(el, ro, { n, xAt: xc, bw, dflt: n - 1, onIdx: (i) => { const b = list[i], lab = `${span(b)}${b.cur ? ' (today so far)' : ''}`; return {
-      ro: `${lab}: <b>${money(b.gross)}</b>, ${b.sales} sale${b.sales === 1 ? '' : 's'}${b.refN ? `, ${b.refN} refunded` : ''}`,
+    /* the launch bar is shorter than 7 days; say so when it's on screen */
+    const launch = list[0].a === 1 && list[0].e - list[0].a < 6 && !list[0].cur;
+    if (note) { note.hidden = !launch && useSpan; note.textContent = `${useSpan ? '' : 'Each bar is labelled with its first day. '}${launch ? `The first bar starts at launch (${dateOf(1)}), so it covers ${plural(list[0].e, 'day')}.` : ''}`.trim(); }
+    hover(el, ro, { n, xAt: xc, bw, dflt: n - 1, onIdx: (i) => { const b = list[i], lab = `${span(b)}${b.cur ? ' (today so far)' : b.a === 1 && b.e < 7 ? ' (from launch)' : ''}`; return {
+      ro: `${lab}: <b>${money(b.gross)}</b>, ${plural(b.sales, 'sale')}${b.refN ? `, ${plural(b.refN, 'refund')}` : ''}`,
       tip: `<div class="h">${lab}</div>${R('Sales', b.sales)}${R('Money in', money(b.gross))}${R('Refunds', b.refN ? `${b.refN} (${money(b.ref)})` : 'none')}` }; } });
   }
   function drawCharts() {
+    resets.clear();
     if (!D || !$('c-daily')) return;
     dailyChart($('c-daily'), $('ro-daily'));
     if ($('c-flown')) { const tot = flownChart($('c-flown')); $('flown-sub').textContent = `The ${fmt(tot)} players who played in the last 30 days`; }
@@ -661,19 +684,19 @@ tr.off td { color: var(--ink-3); }
 
   /* ---------------------------------------------------------- sharing (Growth): shares, players who shared, the share stamp */
   function sharingPanel() {
-    const T = D.T, shares = X.evW('share', T - 6, T), sharesP = X.evW('share', T - 13, T - 7);
-    const seen = X.evW('nudge_seen', T - 6, T), tapped = X.evW('nudge_tap', T - 6, T);
-    const players = D.sharing ? D.sharing.players : null;
+    /* the last 7 full days (T-7..T-1) against the 7 before, so whole days are compared with whole days */
+    const T = D.T, a = Math.max(1, T - 7), b = T - 1;
+    const shares = X.evW('share', a, b), sharesP = X.evW('share', T - 14, T - 8);
+    const seen = X.evW('nudge_seen', a, b), tapped = X.evW('nudge_tap', a, b);
+    const players = D.sharing && D.sharing.to === b ? D.sharing.players : null;
     const since = D.money.funnel30.since;       // the first day any product event was counted
-    const head = '<div class="ph"><div><h3>Sharing</h3><div class="sub">Last 7 days</div></div></div>';
-    if (!shares && !seen && !tapped) return `<div class="panel c12">${head}${empty('No shares yet', 'Shares and share-stamp taps show here as players make them.')}</div>`;
-    const stamp = seen || tapped;
-    const num = (lab, v, ctx) => `<div><div class="lab">${lab}</div>${v == null ? '<div class="v na">Not yet</div>' : `<div class="v">${fmt(v)}</div>`}<div class="ctx">${ctx}</div></div>`;
+    const head = `<div class="ph"><div><h3>Sharing</h3><div class="sub">Last 7 full days${b >= a ? `, ${dateOf(a)}–${dateOf(b, { month: 'short' }) === dateOf(a, { month: 'short' }) ? dateOf(b, { day: 'numeric' }) : dateOf(b)}` : ''}</div></div></div>`;
+    if (!shares && !players && !seen && !tapped) return `<div class="panel c12">${head}${empty('No shares yet', 'Shares and share-stamp taps show here the day after players make them.')}</div>`;
+    const num = (lab, v, ctx) => `<div><div class="lab">${lab}</div><div class="v">${fmt(v)}</div>${ctx.filter(Boolean).map((c) => `<div class="ctx">${c}</div>`).join('')}</div>`;
     return `<div class="panel c12">${head}<div class="nums">
-      ${num('Shares', shares, since != null && since <= T - 13 ? change(shares, sharesP, `more than last week (${fmt(sharesP)})`, `fewer than last week (${fmt(sharesP)})`, `Same as last week (${fmt(sharesP)})`) : 'One per player per day')}
-      ${players != null ? num('Players who shared', players, 'Each counted once') : ''}
-      ${num('Saw the share stamp', stamp ? seen : null, stamp ? 'One per player per day' : 'Counts start when it ships')}
-      ${num('Tapped the share stamp', stamp ? tapped : null, stamp ? 'One per player per day' : 'Counts start when it ships')}
+      ${num('Shares', shares, [since != null && since <= T - 14 ? change(shares, sharesP, `more than the week before (${fmt(sharesP)})`, `fewer than the week before (${fmt(sharesP)})`, `Same as the week before (${fmt(sharesP)})`) : '', 'One per player per day'])}
+      ${players != null ? num('Players who shared', players, ['Each counted once']) : ''}
+      ${seen || tapped ? num('Saw the ‘Dare a friend’ stamp', seen, ['One per player per day']) + num('Tapped it', tapped, ['One per player per day']) : ''}
     </div></div>`;
   }
 
@@ -719,7 +742,8 @@ tr.off td { color: var(--ink-3); }
     X = derive();
     const T = D.T, t = X.t, idx = X.idx, d1 = X.d1, d7 = X.d7, h = D.health.stripe;
     const dn = (() => { try { return new Intl.DisplayNames(['en'], { type: 'region' }); } catch (e) { return null; } })();
-    const cname = (c) => (c === '??' ? 'Unknown' : c === 'GB' ? 'UK' : c === 'US' ? 'US' : dn ? dn.of(c) : c);
+    /* DisplayNames throws on codes that aren't regions (Cloudflare's T1 = Tor, XX), so never trust it */
+    const cname = (c) => { if (c === '??' || c === 'XX') return 'Unknown'; if (c === 'T1') return 'Tor / unknown'; if (c === 'GB') return 'UK'; if (c === 'US') return 'US'; try { return (dn && dn.of(c)) || c; } catch (e) { return c; } };
 
     /* sources, last 7 days */
     const src = {};
@@ -734,11 +758,11 @@ tr.off td { color: var(--ink-3); }
     const coh = {}; X.cohorts.forEach((c) => { coh[c.n] = c; });
     const cohRows = [];
     for (let n = T; n >= Math.max(1, T - 13); n--) {
-      const d = X.day(n), c = coh[n], size = c ? c.size : d ? d.np : 0;
+      const d = X.day(n), c = coh[n], size = c ? fmt(c.size) : d && d.np != null ? fmt(d.np) : '<span class="dim">counting</span>';
       /* next day: tomorrow (today's players) · "8 so far" (yesterday's, live) · "counting" (closed, not saved yet) · count (%) */
       const nd = n === T ? '<span class="dim">tomorrow</span>' : n === T - 1 && D.yesterdayCohort ? `${fmt(D.yesterdayCohort.back)} <span class="dim">so far</span>` : c && c.ret[1] != null ? `${fmt(c.ret[1])} <span class="dim">(${pct(c.ret[1], c.size)}%)</span>` : '<span class="dim">counting</span>';
       const wk = c && c.ret[7] != null ? `${fmt(c.ret[7])} <span class="dim">(${pct(c.ret[7], c.size)}%)</span>` : '<span class="dim">—</span>';
-      cohRows.push(`<tr><td><span class="hide-sm">${dateOf(n, { weekday: 'short' })}, </span>${dateOf(n)}</td><td class="n">${fmt(size)}</td><td class="n">${nd}</td><td class="n">${wk}</td></tr>`);
+      cohRows.push(`<tr><td><span class="hide-sm">${dateOf(n, { weekday: 'short' })}, </span>${dateOf(n)}</td><td class="n">${size}</td><td class="n">${nd}</td><td class="n">${wk}</td></tr>`);
     }
 
     /* today's questions */
@@ -759,10 +783,10 @@ tr.off td { color: var(--ink-3); }
   <section class="s" id="top">
     <div class="alerts" id="alerts"></div>
     <div class="tiles k4 summary">
-      ${tile({ lab: 'Players today', val: fmt(t.fin), ctx: [X.ydNow != null ? change(t.fin, X.ydNow, 'more than yesterday', 'fewer than yesterday', 'Same as yesterday') : '', X.ydNow != null ? `Yesterday had ${fmt(X.ydNow)} by ${X.builtClock}` : '', idx ? '' : `${fmt(t.np)} of today’s are new`] })}
+      ${tile({ lab: 'Players today', val: fmt(t.fin), ctx: [X.ydNow != null && t.fin ? change(t.fin, X.ydNow, 'more than yesterday', 'fewer than yesterday', 'Same as yesterday') : '', X.ydNow != null ? `Yesterday had ${fmt(X.ydNow)} by ${X.builtClock}` : '', idx || !t.fin ? '' : `${fmt(t.np)} of today’s are new`] })}
       ${tile({ lab: 'Players per day', val: X.dau != null ? fmt(X.dau) : null, idxNote: 'Needs 7 full days counted.', ctx: [X.dauP != null ? change(X.dau, X.dauP, 'more than last week', 'fewer than last week', 'Same as last week') : '', 'Average of the last 7 days', X.dauP != null ? `Last week: ${fmt(X.dauP)} a day` : ''], href: '#growth' })}
       ${tile({ lab: 'Back the next day', val: d1 ? `${pct(d1.back, d1.size)}<small>%</small>` : null, ctx: d1 ? [`${fmt(d1.back)} of ${fmt(d1.size)} new players`, `who first played ${dateOf(d1.a)}–${dateOf(d1.b, { month: 'short' }) === dateOf(d1.a, { month: 'short' }) ? dateOf(d1.b, { day: 'numeric' }) : dateOf(d1.b)}`] : [], href: '#back' })}
-      ${tile({ lab: 'Sales, last 7 days', val: money(X.gross7), ctx: [T >= 14 ? changeMoney(X.gross7, X.gross7p) : '', `${plural(X.sales7.length, 'sale')}${X.ref7.length ? `, ${plural(X.ref7.length, 'refund')} (${money(sum(X.ref7.map((p) => p.refunded)))})` : ''}`, T >= 14 ? `Last week: ${money(X.gross7p)}` : ''], href: '#money' })}
+      ${tile({ lab: 'Sales, last 7 days', val: money(X.gross7), ctx: [T >= 14 ? changeMoney(X.gross7, X.gross7p, 'this time last week') : '', `${plural(X.sales7.length, 'sale')}${X.ref7.length ? `, ${plural(X.ref7.length, 'refund')} (${money(sum(X.ref7.map((p) => p.refunded)))})` : ''}`, T >= 14 ? `This time last week: ${money(X.gross7p)}` : ''], href: '#money' })}
     </div>
   </section>
 
@@ -776,8 +800,8 @@ tr.off td { color: var(--ink-3); }
       </div>
       ${idx ? idxPanel('Player totals, sources and countries') + sharingPanel() : `<div class="c12 tiles k3 compact">
         ${tile({ lab: 'Different players, last 7 days', val: D.active ? fmt(D.active.wau) : null, ctx: ['Each player counted once'] })}
-        ${tile({ lab: 'New players, last 7 days', val: fmt(npThis), ctx: [change(npThis, npLast, `more than last week (${fmt(npLast)})`, `fewer than last week (${fmt(npLast)})`, 'Same as last week')] })}
-        ${tile({ lab: 'Players since launch', val: fmt(X.allPlayers), ctx: [`Since ${dateOf(1)}`] })}
+        ${tile({ lab: 'New players, last 7 full days', val: npThis == null ? null : fmt(npThis), idxNote: 'Shows when those days are saved.', ctx: [T >= 15 && npLast != null ? change(npThis, npLast, `more than the week before (${fmt(npLast)})`, `fewer than the week before (${fmt(npLast)})`, `Same as the week before (${fmt(npLast)})`) : ''] })}
+        ${tile({ lab: 'Players since launch', val: X.allPlayers == null ? null : fmt(X.allPlayers), idxNote: `Shows when the last ${plural(D.backfill.pendingDays, 'day')} are saved.`, ctx: [`Since ${dateOf(1)}`] })}
       </div>
       <div class="panel c7">
         <div class="ph"><div><h3>Where new players came from</h3><div class="sub">Last 7 days, by the site that first sent them. Tag your links with ?ref=name.</div></div></div>
@@ -786,7 +810,7 @@ tr.off td { color: var(--ink-3); }
       <div class="panel c5">
           <div class="ph"><div><h3>Countries and devices</h3><div class="sub">New visitors, last 7 days</div></div></div>
           ${!geo.total ? empty('No new visitors in the last 7 days', '') : `<table><tbody>${geoRows.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${fmt(v)}</td></tr>`).join('')}</tbody></table>
-          <p class="note" style="font-size:14px;color:var(--ink-2)">On a phone: <b>${fmt(geo.mobile)}</b> · On a computer: <b>${fmt(geo.total - geo.mobile)}</b></p>`}
+          <p class="note" style="font-size:14px;color:var(--ink-2)">On a phone: <b>${fmt(geo.mobile)}</b> · Not on a phone: <b>${fmt(geo.total - geo.mobile)}</b></p>`}
       </div>
       ${sharingPanel()}`}
     </div>
@@ -797,7 +821,7 @@ tr.off td { color: var(--ink-3); }
     <div class="grid">
       ${idx || !D.active ? idxPanel('Come-back numbers') : `<div class="c12 tiles k3 compact">
         ${tile({ lab: 'Back a week later', val: d7 ? `${pct(d7.back, d7.size)}<small>%</small>` : null, ctx: d7 ? [`${fmt(d7.back)} of ${fmt(d7.size)} played again on day 7`, `New players from ${dateOf(d7.a)}–${dateOf(d7.b)}`] : [] })}
-        ${tile({ lab: 'Regulars', val: D.core ? fmt(D.core.c) : null, ctx: D.core ? ['Played 5 or more of the last 7 days', D.core.prev != null ? change(D.core.c, D.core.prev, `more than last week (${fmt(D.core.prev)})`, `fewer than last week (${fmt(D.core.prev)})`, 'Same as last week') : ''] : [] })}
+        ${tile({ lab: 'Regulars', val: D.core ? fmt(D.core.c) : null, ctx: D.core ? [`Played 5 or more of the 7 days to ${dateOf(D.core.n)}`, D.core.prev != null ? change(D.core.c, D.core.prev, `more than the week before (${fmt(D.core.prev)})`, `fewer than the week before (${fmt(D.core.prev)})`, `Same as the week before (${fmt(D.core.prev)})`) : ''] : [] })}
         ${tile({ lab: 'Yesterday’s new players back today', val: D.yesterdayCohort ? `${fmt(D.yesterdayCohort.back)}<small> of ${fmt(D.yesterdayCohort.size)}</small>` : null, ctx: ['So far today'] })}
       </div>
       <div class="panel c7">
@@ -811,7 +835,7 @@ tr.off td { color: var(--ink-3); }
           <div class="chart" id="c-flown"></div>
         </div>
         <div class="panel">
-          <div class="ph"><div><h3>When regulars last played</h3><div class="sub">Players who have played on 3 or more days</div></div></div>
+          <div class="ph"><div><h3>When returning players last played</h3><div class="sub">Players who have played on 3 or more days</div></div></div>
           <table><tbody>
             <tr><td>Today</td><td class="n">${fmt(D.active.regulars.today)}</td></tr>
             <tr><td>1–2 days ago</td><td class="n">${fmt(D.active.regulars.d1_2)}</td></tr>
@@ -828,24 +852,23 @@ tr.off td { color: var(--ink-3); }
     <div class="grid">
       <div class="c12 tiles k4 compact">
         ${tile({ lab: 'Sales, all time', val: money(X.gross), ctx: [`${plural(X.pays.length, 'sale')}${X.refundsN ? `, ${fmt(X.refundsN)} refunded (${money(X.refunds)})` : ''}`, `${money(X.gross - X.refunds)} after refunds`] })}
-        ${tile({ lab: 'Sales today', val: fmt(X.salesToday.length), ctx: [money(sum(X.salesToday.map((p) => p.amount)))] })}
+        ${tile({ lab: 'Sales today', val: money(sum(X.salesToday.map((p) => p.amount))), ctx: [plural(X.salesToday.length, 'sale')] })}
         ${tile({ lab: 'Checkouts that paid', val: c60.started ? `${pct(c60.paid, c60.started)}<small>%</small>` : '—', ctx: [`${fmt(c60.paid)} of ${fmt(c60.started)} people who started one`, 'Last 60 days'] })}
         ${tile({ lab: 'Unlimited runs, last 7 days', val: fmt(sum(Array.from({ length: 7 }, (_, k) => (D.unlimited.runsByDay[T - k] || [0, 0])[1]))), ctx: [`By ${plural(D.unlimited.pilotsWeek, 'player')}`] })}
       </div>
-      <div class="c7 stack">
-        <div class="panel">
-          <div class="ph"><div><h3>Sales by week</h3><div class="sub">Each bar is 7 days, counted back from today.</div></div></div>
-          <div class="readout" id="ro-sales" style="margin:-4px 0 8px"></div>
-          <div class="chart" id="c-sales"></div>
-        </div>
-        <div class="panel">
-          <div class="ph"><div><h3>From paywall to paid, last 30 days</h3><div class="sub">${fu.since ? `Paywall views and Buy taps are counted from flight #${fu.since} on.` : 'Paywall views and Buy taps are counted from this update on.'}</div></div></div>
-          <div class="steps"><span><b>${fmt(fu.paywall)}</b>saw the paywall</span><span class="arr">→</span><span><b>${fmt(fu.buy)}</b>pressed Buy</span><span class="arr">→</span><span><b>${fmt(fu.checkout)}</b>started checkout</span><span class="arr">→</span><span><b>${fmt(fu.paid)}</b>paid</span><span class="arr">→</span><span><b>${fmt(fu.kept)}</b>kept it</span></div>
-        </div>
+      <div class="panel c7">
+        <div class="ph"><div><h3>Sales by week</h3><div class="sub">Each bar is 7 days, counted back from today.</div></div></div>
+        <div class="readout" id="ro-sales" style="margin:-4px 0 8px"></div>
+        <div class="chart" id="c-sales"></div>
+        <p class="note" id="sales-note" hidden></p>
       </div>
       <div class="panel c5">
         <div class="ph"><div><h3>Latest buyers</h3><div class="sub">Emails are partly hidden</div></div></div>
         ${M.buyers.length ? `<ul class="rows">${M.buyers.map((b) => `<li><span class="email">${esc(b.email || 'unknown')}</span><span class="r">${b.src ? esc(b.src) : ''}<span class="d">${shortDate(b.at)}</span></span></li>`).join('')}</ul>` : empty('No buyers yet', '')}
+      </div>
+      <div class="panel c12">
+        <div class="ph"><div><h3>From paywall to paid, last 30 days</h3><div class="sub">Paywall views and Buy taps count each player once a day${fu.since ? `, from flight #${fu.since} on` : ''}.</div></div></div>
+        <div class="steps"><span><b>${fmt(fu.paywall)}</b>paywall views</span><span class="arr">→</span><span><b>${fmt(fu.buy)}</b>Buy taps</span><span class="arr">→</span><span><b>${fmt(fu.checkout)}</b>started checkout</span><span class="arr">→</span><span><b>${fmt(fu.paid)}</b>paid</span><span class="arr">→</span><span><b>${fmt(fu.kept)}</b>kept it</span></div>
       </div>
     </div>
   </section>
@@ -879,9 +902,11 @@ tr.off td { color: var(--ink-3); }
     const cm = checkedMap();
     const list = D.reports.filter((r) => !checked(r));
     const f = K.daily.get(D.T);
+    const todo = reportsTodo().length;
+    $('rep-pill').innerHTML = list.length ? (todo ? `<span class="pill warn">${todo} need${todo === 1 ? 's' : ''} checking</span>` : '') : '';
     el.innerHTML = (list.length ? `<table class="rep"><thead><tr><th>Question</th><th class="n">Our answer</th><th class="n">Reports</th><th class="n">Last reported</th><th></th></tr></thead><tbody>${list.map((r) => {
       const q = K.daily.fact(r.qid), today = f && f.facts.some((x) => x.id === r.qid);
-      return `<tr><td class="q">${q ? esc(qText(q.q)) : `<span class="code">${esc(r.qid)}</span>`}${today ? ' <span class="pill warn">In today’s flight</span>' : ''}<div class="small only-sm">${plural(r.c, 'report')}, last ${shortDate(r.last)}</div></td><td class="n ans">${q ? esc(ansText(q)) : ''}</td><td class="n cnt"><b>${r.c}</b></td><td class="n cnt dim">${shortDate(r.last)}</td><td class="n act"><button class="btn sm" type="button" data-checked="${esc(r.qid)}" data-c="${r.c}">Checked</button></td></tr>`;
+      return `<tr class="${r.c < 2 ? 'minor' : ''}"><td class="q">${q ? esc(qText(q.q)) : `<span class="code">${esc(r.qid)}</span>`}${today ? ' <span class="pill warn">In today’s flight</span>' : ''}<div class="small only-sm">${plural(r.c, 'report')}, last ${shortDate(r.last)}</div></td><td class="n ans">${q ? esc(ansText(q)) : ''}</td><td class="n cnt"><b>${r.c}</b></td><td class="n cnt dim">${shortDate(r.last)}</td><td class="n act"><button class="btn sm" type="button" data-checked="${esc(r.qid)}" data-c="${r.c}">Checked</button></td></tr>`;
     }).join('')}</tbody></table>` : empty('No reported answers', 'Players can flag an answer from the results screen.'))
       + `<p class="note">“Checked” hides a question on this browser until someone reports it again.${Object.keys(cm).length ? ' <button class="btn sm quiet" type="button" id="unhide">Show checked</button>' : ''}</p>`;
   }
@@ -901,7 +926,7 @@ tr.off td { color: var(--ink-3); }
     if (ex) rows.push(`<li><span>Left out of every number</span><span class="dim">${plural(ex.devices, 'device')} and ${plural(ex.subs, 'account')} (yours)</span></li>`);
     if (D) {
       rows.push(`<li><span>Numbers built</span><span class="dim">${clockOf(D.builtAt)} ET · kept for 10 minutes</span></li>`);
-      rows.push(`<li><span>Rows read by that build</span><span class="dim">${D.cost.rowsRead ? `About ${fmt(Math.round(D.cost.rowsRead / 100) / 10)}k of 200k` : 'Not reported'}</span></li>`);
+      rows.push(`<li><span>Rows read by that build</span><span class="dim">${D.cost.rowsRead ? `About ${fmt(Math.round(D.cost.rowsRead / 100) / 10)}k (budget 150k)` : 'Not reported'}</span></li>`);
       rows.push(`<li><span>Past days</span><span class="dim">${X.idx ? `Counting past players · ${plural(D.backfill.pendingDays, 'day')} to go` : D.backfill.pendingDays ? `${plural(D.backfill.pendingDays, 'day')} still to save` : 'All saved'}</span></li>`);
     }
     rows.push('<li><span>Rebuild</span><span class="acts"><button class="btn sm" type="button" id="rebuild">Re-count last 14 days</button><button class="btn sm" type="button" data-act="refresh">Rebuild now</button></span></li>');
@@ -912,7 +937,7 @@ tr.off td { color: var(--ink-3); }
     if (!b) return;
     if (!confirm('Re-count the last 14 days with the current exclusions? They refill over the next few builds.')) return;
     b.disabled = true;
-    try { await api('/api/admin/rebuild', { method: 'POST' }); await load(true); } catch (err) { if (err.message !== 'signed out') alert(`Couldn't re-count (${err.message}).`); b.disabled = false; }
+    try { await api('/api/admin/rebuild', { method: 'POST' }); await load(true); } catch (err) { if (err.message === 'HTTP 429') alert('Re-count runs at most once an hour. Try again later.'); else if (err.message !== 'signed out') alert(`Couldn't re-count (${err.message}).`); b.disabled = false; }
   });
 
   /* ---------------------------------------------------------- passes (Tools) */
@@ -1052,27 +1077,40 @@ tr.off td { color: var(--ink-3); }
   addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (Math.abs(innerWidth - lastW) < 2) return; lastW = innerWidth; hideTip(); drawCharts(); }, 150); });
 
   /* ---------------------------------------------------------- data + auth */
+  /* A render that throws never blocks the next fetch: the bad copy is dropped (memory and session
+     cache), the page says so, and Refresh stays usable. */
+  const dropCache = () => { try { sessionStorage.removeItem('karman:dash'); } catch (e) { /* private mode */ } };
+  function safeRender() {
+    try { render(); return true; } catch (err) {
+      console.error(err);
+      dropCache();
+      try { $('dyn').innerHTML = `<section class="s" id="top"><div class="alerts"><div class="alert crit"><span class="ic">${IC.crit}</span><div class="t"><b>The page couldn’t draw these numbers.</b> <span>${esc(err.message)}. Refresh builds a fresh copy.</span></div><button class="btn sm" type="button" data-act="refresh">Refresh</button></div></div></section>`; } catch (e) { /* nothing more to do */ }
+      return false;
+    }
+  }
   async function load(fresh) {
     const token = get(TOKEN_KEY);
     if (!token) return gate();
     $('gate').hidden = true; $('app').hidden = false;
     busy = true; $('refresh').disabled = true;
-    if (!D) { try { const c = sessionStorage.getItem('karman:dash'); if (c) D = JSON.parse(c); } catch (e) { D = null; } }
-    render();
     try {
-      const r = await fetch(`/api/admin/stats${fresh ? '?fresh=1' : ''}`, { headers: { authorization: `Bearer ${token}` }, cache: 'no-store' });
-      if (r.status === 401) { set(TOKEN_KEY, null); busy = false; return gate(); }
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j = await r.json();
-      if (!j || j.v !== 2) throw new Error('old stats format');
-      D = j; loadErr = null;
-      try { sessionStorage.setItem('karman:dash', JSON.stringify(D)); } catch (e) { /* too big or private */ }
-    } catch (e) {
-      loadErr = e.message;
+      if (!D) { try { const c = sessionStorage.getItem('karman:dash'); if (c) D = JSON.parse(c); } catch (e) { D = null; } }
+      if (!safeRender()) { D = null; X = null; safeRender(); }      // a cached copy that can't draw is forgotten
+      try {
+        const r = await fetch(`/api/admin/stats${fresh ? '?fresh=1' : ''}`, { headers: { authorization: `Bearer ${token}` }, cache: 'no-store' });
+        if (r.status === 401) { set(TOKEN_KEY, null); return gate(); }
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const j = await r.json();
+        if (!j || j.v !== 2) throw new Error('old stats format');
+        D = j; loadErr = null;
+        try { sessionStorage.setItem('karman:dash', JSON.stringify(D)); } catch (e) { /* too big or private */ }
+      } catch (e) {
+        loadErr = e.message;
+      }
     } finally {
       busy = false; $('refresh').disabled = false;
     }
-    try { render(); } catch (err) { console.error(err); $('dyn').innerHTML = `<div class="alerts"><div class="alert crit"><span class="ic">${IC.crit}</span><div class="t"><b>The page couldn’t draw these numbers.</b> <span>${esc(err.message)}</span></div></div></div>`; }
+    safeRender();
     tickHeader();
   }
 
@@ -1106,7 +1144,10 @@ tr.off td { color: var(--ink-3); }
     load(false);
     loadPasses(); loadThanks(); loadIgnore();
   }
-  (document.fonts ? document.fonts.ready : Promise.resolve()).then(start, start);
+  /* the chart weights are loaded first, so measured label widths match what is drawn (a 2 s cap keeps a
+     slow font from holding the page) */
+  const fontsIn = document.fonts ? Promise.all(['500 11px', '600 11px', '700 11px'].map((f) => document.fonts.load(`${f} "Instrument Sans"`))) : Promise.resolve();
+  Promise.race([fontsIn, new Promise((r) => { setTimeout(r, 2000); })]).then(start, start);
 })();
 </script>
 </body>
