@@ -3335,10 +3335,6 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
   .coach-hl::before, .wbtn.coach-box, .wbtn.coach-breathe { animation: none; }
   .wbtn.coach-breathe:not(.on) { box-shadow: inset 0 0 0 60px color-mix(in srgb, var(--hl) 30%, transparent); }
 }
-/* the tag sits under the share ticket (Keep flying is right above it) */
-.share-nudge { bottom: auto; top: calc(100% + 8px); }
-.share-nudge::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #14213D; }
-
 /* ================= v15 · apricot tickets, bigger HUD, overlap fixes (keep last) ================= */
 
 /* ================= v15 · apricot tickets, bigger HUD, clean reveal (keep last) ================= */
@@ -3346,27 +3342,23 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
    KÁRMÁN · v15
    Append to the END of web/css/ui.css (after the v14 block).
 
-   1  Primary tickets: apricot stock printed with a hand-drawn guilloche.
+   1  Primary tickets: apricot stock (v18 §7 rules it like letterpress).
       Take off, Lock it in, Next leg, Got it, Resume, Keep flying, Unlock.
-      Navy ink stays for text, rules and the edge; the stub is plain stock.
+      Navy ink stays for text, rules and the edge; the stub is a shade deeper.
    2  The round HUD: a dial you can read at a glance on desktop, a little
       larger on phones.
    3  Reveal: the ruler and the answer tag sit clear of the question; the
       fun fact gets air under its rule.
    4  Clue tag: the perforation follows the stub instead of a fixed 58%.
-   5  Share nudge: no floating tag; a light passes across the share ticket.
    ========================================================================== */
 
 /* ---------------------------------------------------------------- 1 · apricot ticket stock */
 :root {
-  --apricot-print: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='12'%3E%3Cpath d='M0.0,6.00 L1.0,6.59 L2.0,7.19 L3.0,7.76 L4.0,8.29 L5.0,8.76 L6.0,9.15 L7.0,9.46 L8.0,9.67 L9.0,9.79 L10.0,9.82 L11.0,9.77 L12.0,9.66 L13.0,9.49 L14.0,9.29 L15.0,9.06 L16.0,8.81 L17.0,8.56 L18.0,8.29 L19.0,8.02 L20.0,7.74 L21.0,7.43 L22.0,7.11 L23.0,6.75 L24.0,6.35 L25.0,5.92 L26.0,5.45 L27.0,4.95 L28.0,4.44 L29.0,3.93 L30.0,3.44 L31.0,2.98 L32.0,2.58 L33.0,2.25 L34.0,2.02 L35.0,1.88 L36.0,1.85 L37.0,1.92 L38.0,2.09 L39.0,2.35 L40.0,2.68 L41.0,3.07 L42.0,3.50 L43.0,3.94 L44.0,4.39 L45.0,4.82 L46.0,5.24 L47.0,5.63 L48.0,6.00 L49.0,6.35 L50.0,6.68 L51.0,6.99 L52.0,7.31 L53.0,7.62 L54.0,7.94 L55.0,8.26 L56.0,8.57 L57.0,8.87 L58.0,9.14 L59.0,9.37 L60.0,9.54 L61.0,9.65 L62.0,9.66 L63.0,9.59 L64.0,9.42 L65.0,9.15 L66.0,8.80 L67.0,8.36 L68.0,7.86 L69.0,7.32 L70.0,6.76 L71.0,6.19 L72.0,5.65 L73.0,5.14 L74.0,4.69 L75.0,4.29 L76.0,3.96 L77.0,3.69 L78.0,3.47 L79.0,3.31 L80.0,3.19 L81.0,3.10 L82.0,3.03 L83.0,2.98 L84.0,2.95 L85.0,2.94 L86.0,2.95 L87.0,3.00 L88.0,3.08 L89.0,3.22 L90.0,3.41 L91.0,3.68 L92.0,4.01 L93.0,4.42 L94.0,4.90 L95.0,5.43 L96.0,6.00' fill='none' stroke='%23A8531A' stroke-opacity='0.2' stroke-width='0.7'/%3E%3Cpath d='M0.0,6.00 L1.0,5.41 L2.0,4.81 L3.0,4.24 L4.0,3.71 L5.0,3.24 L6.0,2.85 L7.0,2.54 L8.0,2.33 L9.0,2.21 L10.0,2.18 L11.0,2.23 L12.0,2.34 L13.0,2.51 L14.0,2.71 L15.0,2.94 L16.0,3.19 L17.0,3.44 L18.0,3.71 L19.0,3.98 L20.0,4.26 L21.0,4.57 L22.0,4.89 L23.0,5.25 L24.0,5.65 L25.0,6.08 L26.0,6.55 L27.0,7.05 L28.0,7.56 L29.0,8.07 L30.0,8.56 L31.0,9.02 L32.0,9.42 L33.0,9.75 L34.0,9.98 L35.0,10.12 L36.0,10.15 L37.0,10.08 L38.0,9.91 L39.0,9.65 L40.0,9.32 L41.0,8.93 L42.0,8.50 L43.0,8.06 L44.0,7.61 L45.0,7.18 L46.0,6.76 L47.0,6.37 L48.0,6.00 L49.0,5.65 L50.0,5.32 L51.0,5.01 L52.0,4.69 L53.0,4.38 L54.0,4.06 L55.0,3.74 L56.0,3.43 L57.0,3.13 L58.0,2.86 L59.0,2.63 L60.0,2.46 L61.0,2.35 L62.0,2.34 L63.0,2.41 L64.0,2.58 L65.0,2.85 L66.0,3.20 L67.0,3.64 L68.0,4.14 L69.0,4.68 L70.0,5.24 L71.0,5.81 L72.0,6.35 L73.0,6.86 L74.0,7.31 L75.0,7.71 L76.0,8.04 L77.0,8.31 L78.0,8.53 L79.0,8.69 L80.0,8.81 L81.0,8.90 L82.0,8.97 L83.0,9.02 L84.0,9.05 L85.0,9.06 L86.0,9.05 L87.0,9.00 L88.0,8.92 L89.0,8.78 L90.0,8.59 L91.0,8.32 L92.0,7.99 L93.0,7.58 L94.0,7.10 L95.0,6.57 L96.0,6.00' fill='none' stroke='%23A8531A' stroke-opacity='0.2' stroke-width='0.7'/%3E%3Cpath d='M0.0,7.85 L1.0,7.80 L2.0,7.75 L3.0,7.70 L4.0,7.65 L5.0,7.59 L6.0,7.52 L7.0,7.41 L8.0,7.27 L9.0,7.09 L10.0,6.85 L11.0,6.57 L12.0,6.25 L13.0,5.89 L14.0,5.50 L15.0,5.11 L16.0,4.73 L17.0,4.37 L18.0,4.05 L19.0,3.79 L20.0,3.60 L21.0,3.47 L22.0,3.43 L23.0,3.45 L24.0,3.54 L25.0,3.67 L26.0,3.85 L27.0,4.06 L28.0,4.27 L29.0,4.49 L30.0,4.70 L31.0,4.89 L32.0,5.07 L33.0,5.25 L34.0,5.41 L35.0,5.58 L36.0,5.75 L37.0,5.94 L38.0,6.16 L39.0,6.40 L40.0,6.66 L41.0,6.95 L42.0,7.25 L43.0,7.55 L44.0,7.83 L45.0,8.09 L46.0,8.31 L47.0,8.46 L48.0,8.55 L49.0,8.56 L50.0,8.50 L51.0,8.36 L52.0,8.16 L53.0,7.90 L54.0,7.59 L55.0,7.27 L56.0,6.93 L57.0,6.60 L58.0,6.29 L59.0,6.00 L60.0,5.75 L61.0,5.54 L62.0,5.36 L63.0,5.21 L64.0,5.08 L65.0,4.96 L66.0,4.84 L67.0,4.72 L68.0,4.59 L69.0,4.46 L70.0,4.32 L71.0,4.19 L72.0,4.06 L73.0,3.96 L74.0,3.90 L75.0,3.88 L76.0,3.92 L77.0,4.02 L78.0,4.19 L79.0,4.43 L80.0,4.73 L81.0,5.07 L82.0,5.45 L83.0,5.85 L84.0,6.25 L85.0,6.63 L86.0,6.98 L87.0,7.28 L88.0,7.54 L89.0,7.73 L90.0,7.86 L91.0,7.94 L92.0,7.98 L93.0,7.97 L94.0,7.94 L95.0,7.90 L96.0,7.85' fill='none' stroke='%23FFF3DE' stroke-opacity='0.4' stroke-width='0.6'/%3E%3C/svg%3E") 0 0 / 96px 12px;
   --apricot-stock: linear-gradient(180deg, #F9CF9F 0%, #F5B878 48%, #F0A862 100%);
   --apricot-edge: inset 0 0 0 1.5px rgba(20, 33, 61, 0.88), inset 0 3px 0 rgba(255, 244, 226, 0.45), inset 0 -3px 0 rgba(150, 72, 16, 0.2);
   --apricot-stub: rgba(150, 72, 16, 0.1);
 }
-/* One recipe for every primary ticket: the guilloche is printed on the main
-   part only (a plain panel covers it past the perforation), and the
-   tear-off stub is plain stock, a shade deeper. */
+/* One recipe for every primary ticket: plain stock, the tear-off stub a shade deeper. */
 #screen-home .launch-ticket,
 #screen-round .key-lock, #screen-round .next-ticket,
 .sheet.help .ready-ticket,
@@ -3375,8 +3367,6 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 #sheet-paywall .buy-ticket {
   background:
     linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)),
-    linear-gradient(90deg, transparent var(--cut), #F4B676 var(--cut)),
-    var(--apricot-print),
     var(--apricot-stock);
   color: var(--ink, #14213D);
   box-shadow: var(--apricot-edge);
@@ -3405,7 +3395,7 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 #screen-round .next-ticket .kl-stub svg { stroke: #14213D; }
 #screen-round .kl-stub .kl-pip { box-shadow: 0 0 0 1.5px #14213D; }
 /* Empty: blank stock, not yet printed. Same shape and perforation, no
-   guilloche, no edge ink: obviously the ticket, obviously not ready. */
+   rules, no edge ink: obviously the ticket, obviously not ready. */
 #screen-round.empty .key-lock {
   background:
     linear-gradient(90deg, transparent var(--cut), rgba(150, 72, 16, 0.05) var(--cut)),
@@ -3497,24 +3487,6 @@ body[data-screen="round"]:has(#screen-round.is-revealed) #dock { -webkit-mask: n
 #screen-round .ct-stub { position: relative; }
 #screen-round .ct-stub::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; border-left: 1.5px dashed rgba(20, 33, 61, 0.38); }
 #screen-round .clue-tag[data-state="armed"] .ct-stub::before { border-left-color: rgba(20, 33, 61, 0.5); }
-
-/* ---------------------------------------------------------------- 5 · share nudge */
-/* No floating words: the share ticket catches the light twice, like foil
-   tilted under a lamp, then rests. */
-.share-nudge { display: none !important; }
-#screen-results .ticket-btn#btn-share.nudge {
-  background:
-    linear-gradient(105deg, transparent 0 38%, rgba(255, 214, 160, 0.0) 40%, rgba(255, 206, 150, 0.75) 50%, rgba(255, 214, 160, 0.0) 60%, transparent 62% 100%) 100% 0 / 260% 100% no-repeat,
-    linear-gradient(180deg, #FFFDF8, #FBF5EA);
-  animation: shareShine 1600ms cubic-bezier(.45, 0, .25, 1) 2;
-}
-@keyframes shareShine {
-  0% { background-position: 100% 0, 0 0; }
-  72%, 100% { background-position: 0% 0, 0 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  #screen-results .ticket-btn#btn-share.nudge { animation: none; box-shadow: inset 0 0 0 1.5px rgba(204, 66, 24, 0.55); }
-}
 
 /* Next leg gets focus programmatically (for Enter); only show a ring for keyboard users */
 #btn-next:focus:not(:focus-visible), #btn-lock:focus:not(:focus-visible) { outline: none; box-shadow: none; }
@@ -4050,16 +4022,6 @@ body.climb-open #climb-sum.in { opacity: 1; visibility: visible; transform: none
 @media (max-width: 719.98px) { #screen-results .pr-page { right: 42px; } }
 @media (prefers-reduced-motion: reduce) { #screen-results .passport-row, #screen-results .passport-row:hover { transform: none; transition: none; } }
 
-/* ---------------------------------------------------------------- 5 · the share ticket keeps catching the light */
-#screen-results .ticket-btn#btn-share.nudge { animation: shareShineLoop 4200ms cubic-bezier(.45, 0, .25, 1) infinite; }
-@keyframes shareShineLoop {
-  0% { background-position: 100% 0, 0 0; }
-  34%, 100% { background-position: 0% 0, 0 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  #screen-results .ticket-btn#btn-share.nudge { animation: none; box-shadow: inset 0 0 0 1.5px rgba(204, 66, 24, 0.55); }
-}
-
 /* ---------------------------------------------------------------- 6 · the pass as an object */
 /* Phone: the cover's top edge shows above the page stack, a gilt hairline on it. */
 body[data-screen="results"] #dock {
@@ -4199,6 +4161,25 @@ body[data-screen="results"] #dock {
 .ac-go { display: flex; align-items: center; gap: 4px; font: 800 14px/1 var(--f-display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--amber); }
 .ac-go svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .ac-buy { margin: 18px auto 0; }
+/* Account's Unlock: the quiet upsell stays paper, not apricot, ruled like the
+   letterpress tickets ("Keep flying"'s paper stock). One family, two stocks:
+   apricot for the primary, paper for the secondary. */
+:root {
+  --paper-rule: rgba(20, 33, 61, 0.3);
+  --paper-rules:
+    linear-gradient(var(--paper-rule), var(--paper-rule)) 4px 4px / calc(100% - 8px) 1px no-repeat,
+    linear-gradient(var(--paper-rule), var(--paper-rule)) 4px calc(100% - 5px) / calc(100% - 8px) 1px no-repeat,
+    linear-gradient(var(--paper-rule), var(--paper-rule)) 4px 4px / 1px calc(100% - 8px) no-repeat,
+    linear-gradient(var(--paper-rule), var(--paper-rule)) calc(100% - 5px) 4px / 1px calc(100% - 8px) no-repeat;
+  --paper-stock: linear-gradient(180deg, #FFFDF8, #FBF5EA);
+}
+#sheet-account .ac-buy {
+  background: linear-gradient(90deg, transparent var(--cut), rgba(20, 33, 61, 0.045) var(--cut)), var(--paper-rules), var(--paper-stock);
+  color: #14213D;
+  box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.55);
+}
+#sheet-account .ac-buy::after { border-left-color: rgba(20, 33, 61, 0.4); }
+#sheet-account .ac-buy:focus-visible { outline: none; box-shadow: inset 0 0 0 3px #14213D, inset 0 0 0 5px #FFF4E2; }
 .ac-links { display: flex; flex-direction: column; align-items: center; margin-top: 10px; }
 .ac-links .link-btn { margin-top: 6px; }
 #sheet-account .pay-fine { margin-top: 18px; }
@@ -4215,79 +4196,20 @@ body[data-screen="results"] #dock {
 .ma-badge { box-shadow: inset 0 0 0 1.5px rgba(30, 42, 85, 0.3); }
 #ac-gsi:empty, #ac-gsi .gsi-btn:empty { min-height: 44px; }
 
-/* v21 · The dare stamp: a perforated airmail stamp pinned to the pass,
-   top right of the score. Tap → the flight log (with a dare) is copied and
-   a postmark is inked over it. */
-.res-lockup { position: relative; }
-.dare-stamp {
-  position: absolute; top: -6px; right: 0; z-index: 2; width: 108px; padding: 0; border: 0; background: none; cursor: pointer;
-  color: var(--ink); transform: rotate(4deg); transform-origin: 60% 40%;
-  filter: drop-shadow(0 3px 5px rgba(30, 42, 85, 0.22)) drop-shadow(0 1px 1px rgba(30, 42, 85, 0.18));
-  transition: transform 260ms cubic-bezier(.2, .8, .2, 1);
-  animation: dareNudge 6s ease-in-out 2.4s infinite;
-}
-.dare-stamp:hover { transform: rotate(0deg) translateY(-2px) scale(1.03); animation: none; }
-.dare-stamp:active { transform: rotate(0deg) scale(0.97); }
-.dare-stamp:focus-visible { outline: 2px solid var(--ember); outline-offset: 6px; border-radius: 4px; }
-.dare-stamp.stamped { animation: none; }
-@keyframes dareNudge { 0%, 86%, 100% { transform: rotate(4deg); } 90% { transform: rotate(-2deg) scale(1.04); } 94% { transform: rotate(6deg); } }
-/* The paper: perforated edges are a scalloped mask; an inked frame sits inside. */
-.ds-paper {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; box-sizing: border-box;
-  padding: 13px 10px 12px; background: #FFF8EB;
-  -webkit-mask: radial-gradient(circle at 4px 4px, transparent 2.9px, #000 3.3px) -4px -4px / 8px 8px, linear-gradient(#000, #000) center / calc(100% - 8px) calc(100% - 8px) no-repeat;
-          mask: radial-gradient(circle at 4px 4px, transparent 2.9px, #000 3.3px) -4px -4px / 8px 8px, linear-gradient(#000, #000) center / calc(100% - 8px) calc(100% - 8px) no-repeat;
-}
-.ds-paper::before { content: ""; position: absolute; inset: 8px; border: 1.5px solid var(--ember); border-radius: 2px; pointer-events: none; }
-.ds-paper::after { content: ""; position: absolute; inset: 11px; border: 1px dashed rgba(240, 124, 44, 0.45); border-radius: 1px; pointer-events: none; }
-.ds-top { font: 600 8.5px/1 var(--f-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ember); margin-top: 2px; }
-.ds-mark { width: 26px; height: 26px; fill: rgba(240, 124, 44, 0.18); stroke: var(--ink); stroke-width: 1.3; stroke-linejoin: round; margin: 2px 0 1px; }
-.ds-main { font: 800 17px/0.95 var(--f-display); letter-spacing: 0.04em; text-transform: uppercase; text-align: center; max-width: 76px; }
-.ds-sub { font: 600 10.5px/1.15 var(--f-ui); text-align: center; color: rgba(30, 42, 85, 0.75); }
-.ds-cta { margin-top: 3px; padding: 3px 6px 2px; border-radius: 3px; font: 700 8.5px/1 var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; color: #FFF8EB; background: var(--ink); }
-/* The postmark: inked over the stamp once copied. */
-.ds-cancel { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; opacity: 0; }
-.ds-cancel svg { width: 92%; transform: rotate(-16deg); mix-blend-mode: multiply; }
-.ds-cancel circle { fill: none; stroke: #C2410C; stroke-width: 3; opacity: 0.85; }
-.ds-cancel circle + circle { stroke-width: 1.4; }
-.ds-cancel text { font: 700 9px/1 var(--f-mono); letter-spacing: 0.24em; fill: #C2410C; text-anchor: middle; }
-.ds-cancel text.big { font: 800 17px/1 var(--f-display); letter-spacing: 0.06em; }
-.dare-stamp.stamped .ds-cancel { animation: dareInk 520ms cubic-bezier(.2, .9, .3, 1.2) forwards; }
-@keyframes dareInk { 0% { opacity: 0; transform: scale(1.7); } 60% { opacity: 0.95; transform: scale(0.94); } 100% { opacity: 0.9; transform: scale(1); } }
-/* Leave room so the score never runs under the stamp. */
+/* v21 · The corner beside the score stays clear: the share nudge's airmail
+   stamp is slapped there after the landing (nudge.js measures what's printed
+   and fits the stamp around it). Long scores wrap before they reach it. */
 .res-lockup .res-hero, .res-lockup .res-tier { padding-right: 112px; }
 @media (max-width: 719px) {
-  .dare-stamp { width: 92px; top: -4px; right: -2px; }
-  .ds-paper { padding: 11px 8px 10px; gap: 2px; }
-  .ds-main { font-size: 14.5px; max-width: 66px; }
-  .ds-mark { width: 22px; height: 22px; }
-  .ds-sub { font-size: 9.5px; }
-  .res-lockup .res-hero, .res-lockup .res-tier { padding-right: 92px; }
-}
-@media (prefers-reduced-motion: reduce) { .dare-stamp { animation: none; } .dare-stamp.stamped .ds-cancel { animation: none; opacity: 0.9; } }
-/* Phones: a smaller stamp, and a slightly smaller score so the two sit side by side. */
-@media (max-width: 719px) {
-  .dare-stamp { width: 78px; top: -2px; right: -4px; }
-  .ds-paper { padding: 10px 6px 9px; gap: 2px; }
-  .ds-paper::before { inset: 7px; }
-  .ds-paper::after { inset: 9.5px; }
-  .ds-top { font-size: 7px; letter-spacing: 0.14em; }
-  .ds-mark { width: 18px; height: 18px; margin: 1px 0 0; }
-  .ds-main { font-size: 12.5px; max-width: 58px; }
-  .ds-sub { font-size: 8.5px; }
-  .ds-cta { font-size: 7px; letter-spacing: 0.08em; white-space: nowrap; padding: 3px 4px 2px; }
-  .ds-cancel text.big { font-size: 15px; }
+  .res-lockup .res-hero, .res-lockup .res-tier { padding-right: 76px; }
+  /* phones: a slightly smaller score, so it sits beside the corner */
   #screen-results .res-alt { font-size: 3.3rem; }
   #screen-results .res-tier em { font-size: 1.2rem; }
-  .res-lockup .res-hero, .res-lockup .res-tier { padding-right: 76px; }
 }
 @media (max-width: 374px) {
   #screen-results .res-alt { font-size: 2.9rem; }
   #screen-results .res-tier em { font-size: 1.05rem; }
 }
-/* The invite version: a three-line plea needs a touch more room. */
-.ds-sub { max-width: 84px; }
-@media (max-width: 719px) { .ds-sub { max-width: 64px; line-height: 1.12; } .ds-main { font-size: 13px; } }
 
 /* ---------------------------------------------------------------- site tag
    "karman.day" for anyone watching over a shoulder or on a stream. A small
@@ -4688,20 +4610,83 @@ body[data-screen="home"] #balloon-rig { pointer-events: auto; cursor: pointer; }
 #screen-results .ticket-row { margin-top: 14px; }
 #screen-results .ticket-row .ticket-btn#btn-share {
   --cut: 74%; flex: 1 1 auto; height: 58px;
-  background: linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)), var(--apricot-print), var(--apricot-stock);
+  background: linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)), var(--apricot-rules), var(--apricot-stock);
   box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.9), inset 0 2.5px 0 1.5px rgba(255, 244, 226, 0.28), inset 0 -3px 0 1.5px rgba(150, 72, 16, 0.14);
 }
 #screen-results .ticket-row .ticket-btn#btn-share::after { border-left-color: rgba(20, 33, 61, 0.5); }
 #screen-results .ticket-row #btn-share .ticket-main { font: 800 21px/1 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; }
-#screen-results .ticket-row #btn-share .ticket-main svg { width: 19px; height: 19px; stroke-width: 2.2; }
+#screen-results .ticket-row #btn-share .ticket-main > svg { width: 19px; height: 19px; stroke-width: 2.2; }   /* the arrow (not the stamp's own drawings) */
 #screen-results .ticket-row #btn-share .ticket-stub { color: rgba(20, 33, 61, 0.78); }
 #screen-results .ticket-row .ticket-btn#btn-share:focus-visible { box-shadow: inset 0 0 0 3px #14213D, inset 0 0 0 5px #FFF4E2; }
-/* the light pass now crosses apricot stock */
-#screen-results .ticket-row .ticket-btn#btn-share.nudge {
-  background:
-    linear-gradient(105deg, transparent 0 38%, rgba(255, 246, 228, 0) 40%, rgba(255, 246, 228, 0.7) 50%, rgba(255, 246, 228, 0) 60%, transparent 62% 100%) 100% 0 / 260% 100% no-repeat,
-    linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)), var(--apricot-print), var(--apricot-stock);
+
+/* The airmail stamp on the Share ticket: posted there by the share nudge
+   (nudge.js), worn on every results screen. A small native build of the
+   flying stamp: perforated paper, the red/navy airmail chevron, the balloon. */
+#screen-results .ticket-row #btn-share .ticket-main { gap: 7px; }
+#btn-share .ticket-stamp { position: relative; flex: none; width: 26px; height: 32.5px; margin-left: 2px; transform: rotate(-6deg); }
+#btn-share .ticket-stamp::before {               /* pressed onto the stock */
+  content: ""; position: absolute; inset: 1px; border-radius: 1px; box-shadow: 0 1px 1.5px rgba(30, 42, 85, 0.45);
 }
+#btn-share .ts-paper {
+  position: absolute; inset: 0; display: grid; place-items: center; background: #FFF8EB;
+  -webkit-mask: radial-gradient(circle at 2px 2px, transparent 1.25px, #000 1.6px) -2px -2px / 4px 4px, linear-gradient(#000, #000) center / calc(100% - 4px) calc(100% - 4px) no-repeat;
+          mask: radial-gradient(circle at 2px 2px, transparent 1.25px, #000 1.6px) -2px -2px / 4px 4px, linear-gradient(#000, #000) center / calc(100% - 4px) calc(100% - 4px) no-repeat;
+}
+#btn-share .ts-paper::before {                    /* the airmail frame */
+  content: ""; position: absolute; inset: 2.6px;
+  background: repeating-linear-gradient(135deg, #C8401E 0 2px, #FFF8EB 2px 3px, #1E2A55 3px 5px, #FFF8EB 5px 6px);
+}
+#btn-share .ts-paper::after { content: ""; position: absolute; inset: 4.2px; background: #FFF8EB; }
+#btn-share .ts-paper svg { position: relative; z-index: 1; width: 14.5px; height: 14.5px; fill: rgba(240, 124, 44, 0.22); stroke: #14213D; stroke-width: 2.2; stroke-linejoin: round; }
+/* hidden only while the flying stamp is on its way to it */
+#btn-share.stamping .ticket-stamp { visibility: hidden; }
+/* Postmarked once you've shared: a cancel ring over the stamp and three short
+   wavy lines running off it toward the stub, away from the label. */
+#btn-share .ts-pm { position: absolute; left: 5px; top: 2.5px; width: 36px; height: 23.4px; overflow: visible; opacity: 0; mix-blend-mode: multiply; transform: rotate(-8deg); transform-origin: 28% 50%; pointer-events: none; }
+#btn-share .ts-pm path, #btn-share .ts-pm circle { fill: none; stroke: #B5370B; stroke-width: 1.8; stroke-linecap: round; }
+#btn-share .ts-pm circle + circle { stroke-width: 0.9; }
+#btn-share.posted .ts-pm { opacity: 0.9; }
+#btn-share.inking .ts-pm { animation: postInk 520ms cubic-bezier(.2, .9, .3, 1.2) both; }
+@keyframes postInk { 0% { opacity: 0; transform: rotate(-8deg) scale(1.7); } 60% { opacity: 0.95; transform: rotate(-8deg) scale(0.94); } 100% { opacity: 0.9; transform: rotate(-8deg) scale(1); } }
+/* the one light that crosses the ticket as the stamp lands (nudge.js moves it) */
+#btn-share .ticket-sheen {
+  position: absolute; inset: 0; pointer-events: none; transform: translateX(-80%);
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 246, 228, 0) 40%, rgba(255, 246, 228, 0.72) 50%, rgba(255, 246, 228, 0) 60%, transparent 62%);
+}
+/* very narrow phones: the stamp stands in for the arrow, so SHARE FLIGHT keeps its size */
+@media (max-width: 359.98px) { #screen-results .ticket-row #btn-share .ticket-main > svg { display: none; } }
+@media (prefers-reduced-motion: reduce) { #btn-share.inking .ts-pm { animation: none; } }
+:root.calm #btn-share.inking .ts-pm { animation: none; }
+
+/* ---------------------------------------------------------------- the share nudge in flight ("Posted", nudge.js)
+   The airmail stamp at its read size, built in 80 × 100 design units (--u is
+   one unit in px, set from the space the corner has). It lives in a fixed
+   overlay above the pass and below the sheets, which clips it to the screen;
+   only the stamp itself takes a tap. */
+.post-sky { position: fixed; inset: 0; z-index: 6; overflow: hidden; pointer-events: none; }
+.post-fly { position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; will-change: transform, opacity; opacity: 0; color: #14213D; -webkit-tap-highlight-color: transparent; }
+.pf-sh { position: absolute; inset: calc(2 * var(--u)); border-radius: calc(3 * var(--u)); }
+.pf-tight { box-shadow: 0 calc(1.5 * var(--u)) calc(1.5 * var(--u)) rgba(30, 42, 85, 0.5); opacity: 0.55; }
+.pf-soft { box-shadow: calc(4 * var(--u)) calc(12 * var(--u)) calc(9 * var(--u)) rgba(20, 24, 50, 0.42); opacity: 0; }
+.pf-paper {
+  position: absolute; inset: 0; background: #FFF8EB;
+  -webkit-mask: radial-gradient(circle at calc(4 * var(--u)) calc(4 * var(--u)), transparent calc(2.9 * var(--u)), #000 calc(3.3 * var(--u))) calc(-4 * var(--u)) calc(-4 * var(--u)) / calc(8 * var(--u)) calc(8 * var(--u)),
+                linear-gradient(#000, #000) center / calc(100% - 8 * var(--u)) calc(100% - 8 * var(--u)) no-repeat;
+          mask: radial-gradient(circle at calc(4 * var(--u)) calc(4 * var(--u)), transparent calc(2.9 * var(--u)), #000 calc(3.3 * var(--u))) calc(-4 * var(--u)) calc(-4 * var(--u)) / calc(8 * var(--u)) calc(8 * var(--u)),
+                linear-gradient(#000, #000) center / calc(100% - 8 * var(--u)) calc(100% - 8 * var(--u)) no-repeat;
+}
+.pf-frame {                                         /* the red/navy chevron of an airmail envelope */
+  position: absolute; inset: calc(7 * var(--u)); border-radius: calc(1.5 * var(--u));
+  background: repeating-linear-gradient(135deg, #C8401E 0 calc(4.5 * var(--u)), #FFF8EB calc(4.5 * var(--u)) calc(7 * var(--u)), #1E2A55 calc(7 * var(--u)) calc(11.5 * var(--u)), #FFF8EB calc(11.5 * var(--u)) calc(14 * var(--u)));
+}
+.pf-field { position: absolute; inset: calc(3.5 * var(--u)); background: #FFF8EB; border-radius: var(--u); overflow: hidden; }
+.pf-face { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.pf-a { gap: calc(4 * var(--u)); padding: var(--u) calc(2 * var(--u)) calc(2 * var(--u)); }
+.pf-a b { font: 800 calc(17 * var(--u))/0.86 var(--f-display); letter-spacing: 0.035em; text-transform: uppercase; }
+.pf-a span { font: italic 400 calc(11 * var(--u))/1.02 var(--f-serif); color: rgba(20, 33, 61, 0.82); }
+.pf-a em { margin-top: calc(1 * var(--u)); padding: calc(2 * var(--u)) calc(4 * var(--u)) calc(1.5 * var(--u)); border-radius: calc(2 * var(--u)); font: 700 calc(7 * var(--u))/1 var(--f-mono); font-style: normal; letter-spacing: 0.1em; white-space: nowrap; color: #FFF8EB; background: #14213D; }
+.pf-b { opacity: 0; }
+.pf-b svg { width: calc(46 * var(--u)); height: calc(46 * var(--u)); fill: rgba(240, 124, 44, 0.22); stroke: #14213D; stroke-width: 2.4; stroke-linejoin: round; }
 #screen-results #btn-copy-img { height: 58px; }
 @media (max-width: 719.98px) {
   /* icon ticket; the name stays in its aria-label */
@@ -4711,7 +4696,7 @@ body[data-screen="home"] #balloon-rig { pointer-events: auto; cursor: pointer; }
   #screen-results #btn-copy-img .ticket-stub svg { width: 20px; height: 20px; }
 }
 @media (min-width: 720px) {
-  #screen-results .ticket-row .ticket-btn#btn-share { flex: 1.7 1 0; }
+  #screen-results .ticket-row .ticket-btn#btn-share { flex: 1.7 1 0; --cut: 77%; }   /* room for the arrow, the label and the stamp */
   #screen-results #btn-copy-img { flex: 1 1 0; }
 }
 
@@ -4946,8 +4931,8 @@ body.has-parked:not([data-screen="round"]) #altimeter { translate: 0 36px; }
    The same paper as the logbook: an apricot boarding ticket, a laminated run
    card punched for every run flown, and flight strips you tap to fly again. */
 #sheet-runs .runs-new { --cut: 72%; height: 72px; margin: 4px 0 0;
-  background: linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)), linear-gradient(90deg, transparent var(--cut), #F4B676 var(--cut)), var(--apricot-print), var(--apricot-stock);
-  color: #14213D; box-shadow: var(--apricot-edge); }
+  background: linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)), var(--apricot-rules), var(--apricot-stock);
+  color: #14213D; box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.9), inset 0 2.5px 0 1.5px rgba(255, 244, 226, 0.28), inset 0 -3px 0 1.5px rgba(150, 72, 16, 0.14); }
 #sheet-runs .runs-new::after { border-left-color: rgba(20, 33, 61, 0.5); }
 #sheet-runs .runs-new:hover { filter: brightness(1.04) saturate(1.04); }
 #sheet-runs .runs-new:focus-visible { outline: none; box-shadow: inset 0 0 0 3px #14213D, inset 0 0 0 5px #FFF4E2; }
@@ -4957,10 +4942,16 @@ body.has-parked:not([data-screen="round"]) #altimeter { translate: 0 36px; }
 #sheet-runs .runs-new .bt-stub { gap: 5px; }
 #sheet-runs .runs-new .bt-stub small { order: -1; font: 500 9.5px/1 var(--f-mono); letter-spacing: 0.1em; opacity: 0.66; }
 #sheet-runs .runs-new .bt-stub b { font: 800 26px/1 var(--f-display); font-variant-numeric: tabular-nums; }
-/* every run flown: the same ticket, unprinted, waiting for Monday */
-#sheet-runs .runs-wait { position: relative; display: flex; background: none; box-shadow: none; -webkit-mask: none; mask: none;
-  border: 1.5px dashed rgba(20, 33, 61, 0.32); border-radius: 10px; color: var(--ink-2); cursor: default; }
-#sheet-runs .runs-wait::after { border-left-color: rgba(20, 33, 61, 0.28); }
+/* every run flown: a status, not a button, so the paper stock (Account's Unlock),
+   not the apricot of a ticket you can tap; the stub keeps the date */
+#sheet-runs .runs-wait { position: relative; display: flex; border-radius: 10px; color: var(--ink-2); cursor: default;
+  background: linear-gradient(90deg, transparent var(--cut), rgba(20, 33, 61, 0.045) var(--cut)), var(--paper-rules), var(--paper-stock);
+  box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.55);
+  -webkit-mask: radial-gradient(circle at var(--cut) 0, transparent 7px, #000 7.5px) top / 100% 51% no-repeat, radial-gradient(circle at var(--cut) 100%, transparent 7px, #000 7.5px) bottom / 100% 51% no-repeat;
+          mask: radial-gradient(circle at var(--cut) 0, transparent 7px, #000 7.5px) top / 100% 51% no-repeat, radial-gradient(circle at var(--cut) 100%, transparent 7px, #000 7.5px) bottom / 100% 51% no-repeat; }
+#sheet-runs .runs-wait .bt-main { flex: 0 0 var(--cut); }
+#sheet-runs .runs-wait .bt-stub { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+#sheet-runs .runs-wait::after { content: ""; position: absolute; left: var(--cut); top: 10px; bottom: 10px; border-left: 1.5px dashed rgba(20, 33, 61, 0.4); }
 #sheet-runs .runs-wait:hover { filter: none; }
 #sheet-runs .runs-wait .rn-main { color: var(--ink); }
 #sheet-runs .runs-wait .bt-stub b { font-size: 15px; line-height: 1.05; text-align: center; letter-spacing: 0.04em; }
@@ -5137,12 +5128,59 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
 .wel-perks b { color: var(--ink); font-weight: 600; }
 .wel-perks a { color: var(--ink); font-weight: 600; }
 #sheet-welcome .wel-go { --cut: 72%; height: 64px; width: 100%;
-  background: linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)), linear-gradient(90deg, transparent var(--cut), #F4B676 var(--cut)), var(--apricot-print), var(--apricot-stock);
-  color: #14213D; box-shadow: var(--apricot-edge); }
+  background: linear-gradient(90deg, transparent var(--cut), var(--apricot-stub) var(--cut)), var(--apricot-rules), var(--apricot-stock);
+  color: #14213D; box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.9), inset 0 2.5px 0 1.5px rgba(255, 244, 226, 0.28), inset 0 -3px 0 1.5px rgba(150, 72, 16, 0.14); }
 #sheet-welcome .wel-go .bt-main { font: 800 21px/1 var(--f-display); letter-spacing: 0.06em; text-transform: uppercase; }
 #sheet-welcome .wel-go .bt-stub { gap: 5px; }
 #sheet-welcome .wel-go .bt-stub small { order: -1; font: 500 9.5px/1 var(--f-mono); letter-spacing: 0.1em; opacity: 0.66; }
 #sheet-welcome .wel-go .bt-stub b { font: 800 24px/1 var(--f-display); }
+
+/* ---------------------------------------------------------------- stubless: an admit-one ticket
+   "Fly a new run" and "Fly your first run" carry no count stub (the run card
+   already says how many are left, and "36" read as a run number). With no
+   stub there is no perforation, so the ticket takes the other classic ticket
+   shape: four concave corners, with the ink edge and the hairline rule both
+   following the bites, so it reads as one complete printed ticket. */
+#sheet-runs .runs-new.stubless, #sheet-welcome .wel-go.stubless {
+  --n: 9px;                                  /* corner bite */
+  --e: rgba(20, 33, 61, 0.9);                /* edge ink */
+  --r: rgba(20, 33, 61, 0.42);               /* rule ink */
+  --ri: calc(var(--n) + 4px);                /* the rule sits 4px inside the edge */
+  border-radius: 0;
+  -webkit-mask:
+    radial-gradient(circle at 0 0, transparent var(--n), #000 calc(var(--n) + 0.5px)),
+    radial-gradient(circle at 100% 0, transparent var(--n), #000 calc(var(--n) + 0.5px)),
+    radial-gradient(circle at 0 100%, transparent var(--n), #000 calc(var(--n) + 0.5px)),
+    radial-gradient(circle at 100% 100%, transparent var(--n), #000 calc(var(--n) + 0.5px));
+          mask:
+    radial-gradient(circle at 0 0, transparent var(--n), #000 calc(var(--n) + 0.5px)),
+    radial-gradient(circle at 100% 0, transparent var(--n), #000 calc(var(--n) + 0.5px)),
+    radial-gradient(circle at 0 100%, transparent var(--n), #000 calc(var(--n) + 0.5px)),
+    radial-gradient(circle at 100% 100%, transparent var(--n), #000 calc(var(--n) + 0.5px));
+  -webkit-mask-composite: source-in;              /* each layer bites one corner; together, all four */
+          mask-composite: intersect;
+  background:
+    /* edge ink round the four bites */
+    radial-gradient(circle at 0 0, transparent var(--n), var(--e) calc(var(--n) + 0.5px), var(--e) calc(var(--n) + 1.5px), transparent calc(var(--n) + 2px)) 0 0 / 16px 16px no-repeat,
+    radial-gradient(circle at 100% 0, transparent var(--n), var(--e) calc(var(--n) + 0.5px), var(--e) calc(var(--n) + 1.5px), transparent calc(var(--n) + 2px)) 100% 0 / 16px 16px no-repeat,
+    radial-gradient(circle at 0 100%, transparent var(--n), var(--e) calc(var(--n) + 0.5px), var(--e) calc(var(--n) + 1.5px), transparent calc(var(--n) + 2px)) 0 100% / 16px 16px no-repeat,
+    radial-gradient(circle at 100% 100%, transparent var(--n), var(--e) calc(var(--n) + 0.5px), var(--e) calc(var(--n) + 1.5px), transparent calc(var(--n) + 2px)) 100% 100% / 16px 16px no-repeat,
+    /* the hairline rule, bitten at the corners the same way */
+    radial-gradient(circle at -4px -4px, transparent var(--ri), var(--r) calc(var(--ri) + 0.2px), var(--r) calc(var(--ri) + 1px), transparent calc(var(--ri) + 1.3px)) 4px 4px / 12px 12px no-repeat,
+    radial-gradient(circle at calc(100% + 4px) -4px, transparent var(--ri), var(--r) calc(var(--ri) + 0.2px), var(--r) calc(var(--ri) + 1px), transparent calc(var(--ri) + 1.3px)) calc(100% - 4px) 4px / 12px 12px no-repeat,
+    radial-gradient(circle at -4px calc(100% + 4px), transparent var(--ri), var(--r) calc(var(--ri) + 0.2px), var(--r) calc(var(--ri) + 1px), transparent calc(var(--ri) + 1.3px)) 4px calc(100% - 4px) / 12px 12px no-repeat,
+    radial-gradient(circle at calc(100% + 4px) calc(100% + 4px), transparent var(--ri), var(--r) calc(var(--ri) + 0.2px), var(--r) calc(var(--ri) + 1px), transparent calc(var(--ri) + 1.3px)) calc(100% - 4px) calc(100% - 4px) / 12px 12px no-repeat,
+    linear-gradient(var(--r), var(--r)) 13px 4px / calc(100% - 26px) 1px no-repeat,
+    linear-gradient(var(--r), var(--r)) 13px calc(100% - 5px) / calc(100% - 26px) 1px no-repeat,
+    linear-gradient(var(--r), var(--r)) 4px 13px / 1px calc(100% - 26px) no-repeat,
+    linear-gradient(var(--r), var(--r)) calc(100% - 5px) 13px / 1px calc(100% - 26px) no-repeat,
+    var(--apricot-stock);
+}
+.buy-ticket.stubless::after { display: none; }                 /* no perforation without a stub */
+.buy-ticket.stubless .bt-main { flex: 1 1 auto; }
+#sheet-runs .runs-new.stubless .bt-main { gap: 7px; }
+#sheet-runs .runs-new.stubless .rn-main { font-size: 23px; }
+#sheet-runs .runs-new.stubless:focus-visible, #sheet-welcome .wel-go.stubless:focus-visible { box-shadow: inset 0 0 0 3px #14213D, inset 0 0 0 5px #FFF4E2; }
 .wel-fine { margin: 12px 0 0; text-align: center; font: italic 400 14px/1.4 var(--f-serif); color: var(--ink-3); }
 
 /* ---------------------------------------------------------------- first class

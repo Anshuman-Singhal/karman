@@ -128,7 +128,9 @@
   });
 
   /* Share: one ticket button. Tear the stub, then send an image + text via
-     the system share sheet where files are supported, else copy the text. */
+     the system share sheet where files are supported, else copy the text.
+     The airmail stamp that flies into this ticket after a landing (nudge.js)
+     shares through this same handler. */
   let sharing = false;
   $('btn-share').addEventListener('click', async () => {
     const last = K.ui.lastRecord;
@@ -141,6 +143,7 @@
     K.audio.tick();
     const str = K.share.text(last.record, last.streak);
     try { K.stats.event('share'); } catch (e) { /* stats never block sharing */ }
+    K.nudge.shared();
     // Copy first, inside the tap, so the text is always on the clipboard.
     const result = await K.share.copy(str);
     if (result === 'copied') K.fx.toast('Flight log copied. Paste it in the group chat.');
@@ -150,24 +153,6 @@
       try { await navigator.share({ text: str }); } catch (e) { /* cancelled: it's already copied */ }
     }
     setTimeout(() => { sharing = false; }, 400);
-  });
-
-  /* The invite stamp: copy an invitation (no score, so anyone will send it),
-     ink a thank-you postmark over the stamp, and on phones open the share sheet. */
-  $('dare-stamp').addEventListener('click', async () => {
-    const last = K.ui.lastRecord;
-    if (!last) return;
-    const stamp = $('dare-stamp');
-    const str = K.share.invite();
-    try { K.stats.event('share'); } catch (e) { /* stats never block sharing */ }
-    const result = await K.share.copy(str);
-    stamp.classList.remove('stamped'); void stamp.offsetWidth; stamp.classList.add('stamped');
-    K.audio.tick();
-    K.fx.haptic && K.fx.haptic(14);
-    K.fx.toast(result === 'copied' ? 'Invite copied. Thank you for helping a small game grow 🎈' : 'Couldn\'t reach the clipboard. Long-press to copy.');
-    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
-      try { await navigator.share({ text: str }); } catch (e) { /* cancelled: it's already copied */ }
-    }
   });
 
   /* Copy image: put the boarding-pass PNG on the clipboard. The ClipboardItem
@@ -184,6 +169,7 @@
     btn.classList.add('torn');
     K.audio.tick();
     try { K.stats.event('share'); } catch (e) { /* stats never block sharing */ }
+    K.nudge.shared();
     const blobP = K.shareImage.render(last.record, last.n, last.streak, K.ui.lastStats);
     try {
       if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error('no image clipboard');
@@ -246,6 +232,7 @@
     btn.classList.remove('thunk'); void btn.offsetWidth; btn.classList.add('thunk');
     K.audio.stamp();
     try { K.stats.event('share'); } catch (e) { /* stats never block sharing */ }
+    K.nudge.shared();
     const blobP = K.shareImage.passport();
     try {
       if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error('no image clipboard');

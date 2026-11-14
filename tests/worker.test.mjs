@@ -266,6 +266,7 @@ globalThis.fetch = prevFetch;
   check(db.prepare("SELECT COUNT(*) c FROM events WHERE kind = 'paywall_view'").get().c === 2 && cnt('paywall_view') === 2, 'one event per device per kind per day; the counter follows');
   check(cnt('share') === 1, 'kinds are counted apart');
   check((await ev('made_up_kind')).status === 422 && (await ev('share', 'x')).status === 422, 'unknown kinds and bad devices refused');
+  check((await ev('nudge_seen')).status === 204 && (await ev('nudge_tap')).status === 204 && cnt('nudge_seen') === 1 && cnt('nudge_tap') === 1, 'the share stamp\'s two events (nudge_seen, nudge_tap) are accepted and counted');
   await ev('buy_click', 'device-ev-bot01', 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)');
   check(!cnt('buy_click'), 'crawlers are not counted');
   await hit('device-bot-0001', 'x', 'facebookexternalhit/1.1');
