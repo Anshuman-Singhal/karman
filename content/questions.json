@@ -8597,7 +8597,7 @@
     "max": 1963,
     "id": "w20261026-056",
     "added": "2026-10-26",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Machines",
@@ -8955,7 +8955,7 @@
     "max": 10000,
     "id": "w20261102-008",
     "added": "2026-11-02",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Film & TV",
@@ -8989,7 +8989,7 @@
     "max": 10000,
     "id": "w20261102-010",
     "added": "2026-11-02",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Film & TV",
@@ -9055,7 +9055,7 @@
     "max": 10000,
     "id": "w20261102-014",
     "added": "2026-11-02",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Music",
@@ -9121,7 +9121,7 @@
     "max": 1000000,
     "id": "w20261102-018",
     "added": "2026-11-02",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Music",
@@ -9639,7 +9639,7 @@
     "max": 100000,
     "id": "w20261102-050",
     "added": "2026-11-02",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "History",
@@ -9671,7 +9671,7 @@
     "max": 1903,
     "id": "w20261102-052",
     "added": "2026-11-02",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "History",
@@ -9848,7 +9848,7 @@
     "max": 2014,
     "id": "w20261102-063",
     "added": "2026-11-02",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Everyday Numbers",
@@ -9864,7 +9864,7 @@
     "max": 1,
     "id": "w20261102-064",
     "added": "2026-11-02",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Everyday Numbers",
@@ -9928,7 +9928,7 @@
     "max": 10000,
     "id": "w20261102-068",
     "added": "2026-11-02",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Everyday Numbers",
@@ -10073,7 +10073,7 @@
     "max": 1993,
     "id": "w20261109-007",
     "added": "2026-11-09",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Film & TV",
@@ -10291,7 +10291,7 @@
     "max": 1000,
     "id": "w20261109-020",
     "added": "2026-11-09",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Music",
@@ -11058,7 +11058,7 @@
     "max": 100,
     "id": "w20261109-067",
     "added": "2026-11-09",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Everyday Numbers",
@@ -11091,7 +11091,7 @@
     "max": 10000,
     "id": "w20261109-069",
     "added": "2026-11-09",
-    "pool": "daily"
+    "pool": "bank"
   },
   {
     "cat": "Everyday Numbers",
@@ -11108,6 +11108,235 @@
     "max": 1000,
     "id": "w20261109-070",
     "added": "2026-11-09",
+    "pool": "daily"
+  },
+  {
+    "cat": "History",
+    "q": "In what year did the Ottoman Empire capture Constantinople, the city now called Istanbul?",
+    "unit": "",
+    "answer": 1453,
+    "hint": "For scale: Christopher Columbus first reached the Americas in 1492.",
+    "clue": "Joan of Arc helped lift the siege of Orléans in 1429.",
+    "card": "Sultan Mehmed II was just 21 when he took the city, and he has been known ever since as Fatih, “the Conqueror.”",
+    "source": "https://en.wikipedia.org/wiki/Fall_of_Constantinople",
+    "scale": "year",
+    "min": 1303,
+    "max": 1553,
+    "id": "w20261116-001",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "Music",
+    "q": "In what year did PSY release “Gangnam Style”?",
+    "unit": "",
+    "answer": 2012,
+    "hint": "For scale: Google was founded in 1998.",
+    "clue": "Facebook launched in 2004.",
+    "card": "It was the first video on YouTube to pass one billion views, in December 2012.",
+    "source": "https://en.wikipedia.org/wiki/Gangnam_Style",
+    "scale": "year",
+    "min": 1862,
+    "max": 2050,
+    "id": "w20261116-002",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "Film & TV",
+    "q": "How many episodes of the anime Dragon Ball Z were made?",
+    "unit": "episodes",
+    "answer": 291,
+    "hint": "For scale: a TV series airing one episode a week for a year makes about 52.",
+    "clue": "The original Dragon Ball anime ran for 153 episodes.",
+    "card": "Its manga creator, Akira Toriyama, also designed the characters for the Dragon Quest video games.",
+    "source": "https://en.wikipedia.org/wiki/Dragon_Ball_Z",
+    "int": true,
+    "scale": "log",
+    "min": 10,
+    "max": 10000,
+    "id": "w20261116-003",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "History",
+    "q": "In what year did the survivors of Ferdinand Magellan’s expedition finish the first voyage around the world?",
+    "unit": "",
+    "answer": 1522,
+    "hint": "For scale: Marco Polo returned to Venice from China in 1295.",
+    "clue": "Vasco da Gama first reached India by sea in 1498.",
+    "card": "Only one of the five ships, the Victoria, made it all the way around, and Magellan himself died on the way.",
+    "source": "https://en.wikipedia.org/wiki/Magellan_expedition",
+    "scale": "year",
+    "min": 1372,
+    "max": 1622,
+    "id": "w20261116-004",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "Film & TV",
+    "q": "How many official Eon Productions James Bond films did Sean Connery star in?",
+    "unit": "films",
+    "answer": 6,
+    "hint": "For scale: the Star Wars Skywalker saga has 9 main films.",
+    "clue": "Daniel Craig played Bond in 5 Eon films.",
+    "card": "He played Bond a seventh time in Never Say Never Again (1983), a remake made outside the official series.",
+    "source": "https://en.wikipedia.org/wiki/Sean_Connery",
+    "int": true,
+    "scale": "log",
+    "min": 0.1,
+    "max": 1000,
+    "id": "w20261116-005",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "Machines",
+    "q": "In what year did Piaggio start selling the first Vespa scooter?",
+    "unit": "",
+    "answer": 1946,
+    "hint": "For scale: Ford’s Model T went on sale in 1908.",
+    "clue": "Sputnik 1, the first satellite, was launched in 1957.",
+    "card": "Its name is Italian for “wasp”: Enrico Piaggio said the first model looked like one.",
+    "source": "https://en.wikipedia.org/wiki/Vespa",
+    "scale": "year",
+    "min": 1796,
+    "max": 2046,
+    "id": "w20261116-006",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "Everyday Numbers",
+    "q": "How much does a 1 euro coin weigh?",
+    "unit": "kg",
+    "answer": 0.0075,
+    "hint": "For scale: a paper banknote weighs about {0.001 kg}.",
+    "clue": "A 2 euro coin weighs {0.0085 kg}.",
+    "card": "Every euro coin has one common side and one national side, but each one can be spent in any euro country.",
+    "source": "https://en.wikipedia.org/wiki/1_euro_coin",
+    "scale": "log",
+    "min": 0.0001,
+    "max": 1,
+    "id": "w20261116-007",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "Film & TV",
+    "q": "How long is Studio Ghibli’s Spirited Away (2001), in minutes?",
+    "unit": "minutes",
+    "answer": 125,
+    "hint": "For scale: a soccer match has 90 minutes of play.",
+    "clue": "Studio Ghibli’s My Neighbor Totoro runs 86 minutes.",
+    "card": "It was the first anime film to win the Oscar for Best Animated Feature.",
+    "source": "https://en.wikipedia.org/wiki/Spirited_Away",
+    "int": true,
+    "scale": "log",
+    "min": 1,
+    "max": 10000,
+    "id": "w20261116-008",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "Everyday Numbers",
+    "q": "How many countries does the Danube river flow through or along the border of?",
+    "unit": "countries",
+    "answer": 10,
+    "hint": "For scale: it is Europe’s second-longest river, after the Volga.",
+    "clue": "The Mekong flows through 6 countries.",
+    "card": "Four capital cities stand on its banks: Vienna, Bratislava, Budapest and Belgrade.",
+    "source": "https://en.wikipedia.org/wiki/Danube",
+    "int": true,
+    "scale": "log",
+    "min": 0.1,
+    "max": 1000,
+    "id": "w20261116-009",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "History",
+    "q": "In what year was Napoleon crowned Emperor of the French?",
+    "unit": "",
+    "answer": 1804,
+    "hint": "For scale: Captain James Cook first reached Australia in 1770.",
+    "clue": "Charles Darwin was born in 1809.",
+    "card": "At the ceremony in Notre-Dame de Paris, he took the crown and placed it on his own head.",
+    "source": "https://en.wikipedia.org/wiki/Coronation_of_Napoleon",
+    "scale": "year",
+    "min": 1654,
+    "max": 1904,
+    "id": "w20261116-010",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "Everyday Numbers",
+    "q": "How long is the Bosphorus, the strait that runs through Istanbul?",
+    "unit": "km",
+    "answer": 31,
+    "hint": "For scale: Istanbul’s first bridge across it is about {1.5 km} long.",
+    "clue": "The Panama Canal is about {82 km} long.",
+    "card": "It splits Istanbul between Europe and Asia, so millions of people cross between two continents every day.",
+    "source": "https://en.wikipedia.org/wiki/Bosporus",
+    "scale": "log",
+    "min": 1,
+    "max": 1000,
+    "id": "w20261116-011",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "Music",
+    "q": "In what year did Shakira release “Hips Don’t Lie”?",
+    "unit": "",
+    "answer": 2006,
+    "hint": "For scale: Google was founded in 1998.",
+    "clue": "Apple released the first iPod in 2001.",
+    "card": "Shakira recorded it with Wyclef Jean, and it became her first No. 1 single in the US.",
+    "source": "https://en.wikipedia.org/wiki/Hips_Don%27t_Lie",
+    "scale": "year",
+    "min": 1856,
+    "max": 2050,
+    "id": "w20261116-012",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "Sports",
+    "q": "In what year did Pelé win his first World Cup with Brazil?",
+    "unit": "",
+    "answer": 1958,
+    "hint": "For scale: the first FIFA World Cup was played in 1930.",
+    "clue": "Brazil hosted the World Cup in 1950.",
+    "card": "He was just 17 years old, and he scored twice in the final against Sweden.",
+    "source": "https://en.wikipedia.org/wiki/1958_FIFA_World_Cup",
+    "scale": "year",
+    "min": 1808,
+    "max": 2050,
+    "id": "w20261116-013",
+    "added": "2026-11-16",
+    "pool": "daily"
+  },
+  {
+    "cat": "Everyday Numbers",
+    "q": "How many countries share a land border with China?",
+    "unit": "countries",
+    "answer": 14,
+    "hint": "For scale: Mexico shares land borders with 3 countries.",
+    "clue": "Brazil shares land borders with 10 countries.",
+    "card": "Only Russia ties it, with 14 neighboring countries of its own.",
+    "source": "https://en.wikipedia.org/wiki/Borders_of_China",
+    "int": true,
+    "scale": "log",
+    "min": 0.1,
+    "max": 1000,
+    "id": "w20261116-014",
+    "added": "2026-11-16",
     "pool": "daily"
   }
 ]
