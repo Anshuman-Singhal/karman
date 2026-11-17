@@ -132,9 +132,6 @@ Content lives in two files, and nothing else: `content/questions.json` (every qu
 **Set it up** (once GitHub and Cloudflare are live): ask Claude to "create the KÁRMÁN weekly question run as a scheduled task", pointing it at the repo. The task's prompt is `content/WEEKLY_RUN.md`.
 
 **Check on it any time:** `node tools/content.mjs status` prints how many days are scheduled ahead. The run aims to keep at least 14.
-
-**Later (recommended before you're big):** serve each day's questions from the Worker only once that day starts (a `GET /api/day/:n` route), so nobody can read tomorrow's answers in the page source. Today the whole schedule ships in `content.js`, which is fine for a soft launch.
-
 ---
 
 ## Phase 4 · Unlimited ($5.99), unlock links, Google sign-in
