@@ -26,7 +26,7 @@
 
 K.sync = (() => {
   const C = K.CONFIG;
-  const LOCAL_ONLY = ['live', 'parked', 'access', 'prefs', 'device', 'sync', 'runsSeen'];
+  const LOCAL_ONLY = ['live', 'parked', 'access', 'prefs', 'device', 'sync', 'runsSeen', 'nudge'];
   const session = () => { const a = K.storage.data.access; return a && a.session && a.session !== 'dev' ? a.session : null; };
   const enabled = () => Boolean(C.PAYMENTS && session());
   const hdrs = () => ({ authorization: `Bearer ${session()}`, 'content-type': 'application/json' });

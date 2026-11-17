@@ -18,7 +18,8 @@ K.share = (() => {
 
   /* Each guess becomes how high it would carry you:
        ☁️ Wide · 🎈 Fair · ✈️ Snug · 🛰️ Tight · 🚀 Pinpoint · 💨 miss */
-  /** An invitation with no score in it (the results stamp), so anyone can send it. */
+  /** An invitation with no score in it, so anyone can send it. Not on the results
+      screen (its stamp shares the flight log); kept for an "Invite a friend" elsewhere. */
   const invite = () => ['🎈 KÁRMÁN is a 3-minute daily game: guess 7 numbers, bet on how sure you are, and fly a balloon to the edge of space.', `Give it a try: ${K.CONFIG.SHARE_URL}`].join('\n');
 
   /** The flight log. */

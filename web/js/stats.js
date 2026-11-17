@@ -14,8 +14,8 @@
 
    Also the owner dashboard's anonymous beacons (no cookies, nothing personal,
    the same random device id): hit() = first open of the day, event(kind) =
-   paywall seen / buy pressed / shared / pass redeemed / an error, each at
-   most once per device per day.
+   paywall seen / buy pressed / shared / pass redeemed / an error / the share
+   stamp seen or tapped, each at most once per device per day.
    ========================================================================== */
 
 K.stats = (() => {
@@ -144,7 +144,8 @@ K.stats = (() => {
   }
 
   /** An anonymous product event for the owner's dashboard: one of
-      paywall_view, buy_click, share, pass_redeem, error, stats_down.
+      paywall_view, buy_click, share, pass_redeem, error, stats_down,
+      nudge_seen (the share stamp played), nudge_tap (it was tapped).
       At most once per kind per device per day; fire-and-forget. */
   const sentEv = new Set();
   function event(kind) {

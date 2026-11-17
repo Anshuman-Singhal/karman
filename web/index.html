@@ -188,17 +188,6 @@
         <div class="res-top">
           <div class="crowd-chart" id="crowd-chart"></div>
           <div class="res-lockup">
-            <!-- The invite stamp: a postage stamp. Tap copies an invitation (no score) for friends (main.js). -->
-            <button type="button" class="dare-stamp" id="dare-stamp" aria-label="Challenge your friends: copy an invitation to KÁRMÁN">
-              <span class="ds-paper">
-                <span class="ds-top">Airmail</span>
-                <svg class="ds-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2c-4.1 0-6.6 3-6.6 6.6 0 2.8 2.2 5 4 6.4h5.2c1.8-1.4 4-3.6 4-6.4 0-3.6-2.5-6.6-6.6-6.6z"/><path d="M12 3.2c-1.6 1.7-2.3 4.1-2.3 6.6 0 2.6.5 4.9 1 6.4M12 3.2c1.6 1.7 2.3 4.1 2.3 6.6 0 2.6-.5 4.9-1 6.4"/><rect x="10" y="18.3" width="4" height="2.7" rx=".6"/></svg>
-                <b class="ds-main">Help it fly</b>
-                <span class="ds-sub" id="dare-sub">Challenge your friends.</span>
-                <span class="ds-cta">Tap to share</span>
-                <span class="ds-cancel" aria-hidden="true"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44"/><circle cx="50" cy="50" r="35"/><path id="ds-arc" d="M20 50a30 30 0 0 1 60 0" fill="none" stroke="none"/><text><textPath href="#ds-arc" startOffset="50%">KÁRMÁN</textPath></text><text class="big" x="50" y="58">THANKS</text></svg></span>
-              </span>
-            </button>
             <div class="res-hero">
               <span class="res-alt" id="res-alt"></span><span class="res-unit" id="res-unit">km</span>
             </div>
@@ -214,9 +203,10 @@
 
         <!-- Share first: the primary action sits right under the score (v5) -->
         <div class="ticket-row">
-          <span class="share-nudge" id="share-nudge" aria-hidden="true">Send it to the group chat</span>
           <button type="button" class="ticket-btn" id="btn-share">
-            <span class="ticket-main"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share flight</span>
+            <span class="ticket-main"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Share flight<!--
+              The airmail stamp the share nudge posts into this ticket (nudge.js); postmarked once you share.
+              --><span class="ticket-stamp" aria-hidden="true"><i class="ts-paper"><svg viewBox="0 0 24 24"><path d="M12 3.2c-4.1 0-6.6 3-6.6 6.6 0 2.8 2.2 5 4 6.4h5.2c1.8-1.4 4-3.6 4-6.4 0-3.6-2.5-6.6-6.6-6.6z"/><path d="M12 3.2c-1.6 1.7-2.3 4.1-2.3 6.6 0 2.6.5 4.9 1 6.4M12 3.2c1.6 1.7 2.3 4.1 2.3 6.6 0 2.6-.5 4.9-1 6.4"/><rect x="10" y="18.3" width="4" height="2.7" rx=".6"/></svg></i><svg class="ts-pm" viewBox="0 0 40 26"><circle cx="11" cy="13" r="9.5"/><circle cx="11" cy="13" r="6.6"/><path d="M22 9c2-1.6 3.4 1.6 5 0s3 1.6 5 0M22 13c2-1.6 3.4 1.6 5 0s3 1.6 5 0M22 17c2-1.6 3.4 1.6 5 0s3 1.6 5 0"/></svg></span></span>
             <span class="ticket-stub" id="ticket-stub"></span>
           </button>
           <button type="button" class="ticket-btn ticket-img" id="btn-copy-img" aria-label="Copy your boarding-pass image">
@@ -451,6 +441,7 @@
 <script src="js/share.js"></script>
 <script src="js/shareimg.js"></script>
 <script src="js/stats.js"></script>
+<script src="js/nudge.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/firstclass.js"></script>
 <script src="js/climb.js"></script>

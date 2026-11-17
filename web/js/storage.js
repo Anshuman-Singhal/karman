@@ -21,6 +21,7 @@
      access: { unlimited, via: 'stripe'|'code'|null, code, session, checkedAt, pending, email },
      sync:   { ver, at }                           // cloud copy version (sync.js)
      reported: { [factId]: true }
+     nudge:  { seen, miss, shared }               // the share stamp's once-a-day rules (nudge.js); this device only, absent until first used
    }
    Changing the shape later? Add a field to fresh() and, if older saves need
    converting, a step in migrate(). Never rename or delete a field players

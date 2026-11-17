@@ -32,7 +32,7 @@ const PAY_BF_MAX = 8;          // older purchases looked up on Stripe per day
 export const RET_K = [1, 2, 3, 4, 5, 6, 7, 14, 21, 28, 30];
 const KEEP_EVENTS = 60;        // days of per-device event rows kept
 const FULL_DAYS = 35;          // older frozen days keep totals only (no hours / histogram)
-export const EVENT_KINDS = ['paywall_view', 'buy_click', 'share', 'pass_redeem', 'error', 'stats_down'];
+export const EVENT_KINDS = ['paywall_view', 'buy_click', 'share', 'pass_redeem', 'error', 'stats_down', 'nudge_seen', 'nudge_tap'];
 export const maskEmail = (e) => { const [u, d] = String(e || '').split('@'); return d ? `${u.slice(0, 2)}•••@${d}` : ''; };
 
 /* ---------------------------------------------------------- Eastern time

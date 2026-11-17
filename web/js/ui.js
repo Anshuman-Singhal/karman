@@ -136,6 +136,7 @@ K.ui = (() => {
     });
     current = name;
     document.body.dataset.screen = name;
+    if (name !== 'results' && K.nudge) K.nudge.stop();
     if (name !== 'results' && K.climb) K.climb.close({ instant: true, restore: false });
     setTimeout(anchorBalloon, 360); // after any dock resize (desktop results)
     requestAnimationFrame(anchorBalloon);
@@ -501,6 +502,7 @@ K.ui = (() => {
     const box = $('pctl');
     const chart = $('crowd-chart');
     chart.classList.remove('draw');
+    pctlEnd = performance.now();
     if ((!stats || !stats.players) && K.stats.down) {
       // The crowd's numbers can't be fetched right now: say so, plainly and in
       // the game's voice, with your own altitude on an empty board.
@@ -532,7 +534,7 @@ K.ui = (() => {
         st.classList.toggle('tight', Boolean(best) && best[1] - best[0] < h + 4);
       });
       box.hidden = false;
-      const play = () => { chart.classList.add('draw'); };
+      const play = (instant) => { chart.classList.add('draw'); pctlEnd = performance.now() + (instant === true || K.fx.reduced() ? 0 : 1000); };
       if (crowdGate) crowdGate.then(play); else play();
       return;
     }
@@ -563,6 +565,7 @@ K.ui = (() => {
       chart.classList.toggle('instant', instant === true);
       void chart.offsetWidth;
       chart.classList.add('draw');
+      pctlEnd = performance.now() + (instant === true || K.fx.reduced() ? 0 : 1000);   // the count (150 + 800 ms) and the chart's YOU flag
       if (instant === true || kind !== 'rank' || K.fx.reduced() || !el) { if (el) el.textContent = `${pct}%`; return; }
       const t0 = performance.now() + 150;
       const step = (now) => {
@@ -589,24 +592,16 @@ K.ui = (() => {
 
   /* ------------------------------------------------------------ results */
   let lastRecord = null;
-  /** After a fresh flight: the share ticket gives two small bumps and a paper tag
-      says what it's for, then everything settles. Once per landing, no modal. */
-  let nudgeTimer = 0;
-  function nudgeShare(on) {
-    const btn = $('btn-share'), tag = $('share-nudge');
-    clearTimeout(nudgeTimer);
-    btn.classList.remove('nudge'); tag.classList.remove('in');
-    if (!on) return;
-    // the light keeps passing over the ticket (every few seconds) until it is tapped
-    nudgeTimer = setTimeout(() => btn.classList.add('nudge'), 2400);   // after the landing reveal settles   // the pass never scrolls on its own: the score stays in view
-    btn.addEventListener('click', () => { tag.classList.remove('in'); btn.classList.remove('nudge'); }, { once: true });
-  }
+  let pctlEnd = 0;        // when the percentile count and the chart's draw finish (performance.now)
+  let settle = null;      // resolves the current results screen's "landing reveal has settled"
 
   function results({ record, n, mode = 'daily', streak, thermals, streakInfo, isFresh, prevBest, nextNo }) {
     if (landingStop) landingStop();
     if (nextNo == null) nextNo = (K.game.today || n) + 1;
     lastRecord = { record, n, streak, mode, args: { record, n, mode, streak, thermals, streakInfo, isFresh: false, prevBest, nextNo } };
-    $('dare-stamp').classList.remove('stamped');
+    pctlEnd = 0;
+    const landed = new Promise((r) => { settle = r; });
+    if (!isFresh) settle(performance.now());     // no landing reveal on a re-open
     $('res-eyebrow').textContent = mode === 'unlimited' ? (K.access.unlimited() && record.run ? `Unlimited · Run ${record.run}` : `Unlimited · Flight #${record.flightNo || record.run || ''}`)
       : `${mode === 'archive' ? 'Archive · ' : ''}Flight #${n} · ${dayMonth(K.date.dateOfFlight(n))}`;
     $('btn-today').hidden = mode === 'daily';
@@ -647,9 +642,20 @@ K.ui = (() => {
     const recap = $('recap');
     recap.innerHTML = record.rounds.map((_, i) => answerRow(record, i)).join('');
     recap.classList.toggle('reveal-seq', Boolean(isFresh));
-    nudgeShare(isFresh && mode !== 'archive');
+    let statsIn = Promise.resolve();
     if (mode === 'archive') { statsTicket++; $('pctl').hidden = true; lastStats = null; }
-    else applyStats(record, mode === 'unlimited' ? `r${record.run}` : n);
+    else statsIn = applyStats(record, mode === 'unlimited' ? `r${record.run}` : n);
+    // The share stamp ("Posted", nudge.js) comes after the reveal: once the landing has
+    // settled AND the percentile has finished counting, never over either. If the crowd's
+    // numbers are still on their way 2.5 s after the landing, it waits for another day.
+    const ready = landed.then((at) => Promise.race([
+      statsIn.then(() => new Promise((r) => setTimeout(r, 0))).then(() => {
+        const t0 = Math.max(at + 320, pctlEnd + 210);
+        return t0 <= at + 2500 ? t0 : null;
+      }),
+      new Promise((r) => setTimeout(() => r(null), 2500)),
+    ]));
+    K.nudge.results({ n, mode, isFresh, face: K.units.altText(record.alt).toUpperCase(), ready });
 
     $('res-streak').textContent = `${streak}-day streak · ${thermals} thermal${thermals === 1 ? '' : 's'}`;
     nextStub({ mode, streak, nextNo });
@@ -690,7 +696,8 @@ K.ui = (() => {
     let stamped = false;
     const stamp = () => { if (stamped) return; stamped = true; if (onStamp) onStamp(); };
     const flips = prevStreak != null && prevStreak !== streak;
-    if (K.fx.reduced()) { stamp(); return; }
+    const settled = settle;
+    if (K.fx.reduced()) { stamp(); if (settled) settled(performance.now()); return; }
 
     let done = false, raf = 0, openGate = null;
     const timers = [];
@@ -713,6 +720,7 @@ K.ui = (() => {
       landingStop = null;
       crowdGate = null;
       openGate(true);
+      if (settled) settled(performance.now());
     }
     landingStop = finish;
     document.addEventListener('pointerdown', skip, true);
@@ -856,9 +864,8 @@ K.ui = (() => {
           <span class="bt-main"><span class="rn-main">Resume Run ${Number(F.wip.run) || ''}</span><span class="rn-sub">In progress · leg ${(F.wip.round || 0) + 1} of ${K.CONFIG.LEGS}</span></span>
           <span class="bt-stub"><small>LEG</small><b>${(F.wip.round || 0) + 1}</b></span></button>`
       : left
-      ? `<button type="button" class="buy-ticket runs-new" id="runs-new">
-          <span class="bt-main"><span class="rn-main">Fly a new run</span><span class="rn-sub">${F.sub || '7 questions you haven’t seen'}</span></span>
-          <span class="bt-stub">${F.fresh.length ? `<small>FRESH</small><b>${F.fresh.length}</b>` : `<small>NEW</small><b>${left}</b>`}</span></button>`
+      ? `<button type="button" class="buy-ticket runs-new stubless" id="runs-new">
+          <span class="bt-main"><span class="rn-main">Fly a new run</span><span class="rn-sub">${F.sub || '7 questions you haven’t seen'}</span></span></button>`
       : `<div class="runs-new runs-wait" role="status">
           <span class="bt-main"><span class="rn-main">All runs flown</span><span class="rn-sub">New runs land every Monday</span></span>
           <span class="bt-stub"><small>NEXT</small><b>${nextMonday().replace(/^(\w+) /, '$1<br>')}</b></span></div>`;
@@ -920,7 +927,7 @@ K.ui = (() => {
           <li><i aria-hidden="true">✉</i><span><b>A direct line.</b> Ideas? A wrong answer? A question you’d love to see on a flight: <a href="mailto:${mail}?subject=${encodeURIComponent('KÁRMÁN Unlimited')}">${mail}</a>.</span></li>
         </ul>
       </div>
-      <button type="button" class="buy-ticket wel-go" id="wel-go"><span class="bt-main">${opts.replay ? 'Fly a run' : 'Fly your first run'}</span><span class="bt-stub"><small>${left ? 'NEW' : 'RUNS'}</small><b>${left || '∞'}</b></span></button>
+      <button type="button" class="buy-ticket wel-go stubless" id="wel-go"><span class="bt-main">${opts.replay ? 'Fly a run' : 'Fly your first run'}</span></button>
       <p class="wel-fine">${paid ? 'Find it any time under Menu → Unlimited.' : 'Find it any time under Menu → Unlimited.'}</p>`;
     $('wel-go').onclick = () => { closeSheet('welcome'); setTimeout(() => K.game.keepFlying(), K.fx.reduced() ? 0 : 220); };
     ['paywall', 'account', 'menu'].forEach((s) => { if (!$(`sheet-${s}`).hidden) closeSheet(s); });
@@ -1028,6 +1035,7 @@ K.ui = (() => {
   /* ------------------------------------------------------------ sheets */
   function openSheet(name) {
     const el = $(`sheet-${name}`);
+    if (K.nudge) K.nudge.hurry();
     if (name === 'logbook') renderLogbook();
     if (name === 'account') renderAccount();
     if (name === 'help') renderHelp();

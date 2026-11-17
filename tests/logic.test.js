@@ -15,7 +15,7 @@ const web = path.join(__dirname, '..', 'web', 'js');
 const ctx = { window: {}, console, Math, Date, Number, String, Map, Set, Array, Object, JSON, Intl, crypto: globalThis.crypto, Boolean, setTimeout, clearTimeout };
 ctx.window = ctx;
 vm.createContext(ctx);
-for (const f of ['config.js', 'prng.js', 'date.js', 'data/content.js', 'scoring.js', 'daily.js', 'units.js', 'storage.js', 'sync.js', 'firstclass.js']) {
+for (const f of ['config.js', 'prng.js', 'date.js', 'data/content.js', 'scoring.js', 'daily.js', 'units.js', 'storage.js', 'sync.js', 'firstclass.js', 'nudge.js']) {
   vm.runInContext(fs.readFileSync(path.join(web, f), 'utf8'), ctx, { filename: f });
 }
 const K = ctx.K;
@@ -289,6 +289,45 @@ section('First class');
   check(old.runsSeen === null && old.prefs.units === 'metric' && !old.prefs.livery, 'an old save loads with runsSeen unset and its prefs untouched');
   const kept = M({ v: 1, launch: '2026-10-7', runsSeen: 37, prefs: { livery: 'gold' } });
   check(kept.runsSeen === 37 && kept.prefs.livery === 'gold', 'runsSeen and the livery survive a reload');
+}
+
+/* ---- share nudge ("Posted", nudge.js) ---- */
+section('Share nudge');
+{
+  const N = K.nudge;
+  const daily = (n, extra) => ({ n, mode: 'daily', isFresh: true, ...extra });
+  // when the full sequence may play
+  check(N.plan(undefined, daily(10)) === true && N.plan({}, daily(10)) === true, 'a first daily finish with no history plays the stamp');
+  check(N.plan({}, daily(10, { isFresh: false })) === false, 're-opening the results: no motion');
+  check(N.plan({}, daily(10, { mode: 'archive' })) === false, 'archive flights: no motion');
+  check(N.plan({}, daily(10, { mode: 'unlimited' })) === false, 'Unlimited runs: no motion');
+  check(N.plan({ seen: 10, miss: 1 }, daily(10)) === false, 'at most once a day (a second finish of the same flight)');
+  check(N.plan({ shared: 10 }, daily(10)) === false, 'shared today: skipped');
+  check(N.plan({ shared: 9 }, daily(10)) === false, 'shared yesterday: skipped');
+  check(N.plan({ shared: 8 }, daily(10)) === true, 'last shared two days ago: it plays again');
+  // back-off for pilots who never share: day 1, then 2 days later, then 4, then weekly
+  let nd, played = [];
+  for (let day = 1; day <= 30; day++) if (N.plan(nd, daily(day))) { played.push(day); nd = N.afterSeen(nd, day); }
+  check(played.join() === '1,3,7,14,21,28', `ignored every time, it backs off 1 · 2 · 4 · 7 days, then weekly (played ${played.join()})`);
+  check(nd.miss === 6 && nd.seen === 28, 'each full nudge counts one unanswered');
+  check(N.GAPS.join() === '1,2,4,7', 'the back-off steps are 1, 2, 4, 7 days');
+  // one share resets the back-off
+  nd = N.afterShare({ seen: 28, miss: 6 }, 29);
+  check(nd.miss === 0 && nd.shared === 29 && nd.seen === 28, 'a share remembers the day and resets the count');
+  check(N.plan(nd, daily(30)) === false && N.plan(nd, daily(31)) === true, 'after a share: skipped the next day, back to daily the day after');
+  check(N.plan(N.afterSeen(nd, 31), daily(32)) === false && N.plan(N.afterSeen(nd, 31), daily(33)) === true, '...and one unanswered nudge waits 2 days again');
+  check(N.plan({ seen: 'x', miss: -3, shared: null }, daily(5)) === true, 'a malformed record never blocks or crashes');
+  for (const bad of ['garbage', 42, null, [1, 2], true]) {
+    const seen = N.afterSeen(bad, 7), sh = N.afterShare(bad, 7);
+    check(seen.seen === 7 && seen.miss === 1 && !Array.isArray(seen) && !('0' in seen) && sh.shared === 7 && sh.miss === 0 && !('0' in sh), `a stored ${JSON.stringify(bad)} is treated as no record`);
+  }
+  // storage: this device only, and old saves are untouched
+  const M = realStorage.migrate;
+  const save = { ...M({ v: 1, launch: '2026-10-7' }), nudge: { seen: 12, miss: 1, shared: 11 } };
+  check(!('nudge' in K.sync.portable(save)), 'the nudge record is never uploaded (LOCAL_ONLY)');
+  check(K.sync.merge(save, { ...K.sync.portable(save), nudge: { seen: 99 } }).nudge.seen === 12, 'a cloud copy never overwrites it');
+  check(!('nudge' in M({ v: 1, launch: '2026-10-7' })), 'an existing save loads without a nudge key (nothing added)');
+  check(M({ v: 1, launch: '2026-10-7', nudge: { seen: 3, miss: 2 } }).nudge.miss === 2, 'and keeps one once it has it');
 }
 
 console.log(failures ? `\n${failures} check(s) failed.` : '\nAll checks passed.');
