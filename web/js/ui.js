@@ -545,13 +545,14 @@ K.ui = (() => {
     const pct = K.stats.percentile(stats, record.pts);
     let kind = 'rank';
     const runNo = record.mode === 'unlimited' ? record.run : null;
+    const past = record.mode === 'archive';
     // No head count: while KÁRMÁN is small, "of today's pilots" reads better than a tiny number.
-    const crowd = runNo ? 'the pilots who flew this one' : 'today’s pilots';
+    const crowd = runNo ? 'the pilots who flew this one' : past ? `the pilots who flew #${record.n}` : 'today’s pilots';
     // One sentence, one size: the figure is bold ink, never a different face.
     let txt = `Higher than <b class="pctl-inline">${pct}%</b> of ${crowd}.`;
     let said = txt.replace(/<[^>]+>/g, '');
-    if (players <= 1) { kind = 'first'; txt = said = runNo ? 'You’re the first pilot to fly this one. Check back later to see how you compare.' : 'You’re the first pilot up today. Check back later to see how you compare.'; }
-    else if (record.pts === 0) { kind = 'grounded'; txt = said = runNo ? 'Grounded on this run. Keep flying.' : 'Grounded today. The meadow resets at midnight.'; }
+    if (players <= 1) { kind = 'first'; txt = said = runNo || past ? 'You’re the first pilot to fly this one. Check back later to see how you compare.' : 'You’re the first pilot up today. Check back later to see how you compare.'; }
+    else if (record.pts === 0) { kind = 'grounded'; txt = said = runNo ? 'Grounded on this run. Keep flying.' : past ? 'Grounded on this one. Today’s flight is still waiting.' : 'Grounded today. The meadow resets at midnight.'; }
     else if (higher === 0) { txt = `Nobody flew higher. You topped ${crowd}.`; said = txt.replace(/<[^>]+>/g, ''); }
     box.dataset.kind = kind;
     box.setAttribute('aria-label', said);
@@ -642,9 +643,7 @@ K.ui = (() => {
     const recap = $('recap');
     recap.innerHTML = record.rounds.map((_, i) => answerRow(record, i)).join('');
     recap.classList.toggle('reveal-seq', Boolean(isFresh));
-    let statsIn = Promise.resolve();
-    if (mode === 'archive') { statsTicket++; $('pctl').hidden = true; lastStats = null; }
-    else statsIn = applyStats(record, mode === 'unlimited' ? `r${record.run}` : n);
+    const statsIn = applyStats(record, mode === 'unlimited' ? `r${record.run}` : n);   // an archive flight compares against the pilots who flew that day
     // The share stamp ("Posted", nudge.js) comes after the reveal: once the landing has
     // settled AND the percentile has finished counting, never over either. If the crowd's
     // numbers are still on their way 2.5 s after the landing, it waits for another day.

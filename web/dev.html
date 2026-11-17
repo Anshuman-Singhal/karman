@@ -696,7 +696,7 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     return `<div class="panel c12">${head}<div class="nums">
       ${num('Shares', shares, [since != null && since <= T - 14 ? change(shares, sharesP, `more than the week before (${fmt(sharesP)})`, `fewer than the week before (${fmt(sharesP)})`, `Same as the week before (${fmt(sharesP)})`) : '', 'One per player per day'])}
       ${players != null ? num('Players who shared', players, ['Each counted once']) : ''}
-      ${seen || tapped ? num('Saw the ‘Dare a friend’ stamp', seen, ['One per player per day']) + num('Tapped it', tapped, ['One per player per day']) : ''}
+      ${seen || tapped ? num('Saw the ‘Help us grow’ stamp', seen, ['One per player per day']) + num('Tapped it', tapped, ['One per player per day']) : ''}
     </div></div>`;
   }
 

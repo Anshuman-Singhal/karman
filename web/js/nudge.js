@@ -2,8 +2,8 @@
    KÁRMÁN · nudge.js
    "Posted": the share nudge on the results screen.
 
-   After the landing reveal has settled, an airmail stamp ("Dare a friend ·
-   Can they fly higher? · 12 KM") is slapped into the empty corner beside the
+   After the landing reveal has settled, an airmail stamp ("Help us grow ·
+   Share with your friends · 12 KM") is slapped into the empty corner beside the
    score, holds long enough to read, then peels off and flies into the Share
    ticket, where it stays as a small stamp beside SHARE FLIGHT. Nothing loops;
    ~2.8 s from slap to rest. Taps anywhere else pass straight through and make
@@ -70,9 +70,11 @@ K.nudge = (() => {
     spring: bez(0.34, 1.56, 0.64, 1),     // the game's --ease-spring
     sheen: bez(0.45, 0, 0.25, 1),
   };
-  /* ms from T0 (the slap). The read hold is 1.2 s: two short lines, read once. */
-  const T = { fall: 150, flat: 240, peel: 1440, fly: 1560, land: 2060, press: 2140, swap: 2280, dip: 2120, spring: 2200, back: 2480, sheen: 2160, rest: 2800 };
-  const RM = { in: 200, out: 2000, gone: 2200 };   // reduced motion: fade in, hold, fade out
+  /* ms from T0 (the slap). The read hold is 5 s (the owner's call): long enough to
+     notice and decide. A tap anywhere else or a scroll still sends it home at once. */
+  const HOLD = 5000, D = HOLD - 1200;
+  const T = { fall: 150, flat: 240, peel: 1440 + D, fly: 1560 + D, land: 2060 + D, press: 2140 + D, swap: 2280 + D, dip: 2120 + D, spring: 2200 + D, back: 2480 + D, sheen: 2160 + D, rest: 2800 + D };
+  const RM = { in: 200, out: 200 + HOLD, gone: 400 + HOLD };   // reduced motion: fade in, hold, fade out
   const R_READ = 3.5, R_REST = -6, S_SLAP = 1.4;
 
   /** The stamp's pose at t: centre (x, y), scale s against its read size, rotation r,
@@ -263,7 +265,7 @@ K.nudge = (() => {
     sky.innerHTML = `<div class="post-fly" aria-hidden="true" style="--u:${u.toFixed(4)}px;width:${g.w}px;height:${g.h}px">
       <i class="pf-sh pf-tight"></i><i class="pf-sh pf-soft"></i>
       <div class="pf-paper"><div class="pf-frame"><div class="pf-field">
-        <div class="pf-face pf-a"><b>Dare a<br>friend</b><span>Can they fly<br>higher?</span><em></em></div>
+        <div class="pf-face pf-a"><b>Help us<br>grow</b><span>Share with<br>your friends</span><em></em></div>
         <div class="pf-face pf-b">${BALLOON}</div>
       </div></div></div></div>`;
     document.body.appendChild(sky);

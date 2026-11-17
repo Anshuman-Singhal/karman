@@ -315,6 +315,7 @@ K.round = (() => {
       on phones the "/ 7" goes (the seven pips already count), then the tag tightens its
       letter-spacing and steps its size down until it fits (an ellipsis only as a last resort). */
   function fitCat() {
+    if (!els) return;                       // a resize before the first leg is built
     const c = els.cat;
     if (!c) return;
     const cat = c.querySelector('.leg-cat'), no = c.querySelector('.leg-no');
@@ -341,7 +342,7 @@ K.round = (() => {
       enough to crowd the right edge gets the icon-only key. Measured, never reflowed. */
   function fitDel() {
     const del = document.getElementById('guess-del');
-    if (!del || !els.hi) return;
+    if (!del || !els || !els.hi) return;
     const shown = del.offsetParent && getComputedStyle(del).display !== 'none' && !els.card.classList.contains('empty');
     if (!shown) { els.hi.style.setProperty('--del-gap', '0px'); del.classList.remove('tight'); return; }
     del.classList.remove('tight');
