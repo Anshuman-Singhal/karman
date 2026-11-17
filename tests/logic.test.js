@@ -317,6 +317,10 @@ section('Share nudge');
   check(N.plan(nd, daily(30)) === false && N.plan(nd, daily(31)) === true, 'after a share: skipped the next day, back to daily the day after');
   check(N.plan(N.afterSeen(nd, 31), daily(32)) === false && N.plan(N.afterSeen(nd, 31), daily(33)) === true, '...and one unanswered nudge waits 2 days again');
   check(N.plan({ seen: 'x', miss: -3, shared: null }, daily(5)) === true, 'a malformed record never blocks or crashes');
+  for (const bad of ['garbage', 42, null, [1, 2], true]) {
+    const seen = N.afterSeen(bad, 7), sh = N.afterShare(bad, 7);
+    check(seen.seen === 7 && seen.miss === 1 && !Array.isArray(seen) && !('0' in seen) && sh.shared === 7 && sh.miss === 0 && !('0' in sh), `a stored ${JSON.stringify(bad)} is treated as no record`);
+  }
   // storage: this device only, and old saves are untouched
   const M = realStorage.migrate;
   const save = { ...M({ v: 1, launch: '2026-10-7' }), nudge: { seen: 12, miss: 1, shared: 11 } };

@@ -143,7 +143,7 @@
     K.audio.tick();
     const str = K.share.text(last.record, last.streak);
     try { K.stats.event('share'); } catch (e) { /* stats never block sharing */ }
-    K.nudge.shared();
+    try { K.nudge.shared(); } catch (e) { /* the nudge never blocks sharing */ }
     // Copy first, inside the tap, so the text is always on the clipboard.
     const result = await K.share.copy(str);
     if (result === 'copied') K.fx.toast('Flight log copied. Paste it in the group chat.');
@@ -169,7 +169,7 @@
     btn.classList.add('torn');
     K.audio.tick();
     try { K.stats.event('share'); } catch (e) { /* stats never block sharing */ }
-    K.nudge.shared();
+    try { K.nudge.shared(); } catch (e) { /* the nudge never blocks sharing */ }
     const blobP = K.shareImage.render(last.record, last.n, last.streak, K.ui.lastStats);
     try {
       if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error('no image clipboard');
@@ -232,7 +232,7 @@
     btn.classList.remove('thunk'); void btn.offsetWidth; btn.classList.add('thunk');
     K.audio.stamp();
     try { K.stats.event('share'); } catch (e) { /* stats never block sharing */ }
-    K.nudge.shared();
+    try { K.nudge.shared(); } catch (e) { /* the nudge never blocks sharing */ }
     const blobP = K.shareImage.passport();
     try {
       if (!window.ClipboardItem || !navigator.clipboard || !navigator.clipboard.write) throw new Error('no image clipboard');

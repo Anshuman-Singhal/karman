@@ -28,8 +28,9 @@ K.nudge = (() => {
   const GAPS = [1, 2, 4, 7];            // days between full nudges, by how many went unanswered
 
   /** Should this results screen play the full sequence? nd = the stored state (may be missing). */
+  const obj = (nd) => (nd && typeof nd === 'object' && !Array.isArray(nd) ? nd : {});   // a stored value that isn't a record counts as none
   function plan(nd, { n, mode, isFresh }) {
-    nd = nd || {};
+    nd = obj(nd);
     if (mode !== 'daily' || !isFresh || !Number.isFinite(n)) return false;    // first finish of a daily flight only
     if (nd.seen === n) return false;                                           // once a day
     if (Number.isFinite(nd.shared) && nd.shared >= n - 1) return false;        // shared today or yesterday
@@ -38,9 +39,9 @@ K.nudge = (() => {
     return true;
   }
   /** The state after a full (or still) nudge has started on flight n. */
-  const afterSeen = (nd, n) => ({ ...(nd || {}), seen: n, miss: Math.max(0, Math.floor((nd || {}).miss) || 0) + 1 });
+  const afterSeen = (nd, n) => ({ ...obj(nd), seen: n, miss: Math.max(0, Math.floor(obj(nd).miss) || 0) + 1 });
   /** The state after any share, on day `day` (today's flight number). */
-  const afterShare = (nd, day) => ({ ...(nd || {}), shared: day, miss: 0 });
+  const afterShare = (nd, day) => ({ ...obj(nd), shared: day, miss: 0 });
 
   /* ------------------------------------------------------------ easing and the timeline */
   function bez(x1, y1, x2, y2) {
@@ -65,7 +66,7 @@ K.nudge = (() => {
     inq: (u) => u * u,
     io: bez(0.45, 0, 0.55, 1),
     path: bez(0.4, 0, 0.2, 1),            // flight progress: lift away, glide, settle in
-    shrink: bez(0.15, 0.7, 0.3, 1),       // small early, so it is small while crossing anything
+    shrink: bez(0.05, 0.95, 0.2, 1),      // small early, so it is small while crossing anything
     spring: bez(0.34, 1.56, 0.64, 1),     // the game's --ease-spring
     sheen: bez(0.45, 0, 0.25, 1),
   };
@@ -122,12 +123,15 @@ K.nudge = (() => {
     const v = rot((s * g.w) / 2, (-s * g.h) / 2, r);
     return { x: g.C.x + v.x, y: g.C.y + v.y };
   }
-  /** The flight: leave the corner heading straight down the empty right column,
-      sweep across small, drop onto the ticket from above. */
+  /** The flight: shrinking fast, it glides left across the empty band between the tier
+      and the percentile line, then drops onto the ticket from straight above. It never
+      crosses the percentile figure, your YOU marker or Copy image; small, it only brushes
+      the first word of the percentile lines on its way down (its spot on the ticket sits
+      right under them). */
   function cubic(g, u) {
     const { P0, P3 } = g, dx = P3.x - P0.x, dy = P3.y - P0.y;
-    const P1 = { x: P0.x - 0.015 * Math.abs(dx), y: P0.y + 0.62 * dy };
-    const P2 = { x: P3.x + 0.36 * Math.abs(dx), y: P3.y - 0.61 * dy };
+    const P1 = { x: P0.x - 0.9 * Math.abs(dx), y: P0.y + 0.3 * dy };
+    const P2 = { x: P3.x, y: P3.y - 0.8 * dy };
     const v = 1 - u;
     return { x: v * v * v * P0.x + 3 * v * v * u * P1.x + 3 * v * u * u * P2.x + u * u * u * P3.x,
       y: v * v * v * P0.y + 3 * v * v * u * P1.y + 3 * v * u * u * P2.y + u * u * u * P3.y };
@@ -195,7 +199,7 @@ K.nudge = (() => {
   const BALLOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2c-4.1 0-6.6 3-6.6 6.6 0 2.8 2.2 5 4 6.4h5.2c1.8-1.4 4-3.6 4-6.4 0-3.6-2.5-6.6-6.6-6.6z"/><path d="M12 3.2c-1.6 1.7-2.3 4.1-2.3 6.6 0 2.6.5 4.9 1 6.4M12 3.2c1.6 1.7 2.3 4.1 2.3 6.6 0 2.6-.5 4.9-1 6.4"/><rect x="10" y="18.3" width="4" height="2.7" rx=".6"/></svg>';
   const FPS = 1000 / 60;
   let ctx = null;          // this results screen: { n, mode, face, wait }
-  let run = null;          // the stamp in the air: { sky, fly, parts, anims, g, calm, ff, held }
+  let run = null;          // the stamp in the air: { sky, fly, parts, anims, g, calm, ff, tap }
   let tail = [];           // the ticket's dip and its one light, which outlive the swap by ~0.5 s
 
   const reduced = () => (K.fx && K.fx.reduced ? K.fx.reduced() : false);
@@ -203,14 +207,14 @@ K.nudge = (() => {
   const store = () => K.storage.data;
   const save = (nd) => { store().nudge = nd; K.storage.save(true); };   // local only: nothing for the cloud to sync
   const tf = (g, p) => `translate(${(p.x - g.w / 2).toFixed(2)}px, ${(p.y - g.h / 2).toFixed(2)}px) rotate(${p.r.toFixed(3)}deg) scale(${p.s.toFixed(4)})`;
-  const now = () => (run ? Number(run.anims[0].currentTime) || 0 : 0);
+  const now = () => (run && run.anims[0] ? Number(run.anims[0].currentTime) || 0 : 0);
 
   /** A results screen is up. ready resolves to the moment the landing reveal and the
       percentile count have settled (or null if they didn't in time). */
   function results({ n, mode, isFresh, face, ready }) {
     reset();
     const b = btn();
-    const nd = store().nudge || {};
+    const nd = obj(store().nudge);
     b.classList.remove('inking');
     b.classList.toggle('posted', mode === 'daily' && nd.shared === n);   // shared today's flight already
     ctx = { n, mode, face };
@@ -232,7 +236,8 @@ K.nudge = (() => {
       const scr = document.getElementById('screen-results');
       const main = scr.querySelector('.res-main');
       const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight && r.right <= innerWidth; };
-      if (!plan(store().nudge, { n: ctx.n, mode: ctx.mode, isFresh: true })
+      if (typeof Element.prototype.animate !== 'function'          // no Web Animations: the ticket just wears its stamp
+        || !plan(store().nudge, { n: ctx.n, mode: ctx.mode, isFresh: true })
         || K.ui.current !== 'results' || document.hidden || document.querySelector('.sheet-wrap.open')
         || (K.coach && K.coach.active) || document.body.classList.contains('climb-open')
         || scr.scrollTop > 0 || (main && main.scrollTop > 0) || !vis(b)) return rest();
@@ -243,9 +248,9 @@ K.nudge = (() => {
       const g = { ...spot, P3: { x: sb.left + sb.width / 2, y: sb.top + sb.height / 2 }, sRest: stamp.offsetWidth / spot.w };
       const v = rot(g.w / 2, -g.h / 2, R_READ);
       g.C = { x: g.P0.x - v.x, y: g.P0.y - v.y };    // the read pose's lower-left corner: the slap's pivot
-      save(afterSeen(store().nudge, ctx.n));
-      try { K.stats.event('nudge_seen'); } catch (e) { /* stats never block the game */ }
       play(g, reduced());
+      save(afterSeen(store().nudge, ctx.n));          // the day counts only once the stamp is actually on screen
+      try { K.stats.event('nudge_seen'); } catch (e) { /* stats never block the game */ }
     } catch (e) {
       stop();                                         // whatever went wrong, the screen ends at rest
     }
@@ -288,9 +293,10 @@ K.nudge = (() => {
       if (t >= end) break;
     }
     const o = { duration: end, fill: 'forwards' };
-    const anims = [fly.animate(k.fly, o), ...['a', 'b', 'soft', 'tight'].map((x) => parts[x].animate(k[x], o))];
-    run = { sky, fly, parts, anims, g, calm, ff: false, held: false };
+    const anims = [];
+    run = { sky, fly, parts, anims, g, calm, ff: false, tap: null };   // set first, so stop() can always take the overlay away
     const mine = run;
+    anims.push(fly.animate(k.fly, o), ...['a', 'b', 'soft', 'tight'].map((x) => parts[x].animate(k[x], o)));
     anims[0].onfinish = () => { if (run === mine && !mine.ff) land(); };
     if (calm) rest();                                 // the still version: the ticket already wears its stamp
     else {
@@ -309,23 +315,8 @@ K.nudge = (() => {
           { duration: T.rest - T.sheen, delay: T.sheen, easing: 'cubic-bezier(.45, 0, .25, 1)', fill: 'both' })];
       tail[1].onfinish = () => sheen.remove();
       tail.sheen = sheen;
-      setTimeout(() => { if (run === mine && !mine.ff && !mine.held && K.audio && K.audio.tick) K.audio.tick(); }, T.fall);
+      setTimeout(() => { if (run === mine && !mine.ff && !mine.tap && K.audio && K.audio.tick) K.audio.tick(); }, T.fall);
     }
-    // Only a stamp you can see takes a tap.
-    fly.style.pointerEvents = 'none';
-    setTimeout(() => { if (run === mine) fly.style.pointerEvents = ''; }, calm ? 100 : 70);
-    fly.addEventListener('pointerdown', () => {      // hold still under the finger until the tap lands
-      if (run !== mine || mine.ff) return;
-      mine.held = true;
-      [...mine.anims, ...tail].forEach((x) => x.pause());
-    });
-    fly.addEventListener('click', () => {
-      if (run !== mine) return;
-      mine.held = false;
-      try { K.stats.event('nudge_tap'); } catch (e) { /* stats never block sharing */ }
-      b.click();                                      // the very same share, inside the tap, so the clipboard and the share sheet keep the gesture
-      finish(220);
-    });
     listen(true);
   }
 
@@ -351,6 +342,7 @@ K.nudge = (() => {
   /** The flying stamp is now exactly where the ticket's own sits: swap, and the overlay goes. */
   function land() {
     if (!run) return;
+    settle();
     listen(false);
     run.sky.remove();
     run = null;
@@ -365,22 +357,53 @@ K.nudge = (() => {
   function stop() {
     if (ctx && ctx.wait) clearTimeout(ctx.wait);
     clearTail();
-    if (run) { listen(false); run.sky.remove(); run = null; }
+    listen(false);
+    if (run) { run.anims.forEach((x) => x.cancel()); run = null; }
+    document.querySelectorAll('.post-sky').forEach((x) => x.remove());
     rest();
   }
   function reset() { stop(); ctx = null; }
 
-  /* Interrupts: nothing is blocked or swallowed; the stamp just hurries home. */
-  const onDown = (e) => { if (!(e.target && e.target.closest && e.target.closest('.post-fly'))) finish(180); };
-  const onUp = () => { if (run && run.held) setTimeout(() => { if (run && run.held) { run.held = false; finish(180); } }, 80); };
+  /* Interrupts: nothing is blocked or swallowed; the stamp just hurries home.
+     The overlay never takes pointer events (a swipe or a wheel that starts on the
+     stamp still scrolls the pass). A tap on the stamp is recognised here instead:
+     a press inside its box that doesn't travel, then the click it produces. */
+  const inside = (x, y) => { const r = run.fly.getBoundingClientRect(); return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom; };
+  const settle = (fn) => { if (run && run.tap) { clearTimeout(run.tap.timer); run.tap = null; } if (fn) fn(); };
+  const onDown = (e) => {
+    if (!run || run.ff) return;
+    const live = now() >= (run.calm ? 100 : 70);       // only a stamp you can see takes a tap
+    if (e.isPrimary !== false && live && inside(e.clientX, e.clientY)) {
+      settle();
+      run.tap = { x: e.clientX, y: e.clientY, timer: 0 };
+      [...run.anims, ...tail].forEach((x) => x.pause());   // hold still under the finger until the tap lands
+    } else finish(180);
+  };
+  const onMove = (e) => { if (run && run.tap && Math.hypot(e.clientX - run.tap.x, e.clientY - run.tap.y) > 10) settle(() => finish(180)); };
+  const onUp = () => { if (run && run.tap) run.tap.timer = setTimeout(() => settle(() => finish(180)), 400); };   // no click followed
+  const onCancel = () => { if (run && run.tap) settle(() => finish(180)); };
+  const onClick = (e) => {
+    if (!run || !run.tap) return;
+    const hit = inside(e.clientX, e.clientY);
+    settle();
+    if (!hit) return finish(180);
+    // The stamp's tap shares, and only that: whatever lies under the stamp doesn't also get the click.
+    e.preventDefault();
+    e.stopPropagation();
+    try { K.stats.event('nudge_tap'); } catch (err) { /* stats never block sharing */ }
+    btn().click();                                    // the very same share, inside the tap (clipboard and share sheet keep the gesture)
+    finish(220);
+  };
   const onKey = (e) => { if (!e.repeat && !['Shift', 'Control', 'Alt', 'Meta'].includes(e.key)) finish(180); };
   const onScroll = () => finish(180);
   const onHide = () => { if (document.hidden) stop(); };
   function listen(on) {
     const f = on ? 'addEventListener' : 'removeEventListener';
     document[f]('pointerdown', onDown, true);
+    document[f]('pointermove', onMove, true);
     document[f]('pointerup', onUp, true);
-    document[f]('pointercancel', onUp, true);
+    document[f]('pointercancel', onCancel, true);
+    document[f]('click', onClick, true);
     document[f]('keydown', onKey, true);
     document[f]('scroll', onScroll, true);
     document[f]('visibilitychange', onHide);
