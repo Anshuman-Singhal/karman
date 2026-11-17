@@ -408,7 +408,14 @@ K.nudge = (() => {
     document[f]('scroll', onScroll, true);
     document[f]('visibilitychange', onHide);
     window[f]('resize', stop);
+    // iOS Safari only sends a click for a tap on something it counts as clickable, and a
+    // listener on document doesn't count. While the stamp is up, the screens under it get
+    // a no-op click listener (and, on touch screens, cursor: pointer) so a tap on the
+    // stamp still produces the click that shares.
+    ['screen-results', 'dock'].forEach((id) => { const el = document.getElementById(id); if (el) el[f]('click', noop); });
+    document.body.classList.toggle('posting', on);
   }
+  function noop() {}
 
   /** Any share, anywhere (Share, Copy image, the stamp, the passport): remember the day,
       postmark the ticket's stamp, and if the stamp is still in the air, bring it home. */

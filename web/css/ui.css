@@ -4668,6 +4668,7 @@ body[data-screen="home"] #balloon-rig { pointer-events: auto; cursor: pointer; }
    The airmail stamp at its read size, built in 80 × 100 design units (--u is
    one unit in px, set from the space the corner has). It lives in a fixed
    overlay above the pass and below the sheets, which clips it to the screen. */
+@media (hover: none) { body.posting #screen-results, body.posting #dock { cursor: pointer; } }   /* iOS: makes a tap on the stamp produce a click (nudge.js) */
 .post-sky { position: fixed; inset: 0; z-index: 6; overflow: hidden; pointer-events: none; }
 /* never a hit target: swipes and wheels that start on it scroll the pass; nudge.js recognises a tap on it */
 .post-fly { position: absolute; left: 0; top: 0; pointer-events: none; will-change: transform, opacity; opacity: 0; color: #14213D; }
