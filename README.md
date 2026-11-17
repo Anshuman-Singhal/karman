@@ -2,7 +2,7 @@
 
 A daily estimation game. Every day, everyone gets the same seven questions with numeric answers. You place a guess and choose how sure you are: a narrow range lifts you higher if the true answer lands inside it. Your craft evolves as you climb, from a hot-air balloon to a sealed gondola, a stratospheric helium balloon, a rocket and finally a capsule in space at 100 km.
 
-**Live at [karman.day](https://karman.day).** I designed, built and run it myself. It launched in October 2026 and reached 250+ daily players within a month through organic sharing alone (no ad spend). The daily flight is free; a one-time Unlimited unlock (random runs plus the archive of past days) is how it makes money, and it has paying customers.
+**Live at [karman.day](https://karman.day).** I designed, built and run it myself. It launched in October 2026 and has grown to 300+ daily players through organic sharing alone (no ad spend). The daily flight is free; a one-time Unlimited unlock (random runs plus the archive of past days) is how it makes money, and it has paying customers.
 
 Plain HTML, CSS and JavaScript on the front end; one Cloudflare Worker and a D1 (SQLite) database behind it. No build step, no framework.
 
