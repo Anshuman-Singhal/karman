@@ -19,9 +19,6 @@ Plain HTML, CSS and JavaScript on the front end; one Cloudflare Worker and a D1 
 **Anonymous by default.** Comparison stats ("higher than X% of pilots") need data, but not identity. Each browser gets a random id, and the database stores one row per device per flight: points and which questions hit. No names and no answers. Google sign-in appears only at payment.
 
 **Built to run on free tiers.** The admin dashboard reads small pre-aggregated tables the Worker maintains itself instead of scanning raw rows, which keeps reads well under D1's daily cap. Anonymous write endpoints are rate-limited per IP, with a looser limit for score submissions so a classroom behind one school IP doesn't lose results, and the limiter fails open so a limiter outage never blocks play.
-
-**Known gap, next on the list:** the whole schedule currently ships to the browser, so a determined player could read tomorrow's answers in the page source. The fix is to serve each day's questions from the Worker only once that day starts.
-
 ## Run it
 
 Open `web/index.html` in a browser. That's it.
