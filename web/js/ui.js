@@ -545,7 +545,8 @@ K.ui = (() => {
     const pct = K.stats.percentile(stats, record.pts);
     let kind = 'rank';
     const runNo = record.mode === 'unlimited' ? record.run : null;
-    const past = record.mode === 'archive';
+    // A past flight, however it was flown (an archive replay, or that day's daily reopened from the archive)
+    const past = record.mode === 'archive' || (!runNo && record.n !== K.game.today);
     // No head count: while KÁRMÁN is small, "of today's pilots" reads better than a tiny number.
     const crowd = runNo ? 'the pilots who flew this one' : past ? `the pilots who flew #${record.n}` : 'today’s pilots';
     // One sentence, one size: the figure is bold ink, never a different face.

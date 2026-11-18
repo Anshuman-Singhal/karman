@@ -3539,9 +3539,13 @@ body[data-screen="round"]:has(#screen-round.show-ruler) #dock { -webkit-mask: no
 .res-lockup .pctl[hidden] { display: none; }
 #screen-results #pctl-txt { margin: 0; font: 400 14.5px/1.4 var(--f-ui); color: var(--ink-2); text-wrap: pretty; max-width: 22ch; }
 #screen-results #pctl-txt b, #screen-results #pctl-txt .pctl-inline { font: 600 inherit; font-size: inherit; line-height: inherit; letter-spacing: 0; color: var(--ink); font-variant-numeric: tabular-nums; }
-#screen-results #pctl-txt .pctl-inline { display: inline-grid; justify-items: end; white-space: nowrap; }   /* final-width box while it counts (ui.js) */
-#screen-results #pctl-txt .pctl-inline > * { grid-area: 1 / 1; font: inherit; }
+/* The figure's box is the invisible final value (ui.js); the counting digits float on top of it,
+   right-aligned and out of the flow, so a wider intermediate number (44% while counting to 81%:
+   the digits aren't all the same width) can never push the sentence onto a second line. */
+#screen-results #pctl-txt .pctl-inline { display: inline-block; position: relative; white-space: nowrap; }
+#screen-results #pctl-txt .pctl-inline > * { font: inherit; }
 #screen-results #pctl-txt .pctl-inline > i { visibility: hidden; }
+#screen-results #pctl-txt .pctl-inline > span { position: absolute; right: 0; top: 0; }
 #screen-results #pctl-txt .sample { display: inline-block; margin: 2px 0 0; padding: 1px 5px; border: 1px solid rgba(20, 33, 61, 0.3); border-radius: 3px; font: 600 9.5px/1.3 var(--f-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); vertical-align: 2px; }
 .pctl-fig, .pctl-read { display: none; }
 /* without stats the lockup has the whole width: the sentence slot simply isn't there */
