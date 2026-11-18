@@ -117,6 +117,7 @@ K.round = (() => {
     els.card.classList.remove('is-locked', 'is-revealed', 't-mid', 't-low', 'clued', 'show-ruler', 'paused', 'punched');
     clearPrice();
     els.card.classList.toggle('final', isFinal);
+    els.card.classList.toggle('tutorial', !K.storage.data.tutored);   // only the guided first leg spells out "type a number"
     els.band.className = 'band';
     if (els.gap) els.gap.hidden = true;
     els.needle.hidden = true;

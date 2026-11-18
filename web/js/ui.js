@@ -549,7 +549,10 @@ K.ui = (() => {
     // No head count: while KÁRMÁN is small, "of today's pilots" reads better than a tiny number.
     const crowd = runNo ? 'the pilots who flew this one' : past ? `the pilots who flew #${record.n}` : 'today’s pilots';
     // One sentence, one size: the figure is bold ink, never a different face.
-    let txt = `Higher than <b class="pctl-inline">${pct}%</b> of ${crowd}.`;
+    // The figure sits on an invisible copy of its final value, so its box is final-width from the
+    // first frame and the count-up can never re-wrap the sentence (no measuring: the screen may
+    // not be laid out yet when this runs).
+    let txt = `Higher than <b class="pctl-inline"><i aria-hidden="true">${pct}%</i><span>${pct}%</span></b> of ${crowd}.`;
     let said = txt.replace(/<[^>]+>/g, '');
     if (players <= 1) { kind = 'first'; txt = said = runNo || past ? 'You’re the first pilot to fly this one. Check back later to see how you compare.' : 'You’re the first pilot up today. Check back later to see how you compare.'; }
     else if (record.pts === 0) { kind = 'grounded'; txt = said = runNo ? 'Grounded on this run. Keep flying.' : past ? 'Grounded on this one. Today’s flight is still waiting.' : 'Grounded today. The meadow resets at midnight.'; }
@@ -559,11 +562,7 @@ K.ui = (() => {
     $('pctl-txt').innerHTML = txt + (stats.sample ? ' <span class="sample">Sample</span>' : '');
     chart.innerHTML = histogram(record, stats, kind === 'first');
     box.hidden = false;                         // laid out now, so nothing shifts when it appears
-    const el = $('pctl-txt').querySelector('.pctl-inline');
-    // The count-up must never reflow the sentence: the figure's box is sized to its
-    // final value before it starts counting (0% → 14% would otherwise re-wrap and
-    // re-balance the line on every frame).
-    if (el) { el.textContent = `${pct}%`; el.style.width = ''; const w = el.getBoundingClientRect().width; if (w > 0) el.style.width = `${Math.ceil(w)}px`; }
+    const el = $('pctl-txt').querySelector('.pctl-inline > span');
     // Landing reveal: the chart draws and the figure counts on the "compare" beat
     // (or lands drawn at once if the reveal is skipped).
     const play = (instant) => {
