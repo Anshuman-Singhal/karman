@@ -24,6 +24,7 @@
      POST /api/admin/passes { note }                         → { code }     make one
      POST /api/admin/passes/:code { active }                 → { ok }       revoke / restore
      DELETE /api/admin/passes/:code                          → { ok }       delete for good
+     GET  /api/admin/buyers                                  → { buyers }   every purchase with the buyer's FULL email (never cached)
      GET  /api/admin/thanks                                  → { on, sent, waiting, late, recent }   buyer thank-you emails
      POST /api/admin/thanks                                  → { sent, failed }        thank earlier buyers now
      POST /api/admin/thanks { test: email }                  → { test }                a test copy, nothing marked
@@ -596,19 +597,38 @@ async function adminThanks(request, env) {
   // paying accounts still unthanked a day after paying (an automatic send failed).
   const recent = ((await env.DB.prepare(`SELECT t.email, t.sent, u.paid_at FROM thanks t LEFT JOIN users u ON u.sub = t.sub
     WHERE t.sub NOT IN (SELECT sub FROM ignore_subs) ORDER BY t.sent DESC LIMIT 10`).all()).results || []).map((r) => ({
-    email: maskEmail(r.email), sent: r.sent,
+    email: maskEmail(r.email), full: r.email || null, sent: r.sent,
     kind: r.paid_at && Date.parse(`${r.sent.replace(' ', 'T')}Z`) - Date.parse(`${r.paid_at.replace(' ', 'T')}Z`) > 864e5 ? 'earlier' : 'new',
   }));
   const late = await env.DB.prepare(`SELECT COUNT(*) AS c FROM users u LEFT JOIN thanks t ON t.sub = u.sub
     WHERE u.unlimited = 1 AND t.sub IS NULL AND u.paid_at IS NOT NULL AND u.paid_at < datetime('now', '-1 day')
       AND u.email IS NOT NULL AND u.email != '' AND u.sub NOT IN (SELECT sub FROM ignore_subs)`).first();
-  return json({ on: Boolean(env.RESEND_API_KEY), sent: sent.c || 0, waiting: waiting.c || 0, late: (late && late.c) || 0, recent }, { headers: { 'cache-control': 'no-store' } });
+  // recent[].full is the whole address (owner only, never cached): /dev shows it masked until tapped
+  return json({ on: Boolean(env.RESEND_API_KEY), sent: sent.c || 0, waiting: waiting.c || 0, late: (late && late.c) || 0, recent }, { headers: PRIVATE });
+}
+
+/* GET /api/admin/buyers: every purchase (latest first) with the buyer's full email, so the
+   owner can tap a masked address on /dev to read it. This is the only place a full buyer
+   email leaves the Worker: owner token only, answered no-store/private, never put in
+   caches.default and never part of the cached /api/admin/stats copy (which stays masked).
+   Reads one row per payment plus a key lookup each in users and checkout_src. */
+const PRIVATE = { 'cache-control': 'no-store, private', vary: 'authorization' };
+async function adminBuyers(request, env) {
+  if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401, headers: PRIVATE });
+  const rows = (await env.DB.prepare(`SELECT u.email, p.at, p.amount, p.currency, p.refunded, cs.src
+    FROM payments p LEFT JOIN users u ON u.sub = p.sub LEFT JOIN checkout_src cs ON cs.id = p.session
+    WHERE p.sub NOT IN (SELECT sub FROM ignore_subs) ORDER BY p.at DESC LIMIT 500`).all()).results || [];
+  return json({ buyers: rows.map((r) => ({ email: r.email || null, masked: maskEmail(r.email) || 'unknown', at: r.at, amount: r.amount, currency: r.currency, refunded: r.refunded || 0, src: r.src || null })) }, { headers: PRIVATE });
 }
 
 /* GET /api/admin/stats: everything the flight deck shows, built by
    api/src/dash.js. One copy is kept at the edge for 10 minutes (leaving /dev
    open or reloading it costs nothing); ?fresh=1 (Refresh) builds a new one,
-   but never more than once a minute, so a stuck button can't eat the quota. */
+   but never more than once a minute, so a stuck button can't eat the quota.
+   The kept copy is this data centre's Cache API entry under an internal key; it is
+   only ever read back here, after the owner check (a request to the key's path is
+   answered by the router's 404). It holds masked buyer emails only: full addresses
+   come from /api/admin/buyers, which is never cached. */
 const DASH_CACHE = '/api/admin/stats-cache-v2';
 async function getAdmin(request, env, ctx) {
   if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
@@ -740,6 +760,7 @@ export default {
     if (url.pathname === '/api/admin/login' && request.method === 'POST') return postAdminLogin(request, env);
     if (url.pathname === '/api/admin/stats' && request.method === 'GET') return getAdmin(request, env, ctx);
     if (url.pathname === '/api/admin/thanks') return adminThanks(request, env);
+    if (url.pathname === '/api/admin/buyers' && request.method === 'GET') return adminBuyers(request, env);
     if (url.pathname === '/api/admin/ignore') return adminIgnore(request, env);
     if (url.pathname === '/api/admin/rebuild' && request.method === 'POST') return adminRebuild(request, env);
     const ap = url.pathname.match(/^\/api\/admin\/passes(?:\/([\w-]{3,40}))?$/);

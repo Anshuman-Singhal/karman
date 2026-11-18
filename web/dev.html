@@ -35,6 +35,13 @@
   --warn: #946000;
   --crit: #C4402A;
   --info: #2F5FB3;
+  /* composition bars: five named parts and the rest */
+  --k1: #2F5FB3;
+  --k2: #1F8A6E;
+  --k3: #E09A2C;
+  --k4: #B5543B;
+  --k5: #7A5CA8;
+  --k0: rgba(20, 33, 61, 0.24);
   --f-ui: "Instrument Sans", system-ui, -apple-system, sans-serif;
   --f-brand: "Big Shoulders Display", "Arial Narrow", sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
@@ -197,6 +204,45 @@ th:last-child, td:last-child { padding-right: 0; }
 .sent { font-size: 15px; margin-bottom: 6px; }
 .sent b { font-size: 24px; font-weight: 600; }
 
+/* ---------- detail on demand: composition bars, "See all", day by day ---------- */
+.total { font-size: 14.5px; color: var(--ink-2); margin: -2px 0 10px; }
+.total b { font-size: 20px; font-weight: 600; color: var(--ink); margin-right: 3px; }
+.comp { display: flex; gap: 2px; width: 100%; height: 16px; padding: 0; margin: 0 0 12px; border: 0; border-radius: 5px; overflow: hidden; background: none; cursor: pointer; }
+.comp span { display: block; height: 100%; min-width: 3px; }
+.comp:hover span { filter: saturate(1.08) brightness(0.97); }
+.keys { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 7px 18px; font-size: 14px; }
+.keys li { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.keys i { font-style: normal; flex: none; width: 10px; height: 10px; border-radius: 3px; transform: translateY(1px); }
+.keys .k { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.keys .kv { margin-left: auto; white-space: nowrap; color: var(--ink-3); font-size: 13.5px; }
+.keys .kv b { color: var(--ink); font-weight: 600; }
+.more { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 44px; margin: 14px 0 -8px; padding: 0; border: 0; border-top: 1px solid var(--line); background: none; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; text-align: left; }
+.more:hover { color: var(--amber-ink); }
+.more svg { flex: none; width: 16px; height: 16px; color: var(--ink-3); transition: transform .15s; }
+.more[aria-expanded="true"] svg { transform: rotate(180deg); }
+.fold { margin-top: 14px; }
+.share-c { display: flex; align-items: center; gap: 10px; justify-content: flex-end; }
+.sbar { flex: 1; max-width: 120px; height: 6px; border-radius: 3px; background: var(--sunk); overflow: hidden; }
+.sbar span { display: block; height: 100%; background: var(--blue); border-radius: 3px; }
+.share-c .p { min-width: 38px; text-align: right; }
+.scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -2px; padding: 0 2px; }
+.scroll-x table { min-width: 100%; }
+.dbd { min-width: 1040px; font-size: 14px; }
+.dbd th, .dbd td { padding-right: 14px; white-space: nowrap; }
+.dbd td { padding-top: 7px; padding-bottom: 7px; }
+.dbd thead tr.grp th { border-bottom: 0; padding-bottom: 2px; font-size: 12.5px; color: var(--ink-2); font-weight: 600; }
+.dbd thead tr.grp th.g { border-bottom: 2px solid var(--line-2); text-align: center; }
+.dbd th:first-child, .dbd td:first-child { position: sticky; left: 0; background: var(--panel); z-index: 1; box-shadow: 1px 0 0 var(--line); }
+.dbd td.lead { font-weight: 600; }
+.dbd td .dim { font-weight: 400; }
+.dbd tr.now td { background: #FFF6E3; }
+.dbd tr.now td:first-child { background: #FFF6E3; }
+td.gap, th.gap { border-left: 1px solid var(--line); padding-left: 14px; }
+.legend-note { font-size: 13px; color: var(--ink-3); margin: 10px 0 0; }
+.reveal { font: inherit; font-size: 14px; color: var(--ink); background: none; border: 0; padding: 2px 0; margin: -2px 0; cursor: pointer; text-align: left; overflow-wrap: anywhere; border-bottom: 1px dashed var(--ink-4); }
+.reveal:hover { border-bottom-color: var(--ink-2); }
+.reveal.on { font-weight: 600; border-bottom-style: solid; border-bottom-color: var(--amber-strong); }
+
 /* ---------- forms + passes ---------- */
 .field { display: flex; gap: 8px; }
 .field input { flex: 1; min-width: 0; height: 38px; border-radius: 999px; border: 1px solid var(--line-2); background: var(--sunk); padding: 0 16px; font-size: 14.5px; }
@@ -287,6 +333,10 @@ tr.off td, tr.minor td { color: var(--ink-3); }
   .ticket { grid-template-columns: 1fr; }
   .ticket .stubp { border-left: 0; border-top: 2px dashed rgba(201, 120, 0, 0.45); flex-direction: row; flex-wrap: wrap; justify-content: flex-start; }
   .hide-sm { display: none; }
+  .keys { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 7px 14px; font-size: 13.5px; }
+  .keys .kv { font-size: 13px; }
+  .full th, .full td { font-size: 13.5px; padding-right: 8px; }
+  .sbar { max-width: 56px; }
 }
 @media (min-width: 721px) { .only-sm { display: none; } }
 </style>
@@ -372,7 +422,8 @@ tr.off td, tr.minor td { color: var(--ink-3); }
   /* ==================================================================
      KÁRMÁN dev portal (karman.day/dev). One request, GET /api/admin/stats
      (kept 10 minutes at the edge; Refresh builds a fresh copy), renders the
-     whole page. Passes, thank-you emails and "leave out my plays" load in
+     whole page. Passes, thank-you emails, buyers (full emails, never cached or
+     stored here: shown masked until tapped) and "leave out my plays" load in
      parallel. Every time window is measured from D.builtAt, so the numbers
      don't drift while the page is open. Hand-rolled SVG bar charts.
      ================================================================== */
@@ -436,6 +487,48 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     ? `<div class="tile idx"><div class="lab">${lab}</div><div class="val">Counting…</div><div class="ctx">${idxNote || 'Shows when counting finishes.'}</div></div>`
     : `<${href ? `a href="${href}"` : 'div'} class="tile"><div class="lab">${lab}</div><div class="val">${val}</div><div class="ctxs">${ctx.filter(Boolean).map((c) => `<div class="ctx">${c}</div>`).join('')}</div></${href ? 'a' : 'div'}>`);
 
+  /* ---------------------------------------------------------- detail on demand: folds stay as you left them across refreshes */
+  const OPEN = new Set();
+  const CHEV = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>';
+  const foldBtn = (id, closed, opened) => `<button class="more" type="button" data-fold="${id}" data-l0="${esc(closed)}" data-l1="${esc(opened)}" aria-expanded="${OPEN.has(id)}" aria-controls="fold-${id}"><span>${esc(OPEN.has(id) ? opened : closed)}</span>${CHEV}</button>`;
+  const fold = (id, html) => `<div class="fold" id="fold-${id}"${OPEN.has(id) ? '' : ' hidden'}>${html}</div>`;
+  function toggleFold(id) {
+    const open = !OPEN.has(id);
+    if (open) OPEN.add(id); else OPEN.delete(id);
+    const box = $(`fold-${id}`); if (box) box.hidden = !open;
+    document.querySelectorAll(`[data-fold="${id}"]`).forEach((b) => { b.setAttribute('aria-expanded', String(open)); if (b.dataset.l0) b.querySelector('span').textContent = open ? b.dataset.l1 : b.dataset.l0; });
+  }
+  document.addEventListener('click', (e) => { const b = e.target.closest('[data-fold]'); if (b) toggleFold(b.dataset.fold); });
+  /* a share always next to its count; under 1% says so rather than 0% */
+  const share = (n, t) => (!t ? '—' : n && Math.round((n / t) * 100) === 0 ? '<1%' : `${pct(n, t)}%`);
+  const sbar = (n, t) => `<div class="share-c"><div class="sbar"><span style="width:${t ? Math.max(n ? 2 : 0, (n / t) * 100).toFixed(1) : 0}%"></span></div><span class="p">${share(n, t)}</span></div>`;
+  /* one line, the whole total: the five biggest parts and the rest. A click opens the full list (id) */
+  const KC = ['var(--k1)', 'var(--k2)', 'var(--k3)', 'var(--k4)', 'var(--k5)'];
+  function comp(items, total, { id, what, unit }) {
+    const top = items.slice(0, 5), rest = items.slice(5);
+    const segs = top.map(([l, n], i) => [l, n, KC[i]]);
+    if (rest.length) segs.push([rest.length === 1 ? rest[0][0] : `Other (${rest.length})`, sum(rest.map((r) => r[1])), 'var(--k0)']);
+    return `<button class="comp" type="button" data-fold="${id}" data-unit="${esc(unit)}" aria-expanded="${OPEN.has(id)}" aria-controls="fold-${id}" aria-label="${esc(what)}: show the full list">${segs.map(([l, n, c]) => `<span style="flex:${n} 1 0px;background:${c}" data-tip="${esc(`${l}|${n}|${total}`)}"></span>`).join('')}</button>
+      <ul class="keys">${segs.map(([l, n, c]) => `<li><i style="background:${c}"></i><span class="k">${esc(l)}</span><span class="kv"><b>${fmt(n)}</b> · ${share(n, total)}</span></li>`).join('')}</ul>`;
+  }
+  /* full emails (buyers, thank-you log) live in memory only: shown masked, a tap shows the whole address, another hides it */
+  const REV = new Map(), SHOWN = new Set();
+  const revealable = (key, masked, full) => {
+    if (!full) return `<span class="email">${esc(masked || 'unknown')}</span>`;
+    REV.set(key, { masked, full });
+    const on = SHOWN.has(key);
+    return `<button class="reveal${on ? ' on' : ''}" type="button" data-rev="${esc(key)}" aria-pressed="${on}" title="${on ? 'Tap to hide' : 'Tap to show the full email'}">${esc(on ? full : masked)}</button>`;
+  };
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rev]');
+    if (!b) return;
+    const k = b.dataset.rev, r = REV.get(k);
+    if (!r) return;
+    const on = !SHOWN.has(k);
+    if (on) SHOWN.add(k); else SHOWN.delete(k);
+    document.querySelectorAll('[data-rev]').forEach((x) => { if (x.dataset.rev !== k) return; x.textContent = on ? r.full : r.masked; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); x.title = on ? 'Tap to hide' : 'Tap to show the full email'; });
+  });
+
   /* ---------------------------------------------------------- tooltip + chart helpers */
   const tip = $('tip');
   const showTip = (x, y, html) => { tip.innerHTML = html; tip.style.opacity = 1; const r = tip.getBoundingClientRect(); let l = x + 14, tp = y - r.height - 12; if (l + r.width > innerWidth - 8) l = x - r.width - 14; if (tp < 8) tp = y + 18; tip.style.left = `${Math.max(8, l)}px`; tip.style.top = `${tp}px`; };
@@ -445,6 +538,14 @@ tr.off td, tr.minor td { color: var(--ink-3); }
   const resets = new Map();
   document.addEventListener('pointerdown', (e) => { const on = e.target.closest('.chart svg'); resets.forEach((r, svg) => { if (svg !== on) r(true); }); if (!on) hideTip(); });
   addEventListener('scroll', hideTip, { passive: true });
+  let compTip = false;
+  document.addEventListener('pointermove', (e) => {
+    const sg = e.pointerType === 'mouse' && e.target.closest ? e.target.closest('.comp span') : null;
+    if (!sg) { if (compTip) { hideTip(); compTip = false; } return; }
+    const [l, n, t] = sg.dataset.tip.split('|');
+    showTip(e.clientX, e.clientY, `<div class="h">${esc(l)}</div>${R(esc(sg.parentNode.dataset.unit), fmt(Number(n)))}${R('Share', `${share(Number(n), Number(t))} of ${fmt(Number(t))}`)}`);
+    compTip = true;
+  });
   /* a "nice" axis top close to the data, trying a tick count either side of the one asked for */
   /* text width at a chart font, so a label is never wider than its bar's slot */
   const measure = (() => { let c = null; return (txt, font) => { try { c = c || document.createElement('canvas').getContext('2d'); c.font = `${font} "Instrument Sans", system-ui, sans-serif`; return c.measureText(txt).width; } catch (e) { return txt.length * 7; } }; })();
@@ -505,9 +606,14 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     const sales7 = salesIn(T - 6, T), sales7p = salesIn(T - 13, T - 7).filter((p) => msOf(p.at) < D.builtAt - 7 * 864e5);
     /* new players over saved days only: null while any day in the window is still being counted */
     const npW = (a, b) => { let s = 0; for (let n = Math.max(1, a); n <= b; n++) { const d = day(n); if (!d || d.np == null) return null; s += d.np; } return s; };
+    /* the first day each event kind was counted: earlier days say "—", never 0. Shares, paywall and Buy
+       shipped together (the first day any event was counted); the share stamp came later. */
+    const firstEv = (k) => { for (let n = Math.max(1, T - 89); n <= T; n++) { const d = D.days[n - 1]; if (d && d.ev && d.ev[k]) return n; } return null; };
+    const evSince = D.money.funnel30.since, stamp = firstEv('nudge_seen');
+    const since = { share: evSince, paywall_view: evSince, buy_click: evSince, nudge_seen: stamp, nudge_tap: stamp };
     const evW = (k, a, b) => { let s = 0; for (let n = Math.max(1, a); n <= b; n++) { const d = D.days[n - 1]; s += (d && d.ev && d.ev[k]) || 0; } return s; };
     return {
-      T, day, idx, H, snapN, snap, builtClock, cum, t, yd, ydNow, dau, dauP, prev, avgBy, cohorts, d1: pool(1), d7: pool(7),
+      since, T, day, idx, H, snapN, snap, builtClock, cum, t, yd, ydNow, dau, dauP, prev, avgBy, cohorts, d1: pool(1), d7: pool(7),
       pays, salesIn, refundsIn, sales7, sales7p, ref7: refundsIn(T - 6, T), gross7: sum(sales7.map((p) => p.amount)), gross7p: sum(sales7p.map((p) => p.amount)),
       gross: sum(pays.map((p) => p.amount)), refunds: sum(pays.map((p) => p.refunded)), refundsN: pays.filter((p) => p.refunded).length,
       salesToday: pays.filter((p) => fOf(p.at) === T), allPlayers: D.backfill.pendingDays ? null : sum(D.days.map((d) => d.np || 0)), npW, evW,
@@ -674,12 +780,82 @@ tr.off td, tr.minor td { color: var(--ink-3); }
       ro: `${lab}: <b>${money(b.gross)}</b>, ${plural(b.sales, 'sale')}${b.refN ? `, ${plural(b.refN, 'refund')}` : ''}`,
       tip: `<div class="h">${lab}</div>${R('Sales', b.sales)}${R('Money in', money(b.gross))}${R('Refunds', b.refN ? `${b.refN} (${money(b.ref)})` : 'none')}` }; } });
   }
+  /* ---------------------------------------------------------- chart: shares per day, the last 30 days */
+  function sharesChart(el, ro) {
+    const T = D.T, a = Math.max(1, T - 29), since = X.since.share, cols = [];
+    for (let n = a; n <= T; n++) {
+      const d = D.days[n - 1], f = X.day(n);
+      cols.push(since == null || n < since ? { n, missing: true } : { n, v: (d && d.ev && d.ev.share) || 0, fin: f ? f.fin : null, today: n === T });
+    }
+    if (!cols.some((c) => !c.missing)) { el.innerHTML = empty('No shares counted yet', 'Shares show here as players make them.'); ro.innerHTML = ''; return; }
+    const w = Math.max(300, el.clientWidth), small = w < 560, hgt = small ? 200 : 220, L = 34, Rr = 4, T0 = 22, B = 26;
+    const { step, top } = niceMax(Math.max(1, ...cols.map((c) => c.v || 0)), 3);
+    const n = cols.length, bw = (w - L - Rr) / n, gap = Math.max(1, Math.min(6, bw * 0.24)), cw = bw - gap;
+    const x = (i) => L + i * bw + gap / 2, xc = (i) => x(i) + cw / 2, y = (v) => T0 + (hgt - T0 - B) * (1 - v / top);
+    const labelAll = bw >= 26;
+    const s = [`<svg viewBox="0 0 ${w} ${hgt}" role="img" aria-label="Shares per day, last 30 days">`];
+    for (let v = 0; v <= top + 1e-9; v += step) s.push(`<line x1="${L}" x2="${w - Rr}" y1="${y(v)}" y2="${y(v)}" stroke="${v ? 'var(--grid)' : 'var(--line-2)'}"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}</text>`);
+    s.push(`<rect class="hl" y="${T0 - 14}" height="${hgt - T0 - B + 14}" fill="rgba(20,33,61,.06)" rx="3" style="opacity:0"/>`);
+    const maxI = cols.reduce((m, c, i) => (!c.missing && !c.today && c.v > (cols[m].v || 0) ? i : m), 0);
+    cols.forEach((c, i) => {
+      if (c.missing) return;
+      s.push(`<path d="${barPath(x(i), y(0), cw, y(0) - y(c.v), 2.5)}" fill="var(--blue)"${c.today ? ' fill-opacity=".5"' : ''}/>`);
+      if (labelAll || i === maxI || c.today) s.push(`<text class="${c.today ? 'v tv' : 'v'}" x="${xc(i)}" y="${y(c.v) - 5}" text-anchor="middle">${fmt(c.v)}</text>`);
+    });
+    const miss = cols.findIndex((c) => !c.missing);
+    if (miss >= 3) { const txt = 'Not counted yet'; if (measure(txt, '500 13px') <= miss * bw) s.push(`<text x="${(x(0) + x(miss - 1) + cw) / 2}" y="${y(0) - 12}" text-anchor="middle" style="font-size:13px">${txt}</text>`); }
+    cols.forEach((c, i) => {
+      const fromEnd = n - 1 - i;
+      if (c.today) s.push(`<text x="${xc(i) + cw / 2}" y="${hgt - 6}" text-anchor="end" style="fill:var(--amber-ink);font-weight:700">Today</text>`);
+      else if (fromEnd % 7 === 0 && fromEnd >= (small ? 7 : 3)) s.push(`<text x="${xc(i)}" y="${hgt - 6}" text-anchor="middle">${dateOf(c.n)}</text>`);
+    });
+    s.push(`<rect class="hot" x="${L}" y="0" width="${w - L - Rr}" height="${hgt}"/></svg>`);
+    el.innerHTML = s.join('');
+    hover(el, ro, { n, xAt: xc, bw, dflt: Math.max(0, n - 2), onIdx: (i) => {
+      const c = cols[i], lab = dateOf(c.n, { weekday: 'short', month: 'short', day: 'numeric' });
+      if (c.missing) return { ro: `${lab}: shares weren’t counted yet`, tip: `<div class="h">${lab}</div>Shares weren’t counted yet.` };
+      return { ro: `${lab}${c.today ? ', so far' : ''}: <b>${fmt(c.v)}</b> share${c.v === 1 ? '' : 's'}`,
+        tip: `<div class="h">${lab} · flight #${c.n}${c.today ? ', so far' : ''}</div>${R('Shares', fmt(c.v))}${R('Players that day', c.fin == null ? 'counting' : fmt(c.fin))}` };
+    } });
+  }
+
+  /* ---------------------------------------------------------- day by day: every daily number for the last 30 Eastern days, newest first */
+  const DIM0 = '<span class="dim">0</span>', CNT = '<span class="dim">counting</span>', NOTYET = '<span class="dim">—</span>';
+  const z = (v) => (v ? fmt(v) : DIM0);
+  const evCell = (n, k) => { const s0 = X.since[k]; if (s0 == null || n < s0) return NOTYET; const d = D.days[n - 1]; return z((d && d.ev && d.ev[k]) || 0); };
+  const dayLabel = (n) => `<span class="hide-sm">${dateOf(n, { weekday: 'short' })}, </span>${dateOf(n)}${n === D.T ? ' <span class="dim">so far</span>' : ''}`;
+  function dayByDay() {
+    const T = D.T, rows = [], salesBy = {};
+    X.pays.forEach((p) => { const f = flightOf(msOf(p.at)); const b = salesBy[f] = salesBy[f] || { n: 0, c: 0 }; b.n++; b.c += p.amount; });
+    for (let n = T; n >= Math.max(1, T - 29); n--) {
+      const d = X.day(n), np = d && d.np != null ? Math.min(d.np, d.fin) : null, sl = salesBy[n], r = D.unlimited.runsByDay[n] || [0, 0];
+      rows.push(`<tr${n === T ? ' class="now"' : ''}><td>${dayLabel(n)}</td>
+        <td class="n gap">${d ? z(d.opened) : CNT}</td><td class="n lead">${d ? fmt(d.fin) : CNT}</td><td class="n">${np != null ? z(np) : CNT}</td><td class="n">${np != null ? z(d.fin - np) : CNT}</td>
+        <td class="n gap">${evCell(n, 'share')}</td><td class="n">${evCell(n, 'nudge_seen')}</td><td class="n">${evCell(n, 'nudge_tap')}</td>
+        <td class="n gap">${evCell(n, 'paywall_view')}</td><td class="n">${evCell(n, 'buy_click')}</td><td class="n">${sl ? fmt(sl.n) : DIM0}</td><td class="n">${sl ? money(sl.c) : '<span class="dim">$0</span>'}</td>
+        <td class="n gap">${z(r[0])}</td><td class="n">${z(r[1])}</td></tr>`);
+    }
+    return `<p class="small only-sm" style="margin:0 0 8px">Swipe the table sideways for sharing, money and Unlimited runs.</p><div class="scroll-x"><table class="dbd"><thead>
+      <tr class="grp"><th></th><th class="g gap" colspan="4">Players</th><th class="g gap" colspan="3">Sharing</th><th class="g gap" colspan="4">Money</th><th class="g gap" colspan="2">Unlimited runs</th></tr>
+      <tr><th>Day</th><th class="n gap">Opened</th><th class="n">Finished</th><th class="n">New</th><th class="n">Played before</th><th class="n gap">Shares</th><th class="n">Saw stamp</th><th class="n">Tapped it</th><th class="n gap">Paywall views</th><th class="n">Buy taps</th><th class="n">Sales</th><th class="n">Money in</th><th class="n gap">Free</th><th class="n">Paid</th></tr>
+      </thead><tbody>${rows.join('')}</tbody></table></div>
+      <p class="legend-note">Eastern days. Opened, shares, the stamp, paywall views and Buy taps count each player once a day. Finished = players who finished that day’s flight (New + Played before). Sales are by the day they were paid, before refunds. — means not counted yet then; counting means that day is still being saved. Your own devices and purchases are left out.</p>`;
+  }
+  /* shares, day by day (the Sharing panel's own table) */
+  function sharesTable() {
+    const T = D.T, rows = [];
+    for (let n = T; n >= Math.max(1, T - 29); n--) { const d = X.day(n); rows.push(`<tr${n === T ? ' class="now"' : ''}><td>${dayLabel(n)}</td><td class="n lead">${evCell(n, 'share')}</td><td class="n">${evCell(n, 'nudge_seen')}</td><td class="n">${evCell(n, 'nudge_tap')}</td><td class="n">${d ? fmt(d.fin) : CNT}</td></tr>`); }
+    return `<div class="scroll-x"><table class="dbd full" style="min-width:520px"><thead><tr><th>Day</th><th class="n">Shares</th><th class="n">Saw the stamp</th><th class="n">Tapped it</th><th class="n">Players that day</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
+      <p class="legend-note">One per player per day. — means it wasn’t counted yet then.</p>`;
+  }
+
   function drawCharts() {
     resets.clear();
     if (!D || !$('c-daily')) return;
     dailyChart($('c-daily'), $('ro-daily'));
     if ($('c-flown')) { const tot = flownChart($('c-flown')); $('flown-sub').textContent = `The ${fmt(tot)} players who played in the last 30 days`; }
     salesChart($('c-sales'), $('ro-sales'));
+    if ($('c-shares')) sharesChart($('c-shares'), $('ro-shares'));
   }
 
   /* ---------------------------------------------------------- sharing (Growth): shares, players who shared, the share stamp */
@@ -697,7 +873,10 @@ tr.off td, tr.minor td { color: var(--ink-3); }
       ${num('Shares', shares, [since != null && since <= T - 14 ? change(shares, sharesP, `more than the week before (${fmt(sharesP)})`, `fewer than the week before (${fmt(sharesP)})`, `Same as the week before (${fmt(sharesP)})`) : '', 'One per player per day'])}
       ${players != null ? num('Players who shared', players, ['Each counted once']) : ''}
       ${seen || tapped ? num('Saw the ‘Help us grow’ stamp', seen, ['One per player per day']) + num('Tapped it', tapped, ['One per player per day']) : ''}
-    </div></div>`;
+    </div>
+    <div class="ph" style="margin:24px 0 6px"><div><h3>Shares per day</h3><div class="sub">Last 30 days. Tap or hover a bar for its numbers.</div></div><div class="readout" id="ro-shares"></div></div>
+    <div class="chart" id="c-shares"></div>
+    ${foldBtn('shares', 'Shares day by day', 'Hide shares day by day')}${fold('shares', sharesTable())}</div>`;
   }
 
   /* ---------------------------------------------------------- health checklist */
@@ -749,10 +928,52 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     const src = {};
     D.acquisition.forEach((r) => { if (r.n < T - 6) return; const b = src[r.src] = src[r.src] || { src: r.src, nv: 0, fin: 0 }; b.nv += r.nv; b.fin += r.fin; });
     const buyersBy = {}; X.pays.filter((p) => p.refunded < p.amount && p.src).forEach((p) => { buyersBy[p.src] = (buyersBy[p.src] || 0) + 1; });
-    let srcRows = Object.values(src).filter((b) => b.nv).sort((a, b) => b.nv - a.nv);
-    if (srcRows.length > 7) { const rest = srcRows.slice(6); srcRows = srcRows.slice(0, 6); srcRows.push({ src: `Other (${rest.length} sites)`, nv: sum(rest.map((r) => r.nv)), fin: sum(rest.map((r) => r.fin)), other: rest.map((r) => r.src) }); }
-    const geo = D.geo7;
-    const geoRows = (() => { const top = geo.countries.slice(0, 5).map(([c, n]) => [cname(c), n]); const rest = sum(geo.countries.slice(5).map((c) => c[1])); if (rest) top.push([`Other (${geo.countries.length - 5})`, rest]); return top; })();
+    const range = (a, b) => (a === b ? dateOf(a) : `${dateOf(a)}–${dateOf(b, { month: 'short' }) === dateOf(a, { month: 'short' }) ? dateOf(b, { day: 'numeric' }) : dateOf(b)}`);
+
+    /* where visits came from: every open of the last 7 days (one per player per day), by site, with
+       who finished that day's flight; new visitors (first source) and buyers alongside */
+    const W = D.srcDays || 7, wa = Math.max(1, T - W + 1);
+    const vis = {}; let visMissing = 0;
+    for (let n = wa; n <= T; n++) {
+      const d = D.days[n - 1];
+      if (!d || d.pending || !d.srcs) { visMissing++; continue; }
+      d.srcs.forEach(([k, o, f]) => { const b = vis[k] = vis[k] || { src: k, o: 0, f: 0 }; b.o += o; b.f += f; });
+    }
+    const visRows = Object.values(vis).sort((a, b) => b.o - a.o || (a.src < b.src ? -1 : 1));
+    const visTot = sum(visRows.map((r) => r.o));
+    const allSrc = new Set([...visRows.map((r) => r.src), ...Object.keys(src)]);
+    const sourcesPanel = (() => {
+      const head = `<div class="ph"><div><h3>Where visits came from</h3><div class="sub">Opens of the game in the last 7 days (${range(wa, T)}, today so far), one per player per day, by the site that sent them. Tag your links with ?ref=name.</div></div></div>`;
+      if (visMissing) return `<div class="panel c7">${head}${empty('Counting…', `${plural(visMissing, 'day')} of the last 7 still to count. Each Refresh counts more.`)}</div>`;
+      if (!visTot) return `<div class="panel c7">${head}${empty('No visits in the last 7 days', '')}</div>`;
+      const full = visRows.map((r) => `<tr><td>${esc(r.src)}</td><td class="n">${fmt(r.o)}</td><td class="n">${fmt(r.f)}</td><td class="n">${share(r.f, r.o)}</td><td>${sbar(r.o, visTot)}</td><td class="n">${src[r.src] ? fmt(src[r.src].nv) : DIM0}</td><td class="n">${z(buyersBy[r.src] || 0)}</td></tr>`);
+      [...allSrc].filter((k) => !vis[k]).forEach((k) => full.push(`<tr><td>${esc(k)}</td><td class="n">${DIM0}</td><td class="n">${DIM0}</td><td class="n dim">—</td><td>${sbar(0, visTot)}</td><td class="n">${fmt(src[k].nv)}</td><td class="n">${z(buyersBy[k] || 0)}</td></tr>`));
+      return `<div class="panel c7">${head}
+        <div class="total"><b>${fmt(visTot)}</b> opens from ${plural(visRows.length, 'site')}</div>
+        ${comp(visRows.map((r) => [r.src, r.o]), visTot, { id: 'src', what: 'Where visits came from', unit: 'Opens' })}
+        ${foldBtn('src', `See all ${plural(allSrc.size, 'source')}`, 'Hide the full list')}
+        ${fold('src', `<div class="scroll-x"><table class="full" style="min-width:560px"><thead><tr><th>Site</th><th class="n">Opened</th><th class="n">Finished</th><th class="n">Finish rate</th><th class="n">Share of ${fmt(visTot)} opens</th><th class="n">New visitors</th><th class="n">Bought</th></tr></thead><tbody>${full.join('')}</tbody></table></div>
+          <p class="legend-note">Finished = finished that day’s flight. New visitors = first visit in these 7 days came from that site. Bought = buyers whose first visit came from that site, all time.</p>`)}
+      </div>`;
+    })();
+
+    /* where players are: everyone who finished a daily flight in the last 7 days, once each, by country */
+    const G = D.geoPlayers;
+    const countriesPanel = (() => {
+      const head = `<div class="ph"><div><h3>Where players are</h3><div class="sub">Players in the last 7 days (${range(Math.max(1, T - 6), T)}), each counted once, by the country of their first visit</div></div></div>`;
+      if (!G) return `<div class="panel c5">${head}${empty('Countries show after the next Refresh', '')}</div>`;
+      const live = G.countries.filter((c) => c[1] > 0);
+      if (!G.players) return `<div class="panel c5">${head}${empty('No players in the last 7 days', '')}</div>`;
+      const rows = G.countries.map(([c, n7, n30]) => `<tr${n7 ? '' : ' class="minor"'}><td>${esc(cname(c))}</td><td class="n">${n7 ? fmt(n7) : DIM0}</td><td>${sbar(n7, G.players)}</td><td class="n dim">${fmt(n30)}</td></tr>`);
+      return `<div class="panel c5">${head}
+        <div class="total"><b>${fmt(G.players)}</b> players in ${plural(live.length, 'country', 'countries')}</div>
+        ${comp(live.map(([c, n]) => [cname(c), n]), G.players, { id: 'geo', what: 'Where players are', unit: 'Players' })}
+        <p class="note" style="color:var(--ink-2)">On a phone: <b>${fmt(G.mobile)}</b> (${share(G.mobile, G.players)}) · Not on a phone: <b>${fmt(G.players - G.mobile)}</b></p>
+        ${foldBtn('geo', `See all ${plural(G.countries.length, 'country', 'countries')}`, 'Hide the full list')}
+        ${fold('geo', `<table class="full"><thead><tr><th>Country</th><th class="n">Players</th><th class="n">Share of ${fmt(G.players)}</th><th class="n">Last 30 days</th></tr></thead><tbody>${rows.join('')}</tbody></table>
+          <p class="legend-note">Last 30 days counts the ${fmt(G.players30)} players since ${dateOf(G.from30)}${G.countries.some((c) => !c[1]) ? '; greyed rows played then but not this week' : ''}.</p>`)}
+      </div>`;
+    })();
 
     /* new players each day, and who came back: the last 14 first-play days */
     const coh = {}; X.cohorts.forEach((c) => { coh[c.n] = c; });
@@ -797,21 +1018,15 @@ tr.off td, tr.minor td { color: var(--ink-3); }
         <div class="ph"><div><h3>Players per day since launch</h3><div class="sub">Everyone who finished the daily flight that day. Today is still counting.</div></div><div class="readout" id="ro-daily"></div></div>
         <div class="legend">${idx ? '<span><i style="background:rgba(20,33,61,.42)"></i>Players (new vs played before shows when counting finishes)</span>' : '<span><i style="background:var(--blue)"></i>Played before</span><span><i style="background:var(--green)"></i>New that day</span>'}</div>
         <div class="chart" id="c-daily"></div>
+        ${foldBtn('days', 'Day by day: every number for the last 30 days', 'Hide day by day')}${fold('days', dayByDay())}
       </div>
       ${idx ? idxPanel('Player totals, sources and countries') + sharingPanel() : `<div class="c12 tiles k3 compact">
         ${tile({ lab: 'Different players, last 7 days', val: D.active ? fmt(D.active.wau) : null, ctx: ['Each player counted once'] })}
         ${tile({ lab: 'New players, last 7 full days', val: npThis == null ? null : fmt(npThis), idxNote: 'Shows when those days are saved.', ctx: [T >= 15 && npLast != null ? change(npThis, npLast, `more than the week before (${fmt(npLast)})`, `fewer than the week before (${fmt(npLast)})`, `Same as the week before (${fmt(npLast)})`) : ''] })}
         ${tile({ lab: 'Players since launch', val: X.allPlayers == null ? null : fmt(X.allPlayers), idxNote: `Shows when the last ${plural(D.backfill.pendingDays, 'day')} are saved.`, ctx: [`Since ${dateOf(1)}`] })}
       </div>
-      <div class="panel c7">
-        <div class="ph"><div><h3>Where new players came from</h3><div class="sub">Last 7 days, by the site that first sent them. Tag your links with ?ref=name.</div></div></div>
-        ${!srcRows.length ? empty('No new visitors in the last 7 days', '') : `<table><thead><tr><th>Site</th><th class="n">New visitors</th><th class="n">Played a flight</th><th class="n">Bought</th></tr></thead><tbody>${srcRows.map((r) => `<tr><td>${esc(r.src)}</td><td class="n">${fmt(r.nv)}</td><td class="n">${fmt(r.fin)}</td><td class="n">${fmt(r.other ? sum(r.other.map((s2) => buyersBy[s2] || 0)) : buyersBy[r.src] || 0)}</td></tr>`).join('')}</tbody></table><p class="note">Bought counts buyers whose first visit came from that site, all time.</p>`}
-      </div>
-      <div class="panel c5">
-          <div class="ph"><div><h3>Countries and devices</h3><div class="sub">New visitors, last 7 days</div></div></div>
-          ${!geo.total ? empty('No new visitors in the last 7 days', '') : `<table><tbody>${geoRows.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${fmt(v)}</td></tr>`).join('')}</tbody></table>
-          <p class="note" style="font-size:14px;color:var(--ink-2)">On a phone: <b>${fmt(geo.mobile)}</b> · Not on a phone: <b>${fmt(geo.total - geo.mobile)}</b></p>`}
-      </div>
+      ${sourcesPanel}
+      ${countriesPanel}
       ${sharingPanel()}`}
     </div>
   </section>
@@ -863,8 +1078,8 @@ tr.off td, tr.minor td { color: var(--ink-3); }
         <p class="note" id="sales-note" hidden></p>
       </div>
       <div class="panel c5">
-        <div class="ph"><div><h3>Latest buyers</h3><div class="sub">Emails are partly hidden</div></div></div>
-        ${M.buyers.length ? `<ul class="rows">${M.buyers.map((b) => `<li><span class="email">${esc(b.email || 'unknown')}</span><span class="r">${b.src ? esc(b.src) : ''}<span class="d">${shortDate(b.at)}</span></span></li>`).join('')}</ul>` : empty('No buyers yet', '')}
+        <div class="ph"><div><h3>Buyers</h3><div class="sub">Latest first. Tap an email to see it in full; tap again to hide it.</div></div></div>
+        <div id="buyers"></div>
       </div>
       <div class="panel c12">
         <div class="ph"><div><h3>From paywall to paid, last 30 days</h3><div class="sub">Paywall views and Buy taps count each player once a day${fu.since ? `, from flight #${fu.since} on` : ''}.</div></div></div>
@@ -890,7 +1105,7 @@ tr.off td, tr.minor td { color: var(--ink-3); }
       <div class="panel c6"><ul class="rows" id="health-b"></ul></div>
     </div>
   </section>`;
-    renderAlerts(); renderHealth(); renderBadges(); renderReports(); renderData();
+    renderAlerts(); renderHealth(); renderBadges(); renderReports(); renderData(); renderBuyers();
     drawCharts();
     tickHeader();
   }
@@ -1009,6 +1224,27 @@ tr.off td, tr.minor td { color: var(--ink-3); }
   $('pass-msg').addEventListener('click', (e) => lastPass && copy(passMsg(lastPass), e.currentTarget));
   if (navigator.share) { $('pass-share').hidden = false; $('pass-share').addEventListener('click', () => lastPass && navigator.share({ text: passMsg(lastPass) }).catch(() => {})); }
 
+  /* ---------------------------------------------------------- buyers (Money): full emails from /api/admin/buyers (owner only,
+     never cached, never saved in this browser); the stats copy only has masked ones, shown until this loads */
+  let BUY = null, buyErr = null;
+  async function loadBuyers() {
+    try { BUY = (await api('/api/admin/buyers')).buyers; buyErr = null; } catch (e) { if (e.message === 'signed out') return; buyErr = e.message; }
+    renderBuyers();
+  }
+  function renderBuyers() {
+    const el = $('buyers');
+    if (!el || !D) return;
+    const list = BUY ? BUY.map((b) => ({ key: `b|${b.at}|${b.masked}`, masked: b.masked, full: b.email, at: b.at, src: b.src, refunded: b.refunded && b.refunded >= b.amount }))
+      : D.money.buyers.map((b) => ({ key: `b|${b.at}|${b.email}`, masked: b.email, full: null, at: b.at, src: b.src }));
+    if (!list.length) { el.innerHTML = empty('No buyers yet', ''); return; }
+    const li = (b) => `<li><span>${revealable(b.key, b.masked, b.full)}</span><span class="r">${b.refunded ? '<span class="pill">Refunded</span>' : ''}${b.src ? esc(b.src) : ''}<span class="d">${shortDate(b.at)}</span></span></li>`;
+    const head = list.slice(0, 8), rest = list.slice(8);
+    el.innerHTML = `<ul class="rows">${head.map(li).join('')}</ul>
+      ${rest.length ? `${foldBtn('buyers', `See all ${plural(list.length, 'buyer')}`, `Show the latest 8 only`)}${fold('buyers', `<ul class="rows">${rest.map(li).join('')}</ul>`)}` : ''}
+      ${buyErr ? `<p class="note">Full emails didn’t load (${esc(buyErr)}). <button class="btn sm quiet" type="button" data-retry="buyers">Retry</button></p>` : !BUY ? '<p class="note">Loading full emails…</p>' : ''}`;
+  }
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-retry="buyers"]')) loadBuyers(); });
+
   /* ---------------------------------------------------------- thank-you emails (Tools) */
   async function loadThanks() {
     try { TH = await api('/api/admin/thanks'); thxErr = null; } catch (e) { if (e.message === 'signed out') return; thxErr = e.message; }
@@ -1023,7 +1259,7 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     const recent = TH.recent || [];
     el.innerHTML = `<div class="sent"><b>${fmt(TH.sent)}</b> sent${TH.late ? ` · <b class="dnt">${fmt(TH.late)}</b> missed` : ''}</div>
       ${!TH.on ? '<p class="note" style="margin:0 0 10px">Not sending: add a RESEND_API_KEY secret in Cloudflare (SHIPPING.md, Thank-you emails).</p>' : ''}
-      ${recent.length ? `<ul class="rows">${recent.map((r) => `<li><span class="email">${esc(r.email || 'unknown')}</span><span class="r">${r.kind === 'earlier' ? 'earlier buyer' : 'new buyer'}<span class="d">${shortDate(r.sent)}</span></span></li>`).join('')}</ul>` : empty('No thank-you emails sent yet.', '')}
+      ${recent.length ? `<ul class="rows">${recent.map((r) => `<li><span>${revealable(`t|${r.sent}|${r.email}`, r.email || 'unknown', r.full)}</span><span class="r">${r.kind === 'earlier' ? 'earlier buyer' : 'new buyer'}<span class="d">${shortDate(r.sent)}</span></span></li>`).join('')}</ul>` : empty('No thank-you emails sent yet.', '')}
       ${TH.on ? '<form class="field" id="thx-test" style="margin-top:12px"><input id="thx-to" type="email" value="karman.daily@gmail.com" aria-label="Send a test copy to"><button class="btn sm" type="submit">Send me a test</button></form>' : ''}`;
   }
   $('thx-body').addEventListener('click', (e) => { if (e.target.closest('[data-retry="thanks"]')) loadThanks(); });
@@ -1069,10 +1305,10 @@ tr.off td, tr.minor td { color: var(--ink-3); }
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-act]');
     if (!b) return;
-    if (b.dataset.act === 'refresh') load(true);
+    if (b.dataset.act === 'refresh') { load(true); loadBuyers(); }
     if (b.dataset.act === 'retry') load(false);
   });
-  $('refresh').addEventListener('click', () => load(true));
+  $('refresh').addEventListener('click', () => { load(true); loadBuyers(); });
   let rt = 0, lastW = innerWidth;
   addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (Math.abs(innerWidth - lastW) < 2) return; lastW = innerWidth; hideTip(); drawCharts(); }, 150); });
 
@@ -1142,7 +1378,7 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     if (email) $('signout').title = `Signed in as ${email}`;
     paintMe(); renderPasses();
     load(false);
-    loadPasses(); loadThanks(); loadIgnore();
+    loadPasses(); loadThanks(); loadIgnore(); loadBuyers();
   }
   /* the chart weights are loaded first, so measured label widths match what is drawn (a 2 s cap keeps a
      slow font from holding the page) */

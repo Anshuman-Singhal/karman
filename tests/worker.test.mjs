@@ -236,6 +236,11 @@ check((await call('/api/admin/passes', { headers: { authorization: 'Bearer 99999
 check((await call('/api/admin/thanks')).status === 401, 'thank-you status needs the owner');
 const th = await (await call('/api/admin/thanks', { headers: A })).json();
 check(th.on === false && th.sent === 1 && th.waiting >= 1, 'thank-you status: off, one sent, earlier buyers waiting');
+{
+  const thr = await call('/api/admin/thanks', { headers: A });
+  const r0 = (await thr.json()).recent[0];
+  check(r0 && r0.email === 'fa•••@b.c' && r0.full === 'fan@b.c' && /no-store/.test(thr.headers.get('cache-control')) && /private/.test(thr.headers.get('cache-control')), 'thank-you log: masked email plus the full one for tap-to-reveal, owner only, never stored');
+}
 check(th.recent.length === 1 && th.recent[0].email === 'fa•••@b.c' && th.recent[0].kind === 'new' && !('sub' in th.recent[0]) && th.late === 0, 'thank-you log: latest sends, masked, no account ids');
 db.exec("INSERT INTO users (sub, email, unlimited, paid_at) VALUES ('g-late', 'late@b.c', 1, datetime('now', '-2 days'))");
 check((await (await call('/api/admin/thanks', { headers: A })).json()).late === 1, 'a buyer unthanked a day after paying is flagged (the automatic send failed)');
@@ -389,6 +394,41 @@ globalThis.fetch = prevFetch;
   for (let c = 1; c <= T - 3; c++) { const r = b2.cohorts.find((x) => x.n === c); for (const k of b2.retK) if (c + k <= T - 2 && (!r || r.ret[k] == null)) dueBad.push(`${c}+${k}`); }
   check(dueBad.length === 0, `every retention window that has closed is filled, D30 included (${dueBad.slice(0, 5).join(',')})`);
   check(b2.money.buyers.every((x) => /•••@/.test(x.email)), 'buyer emails leave the Worker masked');
+  // v4: full buyer emails only from /api/admin/buyers (owner token, never cached); the stats copy stays masked
+  {
+    check(!/b1@x\.y|own@x\.y/.test(JSON.stringify(b2)), 'the stats payload (the copy that is cached) carries no full buyer email');
+    check((await call2('/api/admin/buyers')).status === 401 && (await call2('/api/admin/buyers', { headers: { authorization: 'Bearer 9999999999999.forged' } })).status === 401, 'full buyer emails need the owner');
+    const br = await call2('/api/admin/buyers', { headers: { authorization: `Bearer ${token}` } });
+    const bj = await br.json();
+    check(bj.buyers.length === 1 && bj.buyers[0].email === 'b1@x.y' && bj.buyers[0].masked === 'b1•••@x.y' && bj.buyers[0].amount === 599, 'buyers: the full email with its masked form, the owner\'s own purchase left out');
+    check(/no-store/.test(br.headers.get('cache-control')) && /private/.test(br.headers.get('cache-control')), 'buyers answer is no-store, private');
+  }
+  // v4: opens per source, per day (live and frozen), equal to the raw visits; the totals are unchanged
+  {
+    const rawSrc = (n) => db2.prepare("SELECT src, COUNT(*) AS o, SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = v.device AND r.n = v.day)) AS f FROM visits v WHERE day = ? AND device != 'dev-owner-0001' GROUP BY src ORDER BY o DESC, src").all(n).map((r) => [r.src, r.o, r.f]);
+    const bad = [];
+    for (let n = T - 6; n <= T; n++) { const d = day(b2, n); if (JSON.stringify(d.srcs) !== JSON.stringify(rawSrc(n)) || d.srcs.reduce((a, x) => a + x[1], 0) !== d.opened || d.srcs.reduce((a, x) => a + x[2], 0) !== d.fo) bad.push(n); }
+    check(bad.length === 0 && day(b2, T - 3).srcs.some((x) => x[0] === 'reddit.com' && x[1] === 3 && x[2] === 3), `opens and finishes per source each day match the raw visits and sum to the day's totals (${bad.join(',')})`);
+    const openedRaw = (n) => db2.prepare("SELECT COUNT(*) c, SUM(mobile) m FROM visits WHERE day = ? AND device != 'dev-owner-0001'").get(n);
+    check([T - 3, T - 1, T].every((n) => day(b2, n).opened === openedRaw(n).c && day(b2, n).mobile === (openedRaw(n).m || 0)), 'opened and phone counts per day unchanged by the per-source grouping');
+    check(b2.srcDays === 7 && b2.backfill.pendingSrcs === 0, 'sources window: 7 days, nothing pending');
+    // a day frozen before per-source opens existed gets them added once, and nothing else changes
+    const row = db2.prepare('SELECT data FROM day_stats WHERE n = ?').get(T - 3);
+    const old = JSON.parse(row.data); delete old.srcs;
+    db2.prepare('UPDATE day_stats SET data = ? WHERE n = ?').run(JSON.stringify(old), T - 3);
+    const s1 = await stats2();
+    const after = JSON.parse(db2.prepare('SELECT data FROM day_stats WHERE n = ?').get(T - 3).data);
+    check(s1.cost.srcsFilled.join() === String(T - 3) && JSON.stringify(after.srcs) === JSON.stringify(rawSrc(T - 3)) && after.fin === old.fin && after.wau === old.wau, 'an older frozen day gets its per-source opens added once, its other numbers untouched');
+    check((await stats2()).cost.srcsFilled.length === 0, '...and only once');
+  }
+  // v4: players by country, each counted once, folded into the month's pilots pass (same numbers as before)
+  {
+    const g = b2.geoPlayers;
+    const truthC = db2.prepare("SELECT COALESCE(country, '??') AS cc, SUM(last_flight >= ?) AS w, COUNT(*) AS m FROM pilots WHERE last_flight >= ? AND device NOT IN (SELECT device FROM ignore_devices) GROUP BY cc ORDER BY w DESC").all(T - 6, T - 29).map((r) => [r.cc, r.w, r.m]);
+    check(g && JSON.stringify(g.countries) === JSON.stringify(truthC) && g.players === b2.active.wau && g.players30 === b2.active.mau && g.players === distinct(T - 6, T) && g.from === T - 6 && g.to === T, 'players by country: last 7 and 30 days, each player once, totals equal the weekly / monthly players');
+    const flownT = db2.prepare("SELECT MIN(flights, 31) AS f, COUNT(*) AS c FROM pilots WHERE last_flight >= ? AND device NOT IN (SELECT device FROM ignore_devices) GROUP BY f ORDER BY f").all(T - 29).map((r) => [r.f, r.c]);
+    check(JSON.stringify(b2.active.flown) === JSON.stringify(flownT), 'days-played histogram unchanged by the country grouping');
+  }
   // closed-window retention
   const coh = (n) => b2.cohorts.find((c) => c.n === n);
   check(coh(T - 3) && coh(T - 3).size === 3 && coh(T - 3).ret['1'] === 1 && !('2' in coh(T - 3).ret), 'D1 is written once its day has closed; D2 (yesterday) is not');
@@ -471,6 +511,16 @@ globalThis.fetch = prevFetch;
   const hdr = async (q) => (await call2(`/api/admin/stats${q}`, { headers: { authorization: `Bearer ${token}` } })).headers.get('x-dash-cache');
   const h1 = await hdr(''), h2 = await hdr(''), h3 = await hdr('?fresh=1');
   check(h1 === 'miss' && h2 === 'hit' && h3 === 'throttled', `cached for 10 minutes; Refresh within a minute is served the copy (${h1}/${h2}/${h3})`);
+  {
+    const kept = store.get('https://karman.day/api/admin/stats-cache-v2');
+    const text = kept ? await kept.clone().text() : '';
+    check(/•••@/.test(text) && !/b1@x\.y|b2@x\.y|own@x\.y/.test(text), 'the cached stats copy holds masked buyer emails only');
+    const keys0 = [...store.keys()].join();
+    check((await call2('/api/admin/buyers', { headers: { authorization: `Bearer ${token}` } })).status === 200 && [...store.keys()].join() === keys0, 'full buyer emails are never put in the edge cache');
+    const direct = await call2('/api/admin/stats-cache-v2');
+    check(direct.status === 404 && !/•••|@/.test(await direct.text()), 'the cache key path is not served to anyone (the router answers 404)');
+    check((await call2('/api/admin/stats')).status === 401, 'with a copy cached, the stats still need the owner');
+  }
   globalThis.caches = c0;
   Date.now = realNow;
 }

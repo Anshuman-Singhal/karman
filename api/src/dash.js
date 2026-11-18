@@ -72,6 +72,8 @@ const legCols = () => {
   return c.join(', ');
 };
 const LEG_COLS = legCols();
+const srcRows = (rows) => rows.filter((r) => r.opened).map((r) => [r.src, r.opened, r.fo || 0]).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+export const SRC_DAYS = 7;     // the dashboard's sources window: opens per source are kept for every day it covers
 const ex = (lo, hi) => `NOT EXISTS (SELECT 1 FROM results q WHERE q.device = r.device AND q.n BETWEEN ${lo} AND ${hi})`;
 
 /**
@@ -82,7 +84,7 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
   const t0 = Date.now();
   const L = { ...LIMITS, ...(env.DASH_LIMITS || {}) };
   const CLOSED = TC - 2;
-  const cost = { rowsRead: 0, rowsWritten: 0, queries: 0, catchUp: 0, frozen: [], cohorts: [], backfilled: 0, payments: 0, estimated: false };
+  const cost = { rowsRead: 0, rowsWritten: 0, queries: 0, catchUp: 0, frozen: [], cohorts: [], srcsFilled: [], backfilled: 0, payments: 0, estimated: false };
   // D1 reports rows read per query; without it (tests) count rows returned, so budgets still bite.
   const track = (r) => {
     cost.queries++;
@@ -122,14 +124,15 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
     // Roll forward from the day before, except: the day before was frozen under other
     // exclusions, this is the first day re-frozen by a rebuild, or a weekly checkpoint.
     const rolled = !live && Boolean(prev && prev.mau != null && prev.wau != null) && prev.exN === exNow && d !== rebuildFrom && d % 7 !== 0;
-    const [agg, hist, hrs, vis, nv, np, roll, cor] = await Promise.all([
+    const [agg, hist, hrs, visBySrc, nv, np, roll, cor] = await Promise.all([
       one(`SELECT COUNT(*) AS fin, ROUND(AVG(pts), 1) AS avg, MAX(pts) AS best, SUM(pts >= ${MAX_PTS}) AS karman, ${LEG_COLS},
           SUM(${ex(d - 7, d - 1)}) AS gap7
         FROM results r WHERE n = ? AND ${NOTME}`, d),
       lite ? [] : all(`SELECT MIN(pts / 70, 10) AS b, COUNT(*) AS c FROM results WHERE n = ? AND ${NOTME} GROUP BY b`, d),
       lite ? [] : all(`SELECT substr(created, 1, 13) AS h, COUNT(*) AS c FROM results WHERE n = ? AND ${NOTME} GROUP BY h`, d),
-      one(`SELECT COUNT(*) AS opened, SUM(mobile) AS mobile, SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = v.device AND r.n = v.day)) AS fo
-        FROM visits v WHERE day = ? AND ${NOTME}`, d),
+      // grouped by source: the same scan (and probes) as the day's totals, which are the sums of the groups
+      all(`SELECT src, COUNT(*) AS opened, SUM(mobile) AS mobile, SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = v.device AND r.n = v.day)) AS fo
+        FROM visits v WHERE day = ? AND ${NOTME} GROUP BY src`, d),
       withPilots ? one(`SELECT COUNT(*) AS nv, SUM(first_flight = first_seen) AS act, SUM(first_flight IS NOT NULL) AS fin FROM pilots WHERE first_seen = ? AND ${NOTME}`, d) : null,
       withPilots ? one(`SELECT COUNT(*) AS np FROM pilots WHERE first_flight = ? AND ${NOTME}`, d) : null,
       // weekly / monthly pilots roll forward from the day before: who entered the window today, who left it
@@ -142,6 +145,8 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
       core ? one(`SELECT COUNT(*) AS c FROM (SELECT device FROM results WHERE n BETWEEN ? AND ? AND ${NOTME} GROUP BY device HAVING COUNT(*) >= 5)`, d - 6, d) : null,
     ]);
     const fin = agg.fin || 0;
+    const vis = { opened: 0, mobile: 0, fo: 0 };
+    visBySrc.forEach((r) => { vis.opened += r.opened || 0; vis.mobile += r.mobile || 0; vis.fo += r.fo || 0; });
     const out = {
       n: d, fin, avg: agg.avg || 0, best: agg.best || 0, karman: agg.karman || 0,
       opened: vis.opened || 0, mobile: vis.mobile || 0, fo: vis.fo || 0,
@@ -155,7 +160,8 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
       hist.forEach((r) => { h[Math.max(0, Math.min(10, r.b))] += r.c; });
       const hours = Array(24).fill(0);
       hrs.forEach((r) => { const x = fh(msOf(r.h)); hours[x.n > d ? 23 : x.n < d ? 0 : x.h] += r.c; });
-      Object.assign(out, { hist: h, hours });
+      // opens per source that day: [src, opened, finished that day's flight], most first
+      Object.assign(out, { hist: h, hours, srcs: srcRows(visBySrc) });
     }
     if (roll) {
       if (rolled) { out.wau = prev.wau + (roll.e7 || 0) - (roll.l7 || 0); out.mau = prev.mau + (roll.e30 || 0) - (roll.l30 || 0); } else { out.wau = roll.wau || 0; out.mau = roll.mau || 0; }
@@ -281,6 +287,19 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
       dayMap[d] = x; cost.frozen.push(d);
     }
     if (cost.frozen.length) await run('DELETE FROM events WHERE day < ?', T - KEEP_EVENTS);
+    // Days frozen before opens were kept per source: add just that, once, for the sources window.
+    first = true;
+    for (let d = Math.max(1, T - SRC_DAYS + 1); d <= CLOSED; d++) {
+      const x = dayMap[d];
+      if (!x || x.srcs) continue;
+      if (!may(first, 'srcs')) break;
+      first = false;
+      const rows = await spend(() => all(`SELECT src, COUNT(*) AS opened, SUM(EXISTS (SELECT 1 FROM results r WHERE r.device = v.device AND r.n = v.day)) AS fo
+        FROM visits v WHERE day = ? AND ${NOTME} GROUP BY src`, d), 'srcs');
+      x.srcs = srcRows(rows);
+      await run("UPDATE day_stats SET data = ?, updated = datetime('now') WHERE n = ?", JSON.stringify(x), d);
+      cost.srcsFilled.push(d);
+    }
   }
 
   /* ------------------------------------------------ 5. retention: every due window, oldest cohort first */
@@ -302,6 +321,8 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
       cohMap[c] = { n: c, size: r.size || 0, ret }; cost.cohorts.push(c);
     }
   }
+  let pendingSrcs = 0;
+  for (let d = Math.max(1, T - SRC_DAYS + 1); d <= CLOSED; d++) if (dayMap[d] && !dayMap[d].srcs) pendingSrcs++;
   const pendingCohorts = (() => { let k = 0; for (let c = 1; c <= CLOSED - 1; c++) { const h = cohMap[c] ? cohMap[c].ret : {}; if (RET_K.some((x) => c + x <= CLOSED && !(x in h))) k++; } return k; })();
 
   /* ------------------------------------------------ 6. live reads (pilots-based ones only once pilots is complete) */
@@ -313,11 +334,11 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
     Promise.all(liveDays.map((n) => dayNumbers(n, { live: true, withPilots: bfDone }))),
     bfDone ? one(`SELECT COUNT(*) AS size, SUM(EXISTS (SELECT 1 FROM results q WHERE q.device = p.device AND q.n = ?)) AS back FROM pilots p WHERE first_flight = ? AND ${NOTME}`, T, T - 1) : null,
     // one pass over the month's pilots: active counts, streaks, regulars and days flown
-    bfDone ? all(`SELECT MIN(flights, 31) AS f, COUNT(*) AS mau, SUM(last_flight >= ?) AS wau, SUM(last_flight = ?) AS today,
+    bfDone ? all(`SELECT MIN(flights, 31) AS f, COALESCE(country, '??') AS cc, SUM(last_flight >= ? AND mobile = 1) AS wmob, COUNT(*) AS mau, SUM(last_flight >= ?) AS wau, SUM(last_flight = ?) AS today,
         SUM(last_flight >= ? AND streak >= 3) AS streak3, SUM(last_flight >= ? AND streak >= 7) AS streak7, MAX(streak) AS best,
         SUM(flights >= 3 AND last_flight = ?) AS r0, SUM(flights >= 3 AND last_flight BETWEEN ? AND ?) AS r12,
         SUM(flights >= 3 AND last_flight BETWEEN ? AND ?) AS r36, SUM(flights >= 3 AND last_flight < ?) AS r7
-      FROM pilots WHERE last_flight >= ? AND ${NOTME} GROUP BY f`, T - 6, T, T - 1, T - 1, T, T - 2, T - 1, T - 6, T - 3, T - 6, T - 29) : null,
+      FROM pilots WHERE last_flight >= ? AND ${NOTME} GROUP BY f, cc`, T - 6, T - 6, T, T - 1, T - 1, T, T - 2, T - 1, T - 6, T - 3, T - 6, T - 29) : null,
     bfDone ? all(`SELECT COALESCE(first_src, 'unknown') AS src, first_seen AS n, COUNT(*) AS nv, SUM(first_flight IS NOT NULL) AS fin, SUM(first_flight = first_seen) AS act
       FROM pilots WHERE first_seen BETWEEN ? AND ? AND ${NOTME} GROUP BY src, first_seen`, T - 13, T) : [],
     bfDone ? all(`SELECT COALESCE(country, '??') AS cc, COUNT(*) AS c, SUM(mobile) AS m FROM pilots WHERE first_seen BETWEEN ? AND ? AND ${NOTME} GROUP BY cc ORDER BY c DESC`, T - 6, T) : [],
@@ -362,8 +383,17 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
     active = {
       wau: s('wau'), mau: s('mau'), today: s('today'), streak3: s('streak3'), streak7: s('streak7'), bestStreak: Math.max(0, ...act.map((r) => r.best || 0)),
       regulars: { today: s('r0'), d1_2: s('r12'), d3_6: s('r36'), d7_29: s('r7') },
-      flown: act.map((r) => [r.f, r.mau]).sort((a, b) => a[0] - b[0]),
+      flown: (() => { const m = {}; act.forEach((r) => { m[r.f] = (m[r.f] || 0) + r.mau; }); return Object.entries(m).map(([f, c]) => [Number(f), c]).sort((a, b) => a[0] - b[0]); })(),
     };
+  }
+  // Players by country: everyone who finished a daily flight in the last 7 days (and 30), each counted
+  // once, by the country of their first open. [code, last 7 days, last 30 days], most first.
+  let geoPlayers = null;
+  if (act) {
+    const m = {};
+    act.forEach((r) => { const c = m[r.cc] = m[r.cc] || [r.cc, 0, 0]; c[1] += r.wau || 0; c[2] += r.mau || 0; });
+    const countries = Object.values(m).sort((a, b) => b[1] - a[1] || b[2] - a[2] || (a[0] < b[0] ? -1 : 1));
+    geoPlayers = { from: Math.max(1, T - 6), to: T, from30: Math.max(1, T - 29), countries, players: active.wau, players30: active.mau, mobile: act.reduce((a, r) => a + (r.wmob || 0), 0) };
   }
   const coreDay = dayMap[CLOSED], corePrev = dayMap[CLOSED - 7];
 
@@ -390,13 +420,15 @@ export async function buildDashboard(env, { T, TC = T, launch, priceCents, healt
     v: 2, T, closedThrough: CLOSED, launch, priceCents, maxPts: MAX_PTS, now: new Date(nowMs).toISOString(), builtAt: nowMs,
     retK: RET_K,
     excluded: { devices: excluded.devices || 0, subs: excluded.subs || 0 },
-    backfill: { ...backfill, pendingDays: days.filter((d) => d.pending).length, pendingCohorts },
+    backfill: { ...backfill, pendingDays: days.filter((d) => d.pending).length, pendingCohorts, pendingSrcs },
     days,
     yesterdayCohort: yCoh ? { n: T - 1, size: yCoh.size || 0, back: yCoh.back || 0 } : null,
     cohorts: Object.values(cohMap).sort((a, b) => a.n - b.n),
     active,
     core: coreDay && coreDay.core != null ? { n: CLOSED, c: coreDay.core, prev: corePrev && corePrev.core != null ? corePrev.core : null } : null,
     acquisition: acq,
+    geoPlayers,
+    srcDays: SRC_DAYS,
     geo7: { countries: geo.map((r) => [r.cc, r.c]), mobile: geo.reduce((a, r) => a + (r.m || 0), 0), total: geo.reduce((a, r) => a + r.c, 0) },
     money: {
       payments: pays.map((p) => ({ at: p.at, amount: p.amount, currency: p.currency, refunded: p.refunded, refundedAt: p.refunded_at, est: p.est, src: p.src || null, firstFlight: p.first_flight, flights: p.flights })),
