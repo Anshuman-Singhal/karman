@@ -131,10 +131,11 @@ check((await call('/api/save', { headers: { authorization: 'Bearer g-lost.forged
 const res = (legs, n = T, device = 'device-abc-123') => call('/api/result', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ n, device, pts: 300, legs, chips: '2222222'.slice(0, legs.length) }) });
 check((await res('1101011')).status === 204, '7-leg result accepted');
 check((await res('11010')).status === 422, '5-leg result rejected');
-check((await res('1101011', T - 2, 'device-old-flight')).status === 422, 'a flight older than yesterday is refused (archive replay, ?dev picker)');
+// T-3, not T-2: in the first two hours after Eastern midnight the server's grace still accepts T-2
+check((await res('1101011', T - 3, 'device-old-flight')).status === 422, 'a flight older than yesterday is refused (archive replay, ?dev picker)');
 check((await res('1101011', T + 1, 'device-future-1')).status === 422, 'a future flight is refused');
 check((await res('1101011', T - 1, 'device-late-0001')).status === 204, "yesterday's flight is accepted (started before midnight)");
-check(db.prepare('SELECT COUNT(*) c FROM results WHERE n < ?').get(T - 1).c === 0, 'nothing landed on an old flight');
+check(db.prepare('SELECT COUNT(*) c FROM results WHERE n < ?').get(T - 2).c === 0, 'nothing landed on an old flight');
 // pilots: one row per device, moved only by a NEW result
 const pil = () => db.prepare("SELECT * FROM pilots WHERE device = 'device-abc-123'").get();
 check(pil() && pil().flights === 1 && pil().first_flight === T && pil().last_flight === T && pil().streak === 1, 'a first result creates the pilot row');
