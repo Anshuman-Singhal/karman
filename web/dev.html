@@ -512,7 +512,10 @@ tr.off td, tr.minor td { color: var(--ink-3); }
       <ul class="keys">${segs.map(([l, n, c]) => `<li><i style="background:${c}"></i><span class="k">${esc(l)}</span><span class="kv"><b>${fmt(n)}</b> · ${share(n, total)}</span></li>`).join('')}</ul>`;
   }
   /* full emails (buyers, thank-you log) live in memory only: shown masked, a tap shows the whole address, another hides it */
+  // One key per row (its position in the list), never per timestamp+mask: two rows sent in the same second
+  // with the same mask (jo•••@gmail.com) must never share, or swap, a full address.
   const REV = new Map(), SHOWN = new Set();
+  const forget = (pre) => { [...REV.keys()].forEach((k) => k.startsWith(pre) && REV.delete(k)); [...SHOWN].forEach((k) => k.startsWith(pre) && SHOWN.delete(k)); };
   const revealable = (key, masked, full) => {
     if (!full) return `<span class="email">${esc(masked || 'unknown')}</span>`;
     REV.set(key, { masked, full });
@@ -1229,13 +1232,14 @@ tr.off td, tr.minor td { color: var(--ink-3); }
   let BUY = null, buyErr = null;
   async function loadBuyers() {
     try { BUY = (await api('/api/admin/buyers')).buyers; buyErr = null; } catch (e) { if (e.message === 'signed out') return; buyErr = e.message; }
+    forget('b|');   // rows are keyed by position: a new list starts hidden, so a reveal can never land on another buyer
     renderBuyers();
   }
   function renderBuyers() {
     const el = $('buyers');
     if (!el || !D) return;
-    const list = BUY ? BUY.map((b) => ({ key: `b|${b.at}|${b.masked}`, masked: b.masked, full: b.email, at: b.at, src: b.src, refunded: b.refunded && b.refunded >= b.amount }))
-      : D.money.buyers.map((b) => ({ key: `b|${b.at}|${b.email}`, masked: b.email, full: null, at: b.at, src: b.src }));
+    const list = BUY ? BUY.map((b, i) => ({ key: `b|${i}`, masked: b.masked, full: b.email, at: b.at, src: b.src, refunded: b.refunded && b.refunded >= b.amount }))
+      : D.money.buyers.map((b, i) => ({ key: `b|${i}`, masked: b.email, full: null, at: b.at, src: b.src }));
     if (!list.length) { el.innerHTML = empty('No buyers yet', ''); return; }
     const li = (b) => `<li><span>${revealable(b.key, b.masked, b.full)}</span><span class="r">${b.refunded ? '<span class="pill">Refunded</span>' : ''}${b.src ? esc(b.src) : ''}<span class="d">${shortDate(b.at)}</span></span></li>`;
     const head = list.slice(0, 8), rest = list.slice(8);
@@ -1248,6 +1252,7 @@ tr.off td, tr.minor td { color: var(--ink-3); }
   /* ---------------------------------------------------------- thank-you emails (Tools) */
   async function loadThanks() {
     try { TH = await api('/api/admin/thanks'); thxErr = null; } catch (e) { if (e.message === 'signed out') return; thxErr = e.message; }
+    forget('t|');
     renderThanks();
     if (D) { renderAlerts(); renderHealth(); renderBadges(); }
   }
@@ -1259,7 +1264,7 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     const recent = TH.recent || [];
     el.innerHTML = `<div class="sent"><b>${fmt(TH.sent)}</b> sent${TH.late ? ` · <b class="dnt">${fmt(TH.late)}</b> missed` : ''}</div>
       ${!TH.on ? '<p class="note" style="margin:0 0 10px">Not sending: add a RESEND_API_KEY secret in Cloudflare (SHIPPING.md, Thank-you emails).</p>' : ''}
-      ${recent.length ? `<ul class="rows">${recent.map((r) => `<li><span>${revealable(`t|${r.sent}|${r.email}`, r.email || 'unknown', r.full)}</span><span class="r">${r.kind === 'earlier' ? 'earlier buyer' : 'new buyer'}<span class="d">${shortDate(r.sent)}</span></span></li>`).join('')}</ul>` : empty('No thank-you emails sent yet.', '')}
+      ${recent.length ? `<ul class="rows">${recent.map((r, i) => `<li><span>${revealable(`t|${i}`, r.email || 'unknown', r.full)}</span><span class="r">${r.kind === 'earlier' ? 'earlier buyer' : 'new buyer'}<span class="d">${shortDate(r.sent)}</span></span></li>`).join('')}</ul>` : empty('No thank-you emails sent yet.', '')}
       ${TH.on ? '<form class="field" id="thx-test" style="margin-top:12px"><input id="thx-to" type="email" value="karman.daily@gmail.com" aria-label="Send a test copy to"><button class="btn sm" type="submit">Send me a test</button></form>' : ''}`;
   }
   $('thx-body').addEventListener('click', (e) => { if (e.target.closest('[data-retry="thanks"]')) loadThanks(); });
