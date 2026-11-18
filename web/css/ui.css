@@ -5483,7 +5483,7 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
 
 /* A ticket focused by script (Next leg after Enter, Lock) keeps its printed edge:
    the old "no ring unless keyboard" rule wiped the whole box-shadow, edge and all. */
-#screen-round #btn-next:focus:not(:focus-visible), #screen-round #btn-lock:focus:not(:focus-visible) { outline: none; box-shadow: var(--tk-shadow); }
+#screen-round #btn-next:focus:not(:focus-visible), #screen-round #btn-lock:focus:not(:focus-visible) { box-shadow: var(--tk-shadow); }
 
 /* ---- fine print and stubs: real ticket type ---- */
 /* a mono line under the big word */
@@ -5496,15 +5496,15 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
   font: 500 9px/1 var(--f-mono); letter-spacing: 0.16em; text-transform: uppercase; white-space: nowrap;
   color: var(--tk-fine, rgba(20, 33, 61, 0.68));
 }
-#screen-round .next-ticket .kl-main::after { content: "Now boarding" / ""; }
+#screen-round .next-ticket .kl-main::after { content: "Now boarding"; content: "Now boarding" / ""; }
 /* carrier lines print in the second ink, ember, like the stamps and the email's header */
 #screen-round .next-ticket .kl-main::after, #sheet-paywall .buy-ticket .bt-main::after, #sheet-welcome .wel-go .bt-main::after { color: #A8340E; }
-#screen-round.final .next-ticket .kl-main::after { content: "Arrivals · Kármán Air" / ""; }
+#screen-round.final .next-ticket .kl-main::after { content: "Arrivals · Kármán Air"; content: "Arrivals · Kármán Air" / ""; }
 #sheet-paywall .buy-ticket .bt-main::after,
-#sheet-welcome .wel-go .bt-main::after { content: "First class · Kármán Air" / ""; letter-spacing: 0.14em; }
+#sheet-welcome .wel-go .bt-main::after { content: "First class · Kármán Air"; content: "First class · Kármán Air" / ""; letter-spacing: 0.14em; }
 @media (hover: hover) and (pointer: fine) {
-  #screen-round .key-lock:not(:disabled) .kl-main::after { content: "Press Enter ↵" / ""; }
-  #screen-round .next-ticket .kl-main::after { content: "Now boarding · Enter ↵" / ""; }
+  #screen-round .key-lock:not(:disabled) .kl-main::after { content: "Press Enter ↵"; content: "Press Enter ↵" / ""; }
+  #screen-round .next-ticket .kl-main::after { content: "Now boarding · Enter ↵"; content: "Now boarding · Enter ↵" / ""; }
 }
 /* big words */
 #screen-round .key-lock .kl-main, #screen-round .next-ticket .kl-main {
@@ -5522,7 +5522,7 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
   font: 800 19px/1 var(--f-display); letter-spacing: 0.02em; color: #14213D; white-space: nowrap;
 }
 #screen-round .key-lock .kl-stub::before {
-  content: "Climb" / ""; flex: 0 0 100%; text-align: center;
+  content: "Climb"; content: "Climb" / ""; flex: 0 0 100%; text-align: center;
   font: 500 8.5px/1 var(--f-mono); letter-spacing: 0.16em; text-transform: uppercase; color: rgba(20, 33, 61, 0.66);
 }
 #screen-round .key-lock .kl-stub:empty::before { content: none; }
@@ -5535,10 +5535,10 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
 #screen-round .next-ticket .kl-stub svg { width: 20px; height: 20px; stroke: #14213D; stroke-width: 2.4; }
 @media (max-width: 719.98px) {
   #screen-round .key-lock .kl-stub { font-size: 17px; gap: 3px 5px; }
-  #screen-round .key-lock .kl-stub::before { font-size: 8px; letter-spacing: 0.12em; }
+  #screen-round .key-lock .kl-stub::before { font-size: 9px; letter-spacing: 0.1em; }
 }
 /* Unlock: ONE-TIME is the label, the price the value */
-#sheet-paywall .buy-ticket .bt-stub small { order: -1; font: 500 8.5px/1 var(--f-mono); letter-spacing: 0.14em; opacity: 1; color: rgba(20, 33, 61, 0.66); }
+#sheet-paywall .buy-ticket .bt-stub small, #sheet-account .ac-buy .bt-stub small { order: -1; font: 500 8.5px/1 var(--f-mono); letter-spacing: 0.14em; opacity: 1; color: rgba(20, 33, 61, 0.66); }
 #sheet-paywall .buy-ticket .bt-stub b { font: 800 26px/0.9 var(--f-display); }
 #sheet-paywall .buy-ticket .bt-stub { gap: 5px; }
 /* Share: the altitude reads as the value under the flight number */
@@ -5547,7 +5547,7 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
 /* Take off on a phone: the fine print the desktop hint stands in for */
 @media (hover: none), (pointer: coarse) {
   #screen-home .launch-ticket .hold-idle::after {
-    content: "7 legs · up to 100 km" / ""; font: 500 9px/1 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; color: #A8340E;
+    content: "7 legs · to the Kármán line"; content: "7 legs · to the Kármán line" / ""; font: 500 9px/1 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; color: #A8340E;
   }
 }
 #screen-home .launch-stub small, .sheet.help .rt-stub small, #sheet-runs .runs-new .bt-stub small { color: rgba(20, 33, 61, 0.66); opacity: 1; letter-spacing: 0.14em; }
@@ -5562,7 +5562,7 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
   background: var(--tk-paint); box-shadow: var(--tk-shadow); color: rgba(20, 33, 61, 0.5); filter: none; cursor: default; transform: none;
 }
 #screen-round.empty .key-lock .kl-main, #screen-round.no-chip .key-lock .kl-main {
-  font: italic 400 19px/1 var(--f-serif); letter-spacing: 0; text-transform: none; color: rgba(20, 33, 61, 0.55);
+  font: 600 15px/1 var(--f-ui); letter-spacing: 0.01em; text-transform: none; color: rgba(20, 33, 61, 0.55);   /* the original sans (the owner's call) */
 }
 #screen-round.empty .key-lock .kl-main::after, #screen-round.no-chip .key-lock .kl-main::after { content: none; }
 #screen-round.empty .key-lock .kl-stub, #screen-round.empty .key-lock .kl-stub::before { color: rgba(20, 33, 61, 0.4); }
@@ -5574,21 +5574,27 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
   --tk-stub: #CC4218;
   background: var(--tk-paint); box-shadow: var(--tk-shadow); animation: none;
 }
+#screen-round.t-low:not(.empty):not(.no-chip) .key-lock { color: #14213D; }
+#screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-main { color: #14213D; }   /* the old ember-slab rule set it cream; calm and reduced motion too */
 #screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-stub { color: #FFF4E2; }
 #screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-stub::before { color: rgba(255, 244, 226, 0.82); }
 #screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-pip { box-shadow: 0 0 0 1.5px #FFF4E2; }
 #screen-round.t-low:not(.empty):not(.no-chip) .key-lock::after { --tk-perf: #14213D; }
 /* the stub's label turns to LAST CALL (it fits the short phone ticket too) */
-#screen-round.t-low .key-lock .kl-stub::before { content: "Last call" / ""; }
+#screen-round.t-low .key-lock .kl-stub::before { content: "Last call"; content: "Last call" / ""; }
 @media (prefers-reduced-motion: no-preference) {
   :root:not(.calm) #screen-round.t-low:not(.empty):not(.no-chip) .key-lock {
     --burn: calc(clamp(0, 1 - var(--left) * 6, 1) * 100%);
-    --tk-lip: 0px;
-    --tk-extra: linear-gradient(90deg, #CC4218 calc(var(--burn) - 1px), #FFD9A8 calc(var(--burn) - 1px), #FFD9A8 var(--burn), rgba(110, 52, 10, 0.2) var(--burn)) 0 calc(100% - 1.5px) / 100% 4px no-repeat;
+    --tk-stub: #EBA867;                                    /* the fuse, not the stub, carries the ember */
+    --tk-extra:
+      linear-gradient(90deg, transparent calc(var(--burn) - 3px), rgba(255, 236, 190, 0.95) calc(var(--burn) - 1px), transparent calc(var(--burn) + 2px)),
+      linear-gradient(90deg, #CC4218 0, #E4612F var(--burn), transparent var(--burn));
     background: var(--tk-paint); box-shadow: var(--tk-shadow);
   }
-  :root:not(.calm) #screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-stub { color: #FFF4E2; }
-  :root:not(.calm) #screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-pip { box-shadow: 0 0 0 1.5px #FFF4E2; }
+  /* the ember burns across the whole ticket, word and stub, as the dial drains (the owner's pick) */
+  :root:not(.calm) #screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-stub,
+  :root:not(.calm) #screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-stub::before { color: #14213D; }
+  :root:not(.calm) #screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-pip { box-shadow: 0 0 0 1.5px #14213D; }
 }
 /* Last 5 s, nothing typed: the blank ticket, its edge and words in ember */
 #screen-round.t-low.empty .key-lock, #screen-round.t-low.no-chip .key-lock {
@@ -5623,3 +5629,22 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
   #screen-results .ticket-row .ticket-btn, #sheet-paywall .buy-ticket, #sheet-runs .runs-new, #screen-results .keep-ticket, #sheet-account .ac-buy,
   #sheet-welcome .wel-go { transition: none; }
 }
+
+/* The inner printed frame (the owner liked it on the old Share ticket): one hairline
+   rule 5 px inside the edge, rounded with it, cut by the notches like the edge. It is
+   an outline, so it never animates and adds no layers to the stock. A blank Lock
+   ticket (disabled) has none: it is unprinted paper. */
+#screen-home .launch-ticket,
+#screen-round .key-lock:not(:disabled), #screen-round .next-ticket,
+.sheet.help .ready-ticket,
+#sheet-menu .menu-resume,
+#screen-results .ticket-row .ticket-btn#btn-share,
+#sheet-paywall .buy-ticket,
+#sheet-runs button.runs-new,
+#sheet-welcome .wel-go,
+#screen-results .keep-ticket.secondary,
+#sheet-account .ac-buy,
+#screen-results .ticket-row #btn-copy-img { outline: 1px solid var(--tk-rule, rgba(150, 72, 16, 0.55)); outline-offset: -5px; }
+#screen-results .keep-ticket.secondary, #sheet-account .ac-buy, #screen-results .ticket-row #btn-copy-img { --tk-rule: rgba(20, 33, 61, 0.2); }
+#sheet-runs .runs-new.stubless, #sheet-welcome .wel-go.stubless { outline-offset: -6px; }
+#screen-round.t-low.empty .key-lock, #screen-round.t-low.no-chip .key-lock, #screen-round.empty .key-lock, #screen-round.no-chip .key-lock { outline: none; }
