@@ -560,6 +560,10 @@ K.ui = (() => {
     chart.innerHTML = histogram(record, stats, kind === 'first');
     box.hidden = false;                         // laid out now, so nothing shifts when it appears
     const el = $('pctl-txt').querySelector('.pctl-inline');
+    // The count-up must never reflow the sentence: the figure's box is sized to its
+    // final value before it starts counting (0% → 14% would otherwise re-wrap and
+    // re-balance the line on every frame).
+    if (el) { el.textContent = `${pct}%`; el.style.width = ''; const w = el.getBoundingClientRect().width; if (w > 0) el.style.width = `${Math.ceil(w)}px`; }
     // Landing reveal: the chart draws and the figure counts on the "compare" beat
     // (or lands drawn at once if the reveal is skipped).
     const play = (instant) => {
