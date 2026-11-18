@@ -5348,3 +5348,278 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
 .rl-cap span:last-child { flex: none; }
 .rl-ghost { margin: 12px 0 2px; padding: 16px 12px; border: 1.5px dashed var(--ink-rule, rgba(20, 33, 61, 0.2)); border-radius: 8px; text-align: center;
   font: italic 400 15px/1.35 var(--f-serif); color: var(--ink-3); }
+
+/* ================= v20 · the printed ticket (keep last) =================
+   One recipe for every primary ticket, drawn from the boarding pass we send by
+   email (thanks.js, "BOARD ∞"): flat apricot stock, a deeper apricot stub,
+   one navy edge, real ticket type. No gradient, no inner frame.
+
+     stock    #F3C08A body | #EBA867 stub, flat (ink on paper, not a bevel)
+     edge     1.5 px navy, 10 px corners; the notch bites carry the same edge
+     perf     3 px navy dashes between the bites, centred, never cut short
+     depth    a 2.5 px card-thickness lip inside the foot; the press closes it
+     type     big display word + small mono fine print; the stub is a mono
+              label over a bold value
+   Secondary tickets (Keep flying, Account's Unlock, Copy image) are the same
+   die and type on paper stock. "Fly a new run" / "Fly your first run" are the
+   admit-one cut: no stub, so no perforation; the corner bites carry the edge. */
+
+#screen-home .launch-ticket,
+#screen-round .key-lock, #screen-round .next-ticket,
+.sheet.help .ready-ticket,
+#sheet-menu .menu-resume,
+#screen-results .ticket-row .ticket-btn#btn-share,
+#sheet-paywall .buy-ticket,
+#sheet-runs button.runs-new:not(.stubless),
+#screen-results .keep-ticket.secondary,
+#sheet-account .ac-buy,
+#screen-results .ticket-row #btn-copy-img {
+  --nr: 6px;                                   /* notch radius */
+  --tk-ew: 1.5px;                              /* edge weight */
+  --tk-ink: #14213D;
+  --tk-body: #F3C08A;
+  --tk-stub: #EBA867;
+  --tk-perf: rgba(20, 33, 61, 0.62);
+  --tk-lip: 2.5px;
+  --tk-lipc: rgba(110, 52, 10, 0.2);
+  --tk-fine: rgba(20, 33, 61, 0.68);
+  --tk-extra: linear-gradient(transparent, transparent);
+  --tk-ring: transparent var(--nr), var(--tk-ink) calc(var(--nr) + 0.4px), var(--tk-ink) calc(var(--nr) + var(--tk-ew)), transparent calc(var(--nr) + var(--tk-ew) + 0.5px);
+  --tk-paint:
+    radial-gradient(circle at var(--cut) 0, var(--tk-ring)),
+    radial-gradient(circle at var(--cut) 100%, var(--tk-ring)),
+    var(--tk-extra),
+    linear-gradient(90deg, var(--tk-body) var(--cut), var(--tk-stub) var(--cut));
+  --tk-shadow: inset 0 0 0 var(--tk-ew) var(--tk-ink), inset 0 calc(-1 * (var(--tk-lip) + var(--tk-ew))) 0 0 var(--tk-lipc);
+  background: var(--tk-paint);
+  box-shadow: var(--tk-shadow);
+  color: #14213D;
+  border-radius: 10px;
+  filter: none;
+  -webkit-mask: radial-gradient(circle at var(--cut) 0, transparent var(--nr), #000 calc(var(--nr) + 0.5px)) top / 100% 51% no-repeat,
+                radial-gradient(circle at var(--cut) 100%, transparent var(--nr), #000 calc(var(--nr) + 0.5px)) bottom / 100% 51% no-repeat;
+          mask: radial-gradient(circle at var(--cut) 0, transparent var(--nr), #000 calc(var(--nr) + 0.5px)) top / 100% 51% no-repeat,
+                radial-gradient(circle at var(--cut) 100%, transparent var(--nr), #000 calc(var(--nr) + 0.5px)) bottom / 100% 51% no-repeat;
+  transition: transform 120ms var(--ease-out);
+}
+/* the perforation: even dashes, centred between the two bites */
+#screen-home .launch-ticket::after,
+#screen-round .key-lock::after, #screen-round .next-ticket::after,
+.sheet.help .ready-ticket::after,
+#sheet-menu .menu-resume::after,
+#screen-results .ticket-row .ticket-btn#btn-share::after,
+#sheet-paywall .buy-ticket::after,
+#sheet-runs button.runs-new:not(.stubless)::after,
+#screen-results .keep-ticket.secondary::after,
+#sheet-account .ac-buy::after,
+#screen-results .ticket-row #btn-copy-img::after {
+  content: ""; position: absolute; left: var(--cut); top: calc(var(--nr) + 4px); bottom: calc(var(--nr) + 4px);
+  width: 1.5px; margin-left: -0.75px; border: 0;
+  background: linear-gradient(var(--tk-perf) 50%, transparent 50%) center / 1.5px 6px repeat-y;
+}
+
+/* Secondary: the same die on paper */
+#screen-results .keep-ticket.secondary, #sheet-account .ac-buy {
+  --tk-body: #FCF8EF; --tk-stub: #F1E7D3; --tk-ink: rgba(20, 33, 61, 0.5); --tk-perf: rgba(20, 33, 61, 0.38);
+  --tk-lip: 2px; --tk-lipc: rgba(20, 33, 61, 0.07);
+}
+#screen-results .ticket-row #btn-copy-img {          /* the airmail-blue copy of the pass */
+  --tk-body: #DFE7F2; --tk-stub: #CFDAEA; --tk-ink: rgba(20, 33, 61, 0.55); --tk-perf: rgba(20, 33, 61, 0.4);
+  --tk-lip: 2px; --tk-lipc: rgba(20, 33, 61, 0.1);
+}
+
+/* Hover (a mouse only): the stock lifts a touch, the lip shows a hair more */
+@media (hover: hover) and (pointer: fine) {
+  #screen-home .launch-ticket:hover:not(:disabled),
+  #screen-round .key-lock:hover:not(:disabled), #screen-round .next-ticket:hover,
+  .sheet.help .ready-ticket:hover,
+  #sheet-menu .menu-resume:hover,
+  #screen-results .ticket-row .ticket-btn#btn-share:hover,
+  #sheet-paywall .buy-ticket:hover,
+  #sheet-runs button.runs-new:not(.stubless):hover,
+  #screen-results .keep-ticket.secondary:hover,
+  #sheet-account .ac-buy:hover,
+  #screen-results .ticket-row #btn-copy-img:hover {
+    --tk-lip: 3.5px; transform: translateY(-1px); filter: none;
+    background: var(--tk-paint); box-shadow: var(--tk-shadow);
+  }
+  #screen-home .launch-ticket:hover:not(:disabled), #screen-round .key-lock:hover:not(:disabled), #screen-round .next-ticket:hover,
+  .sheet.help .ready-ticket:hover, #sheet-menu .menu-resume:hover, #screen-results .ticket-row .ticket-btn#btn-share:hover,
+  #sheet-paywall .buy-ticket:hover, #sheet-runs button.runs-new:not(.stubless):hover { --tk-body: #F6C998; --tk-stub: #EFB074; }
+  #screen-home .launch-ticket:hover:not(:disabled)::after { border: 0; --tk-perf: #14213D; }
+}
+/* Press: the ticket goes down into the card; the lip closes */
+#screen-home .launch-ticket:active:not(:disabled), #screen-home .launch-ticket.pressing,
+#screen-round .key-lock:active:not(:disabled), #screen-round .next-ticket:active,
+.sheet.help .ready-ticket:active,
+#sheet-menu .menu-resume:active,
+#screen-results .ticket-row .ticket-btn#btn-share:active,
+#sheet-paywall .buy-ticket:active,
+#sheet-runs button.runs-new:not(.stubless):active,
+#screen-results .keep-ticket.secondary:active,
+#sheet-account .ac-buy:active,
+#screen-results .ticket-row #btn-copy-img:active {
+  --tk-lip: 0.5px; transform: translateY(2px); filter: none;
+  background: var(--tk-paint); box-shadow: var(--tk-shadow);
+}
+#screen-home .launch-ticket:active:not(:disabled), #screen-home .launch-ticket.pressing,
+#screen-round .key-lock:active:not(:disabled), #screen-round .next-ticket:active,
+.sheet.help .ready-ticket:active, #sheet-menu .menu-resume:active, #screen-results .ticket-row .ticket-btn#btn-share:active,
+#sheet-paywall .buy-ticket:active, #sheet-runs button.runs-new:not(.stubless):active { --tk-body: #EFB77E; --tk-stub: #E6A060; }
+/* Keyboard focus: the edge is printed heavier (masks clip outlines) */
+#screen-home .launch-ticket:focus-visible,
+#screen-round .key-lock:focus-visible, #screen-round .next-ticket:focus-visible,
+.sheet.help .ready-ticket:focus-visible,
+#sheet-menu .menu-resume:focus-visible,
+#screen-results .ticket-row .ticket-btn#btn-share:focus-visible,
+#sheet-paywall .buy-ticket:focus-visible,
+#sheet-runs button.runs-new:not(.stubless):focus-visible,
+#screen-results .keep-ticket.secondary:focus-visible,
+#sheet-account .ac-buy:focus-visible,
+#screen-results .ticket-row #btn-copy-img:focus-visible {
+  outline: none; --tk-ew: 3px; --tk-ink: #14213D;
+  background: var(--tk-paint); box-shadow: var(--tk-shadow);
+}
+
+/* A ticket focused by script (Next leg after Enter, Lock) keeps its printed edge:
+   the old "no ring unless keyboard" rule wiped the whole box-shadow, edge and all. */
+#screen-round #btn-next:focus:not(:focus-visible), #screen-round #btn-lock:focus:not(:focus-visible) { outline: none; box-shadow: var(--tk-shadow); }
+
+/* ---- fine print and stubs: real ticket type ---- */
+/* a mono line under the big word */
+#screen-round .key-lock .kl-main, #screen-round .next-ticket .kl-main,
+#sheet-paywall .buy-ticket .bt-main, #sheet-welcome .wel-go .bt-main {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+}
+#screen-round .key-lock .kl-main::after, #screen-round .next-ticket .kl-main::after,
+#sheet-paywall .buy-ticket .bt-main::after, #sheet-welcome .wel-go .bt-main::after {
+  font: 500 9px/1 var(--f-mono); letter-spacing: 0.16em; text-transform: uppercase; white-space: nowrap;
+  color: var(--tk-fine, rgba(20, 33, 61, 0.68));
+}
+#screen-round .next-ticket .kl-main::after { content: "Now boarding" / ""; }
+/* carrier lines print in the second ink, ember, like the stamps and the email's header */
+#screen-round .next-ticket .kl-main::after, #sheet-paywall .buy-ticket .bt-main::after, #sheet-welcome .wel-go .bt-main::after { color: #A8340E; }
+#screen-round.final .next-ticket .kl-main::after { content: "Arrivals · Kármán Air" / ""; }
+#sheet-paywall .buy-ticket .bt-main::after,
+#sheet-welcome .wel-go .bt-main::after { content: "First class · Kármán Air" / ""; letter-spacing: 0.14em; }
+@media (hover: hover) and (pointer: fine) {
+  #screen-round .key-lock:not(:disabled) .kl-main::after { content: "Press Enter ↵" / ""; }
+  #screen-round .next-ticket .kl-main::after { content: "Now boarding · Enter ↵" / ""; }
+}
+/* big words */
+#screen-round .key-lock .kl-main, #screen-round .next-ticket .kl-main {
+  font: 800 21px/1 var(--f-display); letter-spacing: 0.08em; text-transform: uppercase;
+}
+#screen-round .next-ticket .kl-main { font-size: 22px; }
+@media (max-width: 719.98px) {
+  #screen-round .key-lock .kl-main { font-size: 19px; letter-spacing: 0.07em; }
+  #screen-round .next-ticket .kl-main { font-size: 21px; }
+}
+
+/* the stub: a mono label over a bold value */
+#screen-round .key-lock .kl-stub, #screen-round .next-ticket .kl-stub {
+  flex-wrap: wrap; align-content: center; justify-content: center; gap: 4px 6px;
+  font: 800 19px/1 var(--f-display); letter-spacing: 0.02em; color: #14213D; white-space: nowrap;
+}
+#screen-round .key-lock .kl-stub::before {
+  content: "Climb" / ""; flex: 0 0 100%; text-align: center;
+  font: 500 8.5px/1 var(--f-mono); letter-spacing: 0.16em; text-transform: uppercase; color: rgba(20, 33, 61, 0.66);
+}
+#screen-round .key-lock .kl-stub:empty::before { content: none; }
+#screen-round .kl-stub .kl-pip { width: 9px; height: 9px; box-shadow: 0 0 0 1.5px #14213D; }
+#screen-round .next-ticket .kl-stub { flex-direction: column; flex-wrap: nowrap; gap: 4px; }
+#screen-round .next-ticket .kl-stub small {
+  font: 500 8.5px/1 var(--f-mono); letter-spacing: 0.16em; text-transform: uppercase; color: rgba(20, 33, 61, 0.66);
+}
+#screen-round .next-ticket .kl-stub b { font: 800 24px/0.9 var(--f-display); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; color: #14213D; }
+#screen-round .next-ticket .kl-stub svg { width: 20px; height: 20px; stroke: #14213D; stroke-width: 2.4; }
+@media (max-width: 719.98px) {
+  #screen-round .key-lock .kl-stub { font-size: 17px; gap: 3px 5px; }
+  #screen-round .key-lock .kl-stub::before { font-size: 8px; letter-spacing: 0.12em; }
+}
+/* Unlock: ONE-TIME is the label, the price the value */
+#sheet-paywall .buy-ticket .bt-stub small { order: -1; font: 500 8.5px/1 var(--f-mono); letter-spacing: 0.14em; opacity: 1; color: rgba(20, 33, 61, 0.66); }
+#sheet-paywall .buy-ticket .bt-stub b { font: 800 26px/0.9 var(--f-display); }
+#sheet-paywall .buy-ticket .bt-stub { gap: 5px; }
+/* Share: the altitude reads as the value under the flight number */
+#screen-results .ticket-row #btn-share .ticket-stub { gap: 4px; font: 800 18px/0.9 var(--f-display); letter-spacing: 0.03em; color: #14213D; }
+#screen-results .ticket-row #btn-share .ticket-stub small { font: 500 8.5px/1 var(--f-mono); letter-spacing: 0.14em; color: rgba(20, 33, 61, 0.66); }
+/* Take off on a phone: the fine print the desktop hint stands in for */
+@media (hover: none), (pointer: coarse) {
+  #screen-home .launch-ticket .hold-idle::after {
+    content: "7 legs · up to 100 km" / ""; font: 500 9px/1 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; color: #A8340E;
+  }
+}
+#screen-home .launch-stub small, .sheet.help .rt-stub small, #sheet-runs .runs-new .bt-stub small { color: rgba(20, 33, 61, 0.66); opacity: 1; letter-spacing: 0.14em; }
+#screen-home .launch-ticket .hold-fill { background: rgba(204, 66, 24, 0.22); }   /* the burner fill: one flat ember tint */
+
+/* ---- Lock it in: blank → printed → last call ---- */
+/* Blank: the ticket is die-cut but not yet printed. Paper, a faint edge,
+   the word written in, no apricot, no lip: obviously not ready. */
+#screen-round.empty .key-lock, #screen-round.no-chip .key-lock {
+  --tk-body: rgba(20, 33, 61, 0.035); --tk-stub: rgba(20, 33, 61, 0.065);
+  --tk-ink: rgba(20, 33, 61, 0.24); --tk-perf: rgba(20, 33, 61, 0.26); --tk-lip: 0px; --tk-lipc: transparent;
+  background: var(--tk-paint); box-shadow: var(--tk-shadow); color: rgba(20, 33, 61, 0.5); filter: none; cursor: default; transform: none;
+}
+#screen-round.empty .key-lock .kl-main, #screen-round.no-chip .key-lock .kl-main {
+  font: italic 400 19px/1 var(--f-serif); letter-spacing: 0; text-transform: none; color: rgba(20, 33, 61, 0.55);
+}
+#screen-round.empty .key-lock .kl-main::after, #screen-round.no-chip .key-lock .kl-main::after { content: none; }
+#screen-round.empty .key-lock .kl-stub, #screen-round.empty .key-lock .kl-stub::before { color: rgba(20, 33, 61, 0.4); }
+#screen-round.empty .kl-pip { background: transparent; box-shadow: inset 0 0 0 1.5px rgba(20, 33, 61, 0.32); }
+
+/* Last 5 s with a guess: LAST CALL is printed under the word, the stub is
+   printed in ember, and the lip burns from left to right as the dial drains. */
+#screen-round.t-low:not(.empty):not(.no-chip) .key-lock {
+  --tk-stub: #CC4218;
+  background: var(--tk-paint); box-shadow: var(--tk-shadow); animation: none;
+}
+#screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-stub { color: #FFF4E2; }
+#screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-stub::before { color: rgba(255, 244, 226, 0.82); }
+#screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-pip { box-shadow: 0 0 0 1.5px #FFF4E2; }
+#screen-round.t-low:not(.empty):not(.no-chip) .key-lock::after { --tk-perf: #14213D; }
+/* the stub's label turns to LAST CALL (it fits the short phone ticket too) */
+#screen-round.t-low .key-lock .kl-stub::before { content: "Last call" / ""; }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not(.calm) #screen-round.t-low:not(.empty):not(.no-chip) .key-lock {
+    --burn: calc(clamp(0, 1 - var(--left) * 6, 1) * 100%);
+    --tk-lip: 0px;
+    --tk-extra: linear-gradient(90deg, #CC4218 calc(var(--burn) - 1px), #FFD9A8 calc(var(--burn) - 1px), #FFD9A8 var(--burn), rgba(110, 52, 10, 0.2) var(--burn)) 0 calc(100% - 1.5px) / 100% 4px no-repeat;
+    background: var(--tk-paint); box-shadow: var(--tk-shadow);
+  }
+  :root:not(.calm) #screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-stub { color: #FFF4E2; }
+  :root:not(.calm) #screen-round.t-low:not(.empty):not(.no-chip) .key-lock .kl-pip { box-shadow: 0 0 0 1.5px #FFF4E2; }
+}
+/* Last 5 s, nothing typed: the blank ticket, its edge and words in ember */
+#screen-round.t-low.empty .key-lock, #screen-round.t-low.no-chip .key-lock {
+  --tk-ink: rgba(204, 66, 24, 0.5); --tk-perf: rgba(204, 66, 24, 0.45); --tk-stub: rgba(204, 66, 24, 0.08); --tk-body: rgba(204, 66, 24, 0.04);
+  background: var(--tk-paint); box-shadow: var(--tk-shadow); color: #B8380F;
+}
+#screen-round.t-low.empty .key-lock .kl-main, #screen-round.t-low.no-chip .key-lock .kl-main { color: #B8380F; }
+#screen-round.t-low.empty .key-lock .kl-stub, #screen-round.t-low.empty .key-lock .kl-stub::before { color: rgba(184, 56, 15, 0.7); }
+#screen-round.t-low.empty .kl-pip { box-shadow: inset 0 0 0 1.5px rgba(184, 56, 15, 0.55); }
+
+/* ---- admit-one (no stub): the corner bites carry the edge ---- */
+#sheet-runs .runs-new.stubless, #sheet-welcome .wel-go.stubless {
+  --n: 9px; --e: #14213D;
+  background:
+    radial-gradient(circle at 0 0, transparent var(--n), var(--e) calc(var(--n) + 0.4px), var(--e) calc(var(--n) + 1.5px), transparent calc(var(--n) + 2px)) 0 0 / 16px 16px no-repeat,
+    radial-gradient(circle at 100% 0, transparent var(--n), var(--e) calc(var(--n) + 0.4px), var(--e) calc(var(--n) + 1.5px), transparent calc(var(--n) + 2px)) 100% 0 / 16px 16px no-repeat,
+    radial-gradient(circle at 0 100%, transparent var(--n), var(--e) calc(var(--n) + 0.4px), var(--e) calc(var(--n) + 1.5px), transparent calc(var(--n) + 2px)) 0 100% / 16px 16px no-repeat,
+    radial-gradient(circle at 100% 100%, transparent var(--n), var(--e) calc(var(--n) + 0.4px), var(--e) calc(var(--n) + 1.5px), transparent calc(var(--n) + 2px)) 100% 100% / 16px 16px no-repeat,
+    #F3C08A;
+  box-shadow: inset 0 0 0 1.5px #14213D, inset 0 -4px 0 0 rgba(110, 52, 10, 0.2);
+  color: #14213D; filter: none; transition: transform 120ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  #sheet-runs .runs-new.stubless:hover, #sheet-welcome .wel-go.stubless:hover { filter: none; transform: translateY(-1px); box-shadow: inset 0 0 0 1.5px #14213D, inset 0 -5px 0 0 rgba(110, 52, 10, 0.2); }
+}
+#sheet-runs .runs-new.stubless:active, #sheet-welcome .wel-go.stubless:active { transform: translateY(2px); box-shadow: inset 0 0 0 1.5px #14213D, inset 0 -2px 0 0 rgba(110, 52, 10, 0.2); }
+#sheet-runs .runs-new.stubless:focus-visible, #sheet-welcome .wel-go.stubless:focus-visible { outline: none; box-shadow: inset 0 0 0 3px #14213D, inset 0 -4px 0 0 rgba(110, 52, 10, 0.2); }
+#sheet-runs .rn-sub { opacity: 1; color: rgba(20, 33, 61, 0.68); letter-spacing: 0.12em; }
+
+@media (prefers-reduced-motion: reduce) {
+  #screen-home .launch-ticket, #screen-round .key-lock, #screen-round .next-ticket, .sheet.help .ready-ticket, #sheet-menu .menu-resume,
+  #screen-results .ticket-row .ticket-btn, #sheet-paywall .buy-ticket, #sheet-runs .runs-new, #screen-results .keep-ticket, #sheet-account .ac-buy,
+  #sheet-welcome .wel-go { transition: none; }
+}

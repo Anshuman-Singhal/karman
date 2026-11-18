@@ -435,7 +435,7 @@ K.game = (() => {
       hindsight: hindsight(fact, result), photo,
       plain: ((store.stats && store.stats.flights) || 0) < HINDSIGHT_FLIGHTS,   // first week: the rule in a sentence
       nextLabel: i < C.LEGS - 1 ? 'Next leg' : 'See your flight',
-      nextStub: i < C.LEGS - 1 ? `Leg ${i + 2}` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
+      nextStub: i < C.LEGS - 1 ? `<small>Leg</small> <b>${i + 2}</b>` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`,
     });
     document.getElementById('btn-next').focus({ preventScroll: true });
   }
