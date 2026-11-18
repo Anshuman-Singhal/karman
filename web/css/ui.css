@@ -4724,6 +4724,11 @@ body[data-screen="home"] #balloon-rig { pointer-events: auto; cursor: pointer; }
   #screen-results .ticket-row #btn-share .ticket-main { gap: 6px; }
   #btn-share .ts-pm { left: -1px; }                  /* a tighter ticket: the cancel lines stop short of the perforation */
   #screen-results #btn-copy-img { flex: 1 1 0; }
+  /* the label is printed like Share's, in the condensed display face, with room inside the frame */
+  #screen-results .ticket-row #btn-copy-img .ticket-main {
+    padding: 0 12px; box-sizing: border-box; min-width: 0;
+    font: 800 17px/1 var(--f-display); letter-spacing: 0.05em; text-transform: uppercase;
+  }
 }
 
 /* Keep flying steps back: the same ticket, plain paper stock, below the tear */
