@@ -5663,3 +5663,9 @@ body.sheet-open #climb-card, body:not(.climb-open) #climb-card { display: none; 
 #screen-results .keep-ticket.secondary, #sheet-account .ac-buy, #screen-results .ticket-row #btn-copy-img { --tk-rule: rgba(20, 33, 61, 0.2); }
 #sheet-runs .runs-new.stubless, #sheet-welcome .wel-go.stubless { outline-offset: -6px; }
 #screen-round.t-low.empty .key-lock, #screen-round.t-low.no-chip .key-lock, #screen-round.empty .key-lock, #screen-round.no-chip .key-lock { outline: none; }
+
+/* The scale hint wraps instead of being cut off with "…". Context hints
+   ("it runs about 2,850 km from Germany's Black Forest to the Black Sea") run
+   past one line, and a cut-off hint loses the half that helps. The round
+   already makes room for a hint plus a bought clue, so two lines fit. */
+#screen-round .hint { white-space: normal; overflow: visible; text-overflow: clip; text-wrap: pretty; }
