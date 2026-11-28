@@ -296,30 +296,19 @@ section('Share nudge');
 {
   const N = K.nudge;
   const daily = (n, extra) => ({ n, mode: 'daily', isFresh: true, ...extra });
-  // when the full sequence may play
-  check(N.plan(undefined, daily(10)) === true && N.plan({}, daily(10)) === true, 'a first daily finish with no history plays the stamp');
-  check(N.plan({}, daily(10, { isFresh: false })) === false, 're-opening the results: no motion');
-  check(N.plan({}, daily(10, { mode: 'archive' })) === false, 'archive flights: no motion');
-  check(N.plan({}, daily(10, { mode: 'unlimited' })) === false, 'Unlimited runs: no motion');
-  check(N.plan({ seen: 10, miss: 1 }, daily(10)) === false, 'at most once a day (a second finish of the same flight)');
-  check(N.plan({ shared: 10 }, daily(10)) === false, 'shared today: skipped');
-  check(N.plan({ shared: 9 }, daily(10)) === false, 'shared yesterday: skipped');
-  check(N.plan({ shared: 8 }, daily(10)) === true, 'last shared two days ago: it plays again');
-  // back-off for pilots who never share: day 1, then 2 days later, then 4, then weekly
-  let nd, played = [];
-  for (let day = 1; day <= 30; day++) if (N.plan(nd, daily(day))) { played.push(day); nd = N.afterSeen(nd, day); }
-  check(played.join() === '1,3,7,14,21,28', `ignored every time, it backs off 1 · 2 · 4 · 7 days, then weekly (played ${played.join()})`);
-  check(nd.miss === 6 && nd.seen === 28, 'each full nudge counts one unanswered');
-  check(N.GAPS.join() === '1,2,4,7', 'the back-off steps are 1, 2, 4, 7 days');
-  // one share resets the back-off
-  nd = N.afterShare({ seen: 28, miss: 6 }, 29);
-  check(nd.miss === 0 && nd.shared === 29 && nd.seen === 28, 'a share remembers the day and resets the count');
-  check(N.plan(nd, daily(30)) === false && N.plan(nd, daily(31)) === true, 'after a share: skipped the next day, back to daily the day after');
-  check(N.plan(N.afterSeen(nd, 31), daily(32)) === false && N.plan(N.afterSeen(nd, 31), daily(33)) === true, '...and one unanswered nudge waits 2 days again');
-  check(N.plan({ seen: 'x', miss: -3, shared: null }, daily(5)) === true, 'a malformed record never blocks or crashes');
+  // when the full sequence plays: after every flight you just finished, for everyone, every time
+  check(N.plan(undefined, daily(10)) === true && N.plan({}, daily(10)) === true, 'a daily finish plays the stamp');
+  check(N.plan({}, daily(10, { mode: 'archive' })) === true && N.plan({}, daily(10, { mode: 'unlimited', n: undefined })) === true, 'archive flights and Unlimited runs play it too');
+  check(N.plan({ seen: 10, miss: 6, shared: 10 }, daily(10)) === true, 'seen it before, shared today: it still plays');
+  let plays = 0; for (let day = 1; day <= 30; day++) if (N.plan({ shared: day }, daily(day))) plays++;
+  check(plays === 30, 'no back-off: every day, every finish');
+  check(N.plan({}, daily(10, { isFresh: false })) === false, 're-opening an old result: no motion');
+  check(N.HOLD === 3500, 'the sticker holds for 3.5 seconds before it jumps');
+  const nd = N.afterShare({ seen: 28, miss: 6 }, 29);
+  check(nd.shared === 29, 'a share remembers the day (the ticket\'s postmark)');
   for (const bad of ['garbage', 42, null, [1, 2], true]) {
-    const seen = N.afterSeen(bad, 7), sh = N.afterShare(bad, 7);
-    check(seen.seen === 7 && seen.miss === 1 && !Array.isArray(seen) && !('0' in seen) && sh.shared === 7 && sh.miss === 0 && !('0' in sh), `a stored ${JSON.stringify(bad)} is treated as no record`);
+    const sh = N.afterShare(bad, 7);
+    check(sh.shared === 7 && !Array.isArray(sh) && !('0' in sh), `a stored ${JSON.stringify(bad)} is treated as no record`);
   }
   // storage: this device only, and old saves are untouched
   const M = realStorage.migrate;

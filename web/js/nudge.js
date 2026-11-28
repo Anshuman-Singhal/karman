@@ -4,20 +4,20 @@
 
    After the landing reveal has settled, an airmail stamp ("Help us grow ·
    Share with your friends · 12 KM") is slapped into the empty corner beside the
-   score, holds long enough to read, then peels off and flies into the Share
-   ticket, where it stays as a small stamp beside SHARE FLIGHT. Nothing loops;
-   ~2.8 s from slap to rest. Taps anywhere else pass straight through and make
-   it finish at once; tapping the stamp itself shares.
+   score, holds 3.5 s, then peels off and flies into the Share ticket, where it
+   stays as a small stamp beside SHARE FLIGHT. As it jumps it uncovers a red
+   round rubber stamp printed underneath, HELP US GROW, which stays on the pass.
+   Nothing loops; ~4.6 s from slap to rest. Taps anywhere else pass straight
+   through and make it finish at once; tapping the stamp itself shares.
 
-   When: the full sequence plays only on the first finish of today's daily
-   flight, at most once a day, never for pilots who shared today or
-   yesterday, and backing off (1, 2, 4, then 7 days) for pilots who never
-   share. Everywhere else the ticket simply wears its stamp (the quiet
-   version). Reduced motion: the stamp fades in at the corner and out again.
+   When: after every finished flight (daily, archive, Unlimited), for every
+   pilot, every time (the owner's call). Re-opening an old result doesn't
+   play it. Reduced motion: the stamp fades in at the corner and out again,
+   leaving the red stamp.
 
-   Storage: K.storage.data.nudge = { seen, miss, shared } (flight numbers and
-   a count). A LOCAL_ONLY key (sync.js): never uploaded, never merged, and a
-   missing key just means "never seen", so no existing save changes.
+   Storage: K.storage.data.nudge = { shared } (the day of the last share, for
+   the ticket's postmark). A LOCAL_ONLY key (sync.js): never uploaded, never
+   merged, and a missing key just means "never shared", so no save changes.
 
    The rules at the top are pure (tests/logic.test.js runs them in Node);
    nothing touches the DOM until results() is called.
@@ -25,23 +25,12 @@
 
 K.nudge = (() => {
   /* ------------------------------------------------------------ the rules (pure) */
-  const GAPS = [1, 2, 4, 7];            // days between full nudges, by how many went unanswered
-
-  /** Should this results screen play the full sequence? nd = the stored state (may be missing). */
   const obj = (nd) => (nd && typeof nd === 'object' && !Array.isArray(nd) ? nd : {});   // a stored value that isn't a record counts as none
-  function plan(nd, { n, mode, isFresh }) {
-    nd = obj(nd);
-    if (mode !== 'daily' || !isFresh || !Number.isFinite(n)) return false;    // first finish of a daily flight only
-    if (nd.seen === n) return false;                                           // once a day
-    if (Number.isFinite(nd.shared) && nd.shared >= n - 1) return false;        // shared today or yesterday
-    const miss = Math.max(0, Math.floor(nd.miss) || 0);
-    if (Number.isFinite(nd.seen) && n - nd.seen < GAPS[Math.min(miss, GAPS.length - 1)]) return false;   // back off
-    return true;
-  }
-  /** The state after a full (or still) nudge has started on flight n. */
-  const afterSeen = (nd, n) => ({ ...obj(nd), seen: n, miss: Math.max(0, Math.floor(obj(nd).miss) || 0) + 1 });
+  /** Should this results screen play the full sequence? Every flight you just
+      finished, whatever the mode, whoever you are; never an old result re-opened. */
+  function plan(nd, { isFresh }) { return Boolean(isFresh); }
   /** The state after any share, on day `day` (today's flight number). */
-  const afterShare = (nd, day) => ({ ...obj(nd), shared: day, miss: 0 });
+  const afterShare = (nd, day) => ({ ...obj(nd), shared: day });
 
   /* ------------------------------------------------------------ easing and the timeline */
   function bez(x1, y1, x2, y2) {
@@ -70,9 +59,9 @@ K.nudge = (() => {
     spring: bez(0.34, 1.56, 0.64, 1),     // the game's --ease-spring
     sheen: bez(0.45, 0, 0.25, 1),
   };
-  /* ms from T0 (the slap). The read hold is 5 s (the owner's call): long enough to
-     notice and decide. A tap anywhere else or a scroll still sends it home at once. */
-  const HOLD = 5000, D = HOLD - 1200;
+  /* ms from T0 (the slap). The read hold is 3.5 s (the owner's call). A tap
+     anywhere else or a scroll still sends it home at once. */
+  const HOLD = 3500, D = HOLD - 1200;
   const T = { fall: 150, flat: 240, peel: 1440 + D, fly: 1560 + D, land: 2060 + D, press: 2140 + D, swap: 2280 + D, dip: 2120 + D, spring: 2200 + D, back: 2480 + D, sheen: 2160 + D, rest: 2800 + D };
   const RM = { in: 200, out: 200 + HOLD, gone: 400 + HOLD };   // reduced motion: fade in, hold, fade out
   const R_READ = 3.5, R_REST = -6, S_SLAP = 1.4;
@@ -167,18 +156,23 @@ K.nudge = (() => {
     }
     return true;
   }
-  function fit(desk) {
+  /** What's printed around the score, and the area the stamp may use. */
+  function layout() {
     const $ = (id) => document.getElementById(id);
     const lock = document.querySelector('#screen-results .res-lockup').getBoundingClientRect();
     const share = $('btn-share').getBoundingClientRect();
     const eyebrow = textRects($('res-eyebrow'));
     const pctl = $('pctl').hidden ? [] : textRects($('pctl-txt'));
-    const busy = [...eyebrow, ...textRects($('res-alt')), ...textRects($('res-unit')), ...textRects($('res-tier')), ...textRects($('res-vs')), ...pctl];
+    const text = [...eyebrow, ...textRects($('res-alt')), ...textRects($('res-unit')), ...textRects($('res-tier')), ...textRects($('res-vs')), ...pctl];
+    const busy = [...text];
     const chart = $('crowd-chart');
     if (chart && chart.childElementCount) busy.push(chart.getBoundingClientRect());
     const top = eyebrow.length ? Math.min(...eyebrow.map((b) => b.top)) : lock.top - 12;
+    return { lock, share, pctl, text, busy, top, left: lock.left, right: Math.min(innerWidth - 2, lock.right + 18) };
+  }
+  function fit(desk) {
+    const { lock, share, pctl, busy, top, left, right } = layout();
     const bottom = (pctl.length ? Math.min(...pctl.map((b) => b.top)) : share.top - 2) - GAP;
-    const left = lock.left, right = Math.min(innerWidth - 2, lock.right + 18);
     const a = (R_READ * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
     for (let w = desk ? 136 : 120; w >= 76; w -= 2) {
       const h = w * 1.25, hx = (w * ca + h * sa) / 2, hy = (w * sa + h * ca) / 2;
@@ -196,9 +190,63 @@ K.nudge = (() => {
     }
     return null;
   }
+  /** The smallest phones (a 320 px screen, a long score) have no empty corner that
+      big. The sticker still comes (every pilot, every run: the owner's call), at its
+      smallest, where it covers the least printed text, for its 3.5 s; the red stamp
+      it leaves behind still never covers anything (inkSpot). */
+  function fallback() {
+    const { lock, share, text, top, right } = layout();
+    const w = 76, h = w * 1.25;
+    const a = (R_READ * Math.PI) / 180, hx = (w * Math.cos(a) + h * Math.sin(a)) / 2, hy = (w * Math.sin(a) + h * Math.cos(a)) / 2;
+    const bottom = share.top - 2 - GAP, want = { x: right - hx, y: Math.max(top + hy, lock.top - 6 + hy) };
+    const over = (cx, cy) => text.reduce((s, b) => s + Math.max(0, Math.min(cx + hx, b.right) - Math.max(cx - hx, b.left)) * Math.max(0, Math.min(cy + hy, b.bottom) - Math.max(cy - hy, b.top)), 0);
+    let best = null;
+    for (let cx = right - hx; cx >= Math.max(hx + 2, lock.left - w); cx -= 3) {
+      for (let cy = top + hy; cy <= bottom - hy; cy += 3) {
+        const score = over(cx, cy) * 4 + (want.x - cx) + Math.abs(cy - want.y) * 0.6;
+        if (!best || score < best.score) best = { x: cx, y: cy, score };
+      }
+    }
+    return best ? { w, h, P0: { x: best.x, y: best.y } } : null;
+  }
+  /** Where the red stamp goes: the biggest circle (up to the sticker's frame) that
+      touches no printed text and not the crowd chart, as near the sticker as possible.
+      Under a normal-sized sticker that is exactly where the sticker sat. */
+  function inkSpot(g) {
+    const { lock, share, pctl, busy, top, left, right } = layout();
+    const bottom = (pctl.length ? Math.min(...pctl.map((b) => b.top)) : share.top - 2) - GAP;
+    const clear = (cx, cy, r) => busy.every((b) => {
+      const nx = Math.max(b.left - GAP, Math.min(cx, b.right + GAP)), ny = Math.max(b.top - GAP, Math.min(cy, b.bottom + GAP));
+      return Math.hypot(nx - cx, ny - cy) >= r;
+    });
+    for (let d = Math.round(g.w * 0.86); d >= 48; d -= 2) {
+      const r = d / 2;
+      if (clear(g.P0.x, g.P0.y, r) && g.P0.y - r >= top && g.P0.y + r <= bottom) return { x: g.P0.x, y: g.P0.y, d };
+      let best = null;
+      for (let cx = right - r; cx >= left + r; cx -= 2) {
+        for (let cy = top + r; cy <= bottom - r; cy += 2) {
+          const dist = Math.hypot(cx - g.P0.x, cy - g.P0.y);
+          if (best && dist >= best.dist) continue;
+          if (clear(cx, cy, r)) best = { x: cx, y: cy, d, dist };
+        }
+      }
+      if (best) return best;
+    }
+    return null;
+  }
 
   /* ------------------------------------------------------------ the DOM */
   const BALLOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2c-4.1 0-6.6 3-6.6 6.6 0 2.8 2.2 5 4 6.4h5.2c1.8-1.4 4-3.6 4-6.4 0-3.6-2.5-6.6-6.6-6.6z"/><path d="M12 3.2c-1.6 1.7-2.3 4.1-2.3 6.6 0 2.6.5 4.9 1 6.4M12 3.2c1.6 1.7 2.3 4.1 2.3 6.6 0 2.6-.5 4.9-1 6.4"/><rect x="10" y="18.3" width="4" height="2.7" rx=".6"/></svg>';
+  /* The red rubber stamp under the sticker: HELP US GROW, ringed by KÁRMÁN AIR.
+     Inked, not printed: a little noise eats into it, like a real rubber stamp. */
+  const INK = `<svg viewBox="0 0 100 100" aria-hidden="true">
+    <defs><path id="pm-ring" d="M50,50 m-37,0 a37,37 0 1,1 74,0 a37,37 0 1,1 -74,0"/>
+      <filter id="pm-rough" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="n"/>
+        <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.1 1.85" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter></defs>
+    <g filter="url(#pm-rough)"><circle class="pm-o" cx="50" cy="50" r="47"/><circle class="pm-i" cx="50" cy="50" r="29.5"/>
+      <text class="pm-ring"><textPath href="#pm-ring" textLength="228" lengthAdjust="spacing">KÁRMÁN AIR ★ KARMAN.DAY ★ KÁRMÁN AIR ★ </textPath></text>
+      <text class="pm-c" x="50" y="48.5" text-anchor="middle">HELP US</text><text class="pm-c pm-big" x="50" y="63.5" text-anchor="middle">GROW</text></g></svg>`;
+  let ink = null;          // the red stamp on this results screen, once it is down
   const FPS = 1000 / 60;
   let ctx = null;          // this results screen: { n, mode, face, wait }
   let run = null;          // the stamp in the air: { sky, fly, parts, anims, g, calm, ff, tap }
@@ -239,24 +287,48 @@ K.nudge = (() => {
       const main = scr.querySelector('.res-main');
       const vis = (el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight && r.right <= innerWidth; };
       if (typeof Element.prototype.animate !== 'function'          // no Web Animations: the ticket just wears its stamp
-        || !plan(store().nudge, { n: ctx.n, mode: ctx.mode, isFresh: true })
+        || !plan(store().nudge, { isFresh: true })
         || K.ui.current !== 'results' || document.hidden || document.querySelector('.sheet-wrap.open')
         || (K.coach && K.coach.active) || document.body.classList.contains('climb-open')
         || scr.scrollTop > 0 || (main && main.scrollTop > 0) || !vis(b)) return rest();
-      const spot = fit(innerWidth >= 720);
+      const spot = fit(innerWidth >= 720) || fallback();
       const stamp = b.querySelector('.ticket-stamp');
       if (!spot || !stamp || !vis(stamp)) return rest();
       const sb = stamp.getBoundingClientRect();
       const g = { ...spot, P3: { x: sb.left + sb.width / 2, y: sb.top + sb.height / 2 }, sRest: stamp.offsetWidth / spot.w };
       const v = rot(g.w / 2, -g.h / 2, R_READ);
       g.C = { x: g.P0.x - v.x, y: g.P0.y - v.y };    // the read pose's lower-left corner: the slap's pivot
-      play(g, reduced());
-      save(afterSeen(store().nudge, ctx.n));          // the day counts only once the stamp is actually on screen
+      const calm = reduced();
+      inkDown(g, calm);
+      play(g, calm);
       try { K.stats.event('nudge_seen'); } catch (e) { /* stats never block the game */ }
     } catch (e) {
       stop();                                         // whatever went wrong, the screen ends at rest
     }
   }
+
+  /** The red stamp goes down where the sticker will be read, under it (it only shows
+      once the sticker jumps). It sits in the score block, so it scrolls with the pass,
+      and it stays until the next results screen (a resize takes it away: it was
+      placed for this layout). */
+  function inkDown(g, calm) {
+    dropInk();
+    const box = document.querySelector('#screen-results .res-lockup');
+    const at = box && inkSpot(g);
+    if (!at) return;                                  // nowhere clean to print it: the sticker still flies
+    const r = box.getBoundingClientRect(), d = at.d;
+    ink = document.createElement('div');
+    ink.className = 'post-ink';
+    ink.setAttribute('aria-hidden', 'true');
+    // It shows the moment the sticker jumps off it (or fades away, in reduced motion).
+    ink.style.cssText = `left:${(at.x - r.left - d / 2).toFixed(1)}px;top:${(at.y - r.top - d / 2).toFixed(1)}px;width:${d}px;height:${d}px;animation-delay:${calm ? RM.out : T.fly}ms`;
+    ink.innerHTML = INK;
+    box.appendChild(ink);
+    addEventListener('resize', dropInk, { once: true });
+  }
+  function dropInk() { if (ink) { ink.remove(); ink = null; } removeEventListener('resize', dropInk); }
+  /** The sticker left early (a tap, a scroll, a share): the red stamp shows now. */
+  function inkNow() { if (ink) ink.style.animationDelay = '0ms'; }
 
   function build(g) {
     const u = g.w / 80;
@@ -328,6 +400,7 @@ K.nudge = (() => {
     const mine = run, { g, calm, fly, parts } = mine;
     const t = now();
     if (!calm && t >= T.swap) return land();
+    inkNow();
     const from = pose(g, t, calm);
     mine.anims.forEach((x) => x.cancel());
     clearTail();
@@ -362,9 +435,10 @@ K.nudge = (() => {
     listen(false);
     if (run) { run.anims.forEach((x) => x.cancel()); run = null; }
     document.querySelectorAll('.post-sky').forEach((x) => x.remove());
+    inkNow();
     rest();
   }
-  function reset() { stop(); ctx = null; }
+  function reset() { stop(); dropInk(); ctx = null; }
 
   /* Interrupts: nothing is blocked or swallowed; the stamp just hurries home.
      The overlay never takes pointer events (a swipe or a wheel that starts on the
@@ -430,5 +504,5 @@ K.nudge = (() => {
   /** A sheet opens over the results: finish now (the stamp is home before the sheet is up). */
   const hurry = () => finish(180);
 
-  return { plan, afterSeen, afterShare, GAPS, results, shared, hurry, stop };
+  return { plan, afterShare, HOLD, results, shared, hurry, stop };
 })();
