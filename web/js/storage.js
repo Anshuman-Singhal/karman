@@ -22,6 +22,7 @@
      sync:   { ver, at }                           // cloud copy version (sync.js)
      reported: { [factId]: true }
      nudge:  { seen, miss, shared }               // the share stamp's once-a-day rules (nudge.js); this device only, absent until first used
+     outbox: [{ body, t }]                        // results the server hasn't received yet (stats.js); this device only, absent until needed
    }
    Changing the shape later? Add a field to fresh() and, if older saves need
    converting, a step in migrate(). Never rename or delete a field players

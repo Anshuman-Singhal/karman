@@ -230,3 +230,25 @@ INSERT OR IGNORE INTO meta (k, v) VALUES ('live_from', datetime('now'));
 
 -- "Paid flights started this week" without reading every play ever logged.
 CREATE INDEX IF NOT EXISTS plays_by_at ON plays (at);
+
+-- Sign-in version per Google account (absent = 0). Session tokens carry it;
+-- "Sign out on all devices" and an owner-run data deletion bump it, so every
+-- older token stops working. deleted = when the owner deleted this account's
+-- data on request (the payment rows stay, for tax and accounting).
+CREATE TABLE IF NOT EXISTS accounts (
+  sub      TEXT PRIMARY KEY,
+  ver      INTEGER NOT NULL DEFAULT 0,
+  deleted  TEXT
+);
+
+-- What went wrong, for the owner's Health panel: browser errors (message, file,
+-- line; no device id, no IP) and the Worker's own, counted per day. Kept 30 days.
+CREATE TABLE IF NOT EXISTS errors (
+  day      INTEGER NOT NULL,
+  msg      TEXT    NOT NULL,
+  file     TEXT    NOT NULL DEFAULT '',
+  line     INTEGER NOT NULL DEFAULT 0,
+  n        INTEGER NOT NULL DEFAULT 1,
+  last     TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (day, msg, file, line)
+) WITHOUT ROWID;

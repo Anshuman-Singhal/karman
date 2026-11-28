@@ -407,6 +407,11 @@ tr.off td, tr.minor td { color: var(--ink-3); }
         <div class="ph"><div><h3>Data</h3></div></div>
         <ul class="rows" id="data-rows"></ul>
       </div>
+      <div class="panel c12">
+        <div class="ph"><div><h3>Delete a player’s data</h3><div class="sub">When someone emails asking for their data to be deleted. Removes their cloud save, play log and stored email, and signs out every device they use. Their payment records stay (tax), and so does Unlimited if they bought it.</div></div></div>
+        <form class="field" id="del-form"><input id="del-email" type="email" maxlength="200" placeholder="Their Google email" autocomplete="off" aria-label="The player’s Google email"><button class="btn" id="del-go" type="submit">Delete their data</button></form>
+        <p class="note" id="del-out" aria-live="polite"></p>
+      </div>
     </div>
   </section>
 </main>
@@ -660,6 +665,9 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     if (d1 && d1.rowsRead / d1.limitRead > 0.5) out.push(['warn', `<b>Database is near its daily limit.</b> <span>Reads are at ${pct(d1.rowsRead, d1.limitRead)}% of today’s cap. It resets at midnight UTC.</span>`, '#health', 'See Health']);
     const wr = d1 && d1.rowsWritten != null ? d1.rowsWritten : D.health.writesEst;
     if (wr != null && wr > 70000) out.push(['warn', `<b>Database is near its daily limit.</b> <span>About ${fmt(Math.round(wr / 1000))}k of the 100k daily writes${d1 && d1.rowsWritten != null ? ' today' : ' (yesterday, estimated)'}. Writes over the cap fail until midnight UTC.</span>`, '#health', 'See Health']);
+    const dups = Array.isArray(BUY) ? BUY.filter((b) => b && b.dup).length : 0;
+    if (dups) out.push(['crit', `<b>${plural(dups, 'buyer')} paid twice for one purchase.</b> <span>Refund the extra payment in Stripe.</span>`, '#money', 'See buyers']);
+    if (ERR && ERR.total >= 20) out.push(['warn', `<b>${fmt(ERR.total)} errors in the last 7 days.</b> <span>See what broke.</span>`, '#health', 'See Health']);
     if (TH && !TH.on) out.push(['warn', '<b>Thank-you emails are off.</b> <span>Add the RESEND_API_KEY secret in Cloudflare.</span>', '#tools', 'Tools']);
     else if (TH && TH.late) out.push(['warn', `<b>${plural(TH.late, 'buyer')} got no thank-you a day after paying.</b> <span>The automatic send failed: check Resend.</span>`, '#tools', 'Tools']);
     if (D.passes.stale) out.push(['warn', `<b>${plural(D.passes.stale, 'free pass', 'free passes')} unused for 2+ weeks.</b>`, '#tools', 'Tools']);
@@ -1106,9 +1114,13 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     <div class="grid">
       <div class="panel c6"><ul class="rows" id="health-a"></ul></div>
       <div class="panel c6"><ul class="rows" id="health-b"></ul></div>
+      <div class="panel c12">
+        <div class="ph"><div><h3>Recent errors</h3><div class="sub">What broke in players’ browsers and on the server, last 7 days. Each line is one message, counted.</div></div><span id="err-pill"></span></div>
+        <div id="errs"></div>
+      </div>
     </div>
   </section>`;
-    renderAlerts(); renderHealth(); renderBadges(); renderReports(); renderData(); renderBuyers();
+    renderAlerts(); renderHealth(); renderBadges(); renderReports(); renderData(); renderBuyers(); renderErrors();
     drawCharts();
     tickHeader();
   }
@@ -1234,20 +1246,55 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     try { BUY = (await api('/api/admin/buyers')).buyers; buyErr = null; } catch (e) { if (e.message === 'signed out') return; buyErr = e.message; }
     forget('b|');   // rows are keyed by position: a new list starts hidden, so a reveal can never land on another buyer
     renderBuyers();
+    if (D) { renderAlerts(); renderBadges(); }
   }
   function renderBuyers() {
     const el = $('buyers');
     if (!el || !D) return;
-    const list = BUY ? BUY.map((b, i) => ({ key: `b|${i}`, masked: b.masked, full: b.email, at: b.at, src: b.src, refunded: b.refunded && b.refunded >= b.amount }))
+    const list = BUY ? BUY.map((b, i) => ({ key: `b|${i}`, masked: b.masked, full: b.email, at: b.at, src: b.src, refunded: b.refunded && b.refunded >= b.amount, dup: b.dup }))
       : D.money.buyers.map((b, i) => ({ key: `b|${i}`, masked: b.email, full: null, at: b.at, src: b.src }));
     if (!list.length) { el.innerHTML = empty('No buyers yet', ''); return; }
-    const li = (b) => `<li><span>${revealable(b.key, b.masked, b.full)}</span><span class="r">${b.refunded ? '<span class="pill">Refunded</span>' : ''}${b.src ? esc(b.src) : ''}<span class="d">${shortDate(b.at)}</span></span></li>`;
+    const li = (b) => `<li><span>${revealable(b.key, b.masked, b.full)}</span><span class="r">${b.dup ? '<span class="pill crit" title="This account already paid: refund this one in Stripe">Paid twice · refund</span>' : ''}${b.refunded ? '<span class="pill">Refunded</span>' : ''}${b.src ? esc(b.src) : ''}<span class="d">${shortDate(b.at)}</span></span></li>`;
     const head = list.slice(0, 8), rest = list.slice(8);
     el.innerHTML = `<ul class="rows">${head.map(li).join('')}</ul>
       ${rest.length ? `${foldBtn('buyers', `See all ${plural(list.length, 'buyer')}`, `Show the latest 8 only`)}${fold('buyers', `<ul class="rows">${rest.map(li).join('')}</ul>`)}` : ''}
       ${buyErr ? `<p class="note">Full emails didn’t load (${esc(buyErr)}). <button class="btn sm quiet" type="button" data-retry="buyers">Retry</button></p>` : !BUY ? '<p class="note">Loading full emails…</p>' : ''}`;
   }
   document.addEventListener('click', (e) => { if (e.target.closest('[data-retry="buyers"]')) loadBuyers(); });
+
+  /* ---------------------------------------------------------- recent errors (Health) */
+  let ERR = null, errErr = null;
+  async function loadErrors() {
+    try { const r = await api('/api/admin/errors'); ERR = { errors: Array.isArray(r && r.errors) ? r.errors : [], total: Number(r && r.total) || 0 }; errErr = null; } catch (e) { if (e.message === 'signed out') return; errErr = e.message; }
+    renderErrors();
+    if (D) { renderAlerts(); renderBadges(); }
+  }
+  function renderErrors() {
+    const el = $('errs');
+    if (!el) return;
+    $('err-pill').innerHTML = ERR && ERR.total ? `<span class="pill ${ERR.total >= 20 ? 'warn' : ''}">${fmt(ERR.total)} this week</span>` : '';
+    if (errErr) { el.innerHTML = `<div class="empty"><b>Errors didn’t load (${esc(errErr)}).</b><button class="btn sm" type="button" data-retry="errors">Retry</button></div>`; return; }
+    if (!ERR) { el.innerHTML = '<div class="sk" style="height:32px;width:50%"></div>'; return; }
+    if (!ERR.errors.length) { el.innerHTML = empty('No errors this week', 'Anything that breaks in a player’s browser or on the server shows up here.'); return; }
+    el.innerHTML = `<ul class="rows">${ERR.errors.map((x) => `<li><span><b>${esc(x.msg)}</b><span class="small dim" style="display:block">${esc(x.file || '')}${x.line ? `:${x.line}` : ''}</span></span><span class="r"><span class="pill">${fmt(x.n)}×</span><span class="d">${shortDate(x.last)}</span></span></li>`).join('')}</ul>`;
+  }
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-retry="errors"]')) loadErrors(); });
+
+  /* ---------------------------------------------------------- delete a player's data (Tools) */
+  $('del-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = $('del-email').value.trim(), btn = $('del-go'), out = $('del-out');
+    if (!email) return;
+    if (btn.dataset.armed !== email) { btn.dataset.armed = email; btn.textContent = 'Press again to delete'; out.textContent = `This deletes ${email}’s cloud save and signs out their devices. It can’t be undone.`; return; }
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      const r = await api('/api/admin/delete-account', { method: 'POST', body: JSON.stringify({ email }) });
+      out.textContent = r.deleted ? `Done: ${email}’s data is deleted and their devices are signed out.` : `No account found for ${email}. Nothing was changed.`;
+      $('del-email').value = '';
+    } catch (err) { if (err.message !== 'signed out') out.textContent = `Didn’t work (${err.message}). Nothing was changed.`; }
+    btn.disabled = false; btn.textContent = 'Delete their data'; delete btn.dataset.armed;
+  });
+  $('del-email').addEventListener('input', () => { const b = $('del-go'); if (b.dataset.armed) { delete b.dataset.armed; b.textContent = 'Delete their data'; $('del-out').textContent = ''; } });
 
   /* ---------------------------------------------------------- thank-you emails (Tools) */
   async function loadThanks() {
@@ -1313,7 +1360,7 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     if (b.dataset.act === 'refresh') { load(true); loadBuyers(); }
     if (b.dataset.act === 'retry') load(false);
   });
-  $('refresh').addEventListener('click', () => { load(true); loadBuyers(); });
+  $('refresh').addEventListener('click', () => { load(true); loadBuyers(); loadErrors(); });
   let rt = 0, lastW = innerWidth;
   addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (Math.abs(innerWidth - lastW) < 2) return; lastW = innerWidth; hideTip(); drawCharts(); }, 150); });
 
@@ -1375,7 +1422,14 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     s.onerror = () => { $('gerr').textContent = 'Couldn’t load Google sign-in.'; };
     document.head.appendChild(s);
   }
-  $('signout').addEventListener('click', () => { set(TOKEN_KEY, null); set('karman:admin-email', null); try { sessionStorage.removeItem('karman:dash'); } catch (e) { /* ignore */ } location.reload(); });
+  $('signout').addEventListener('click', () => {
+    // Signed out here at once; then the server ends the sign-in too, so a copied
+    // token stops working (best effort: offline, this browser is still signed out).
+    const tok = get(TOKEN_KEY);
+    set(TOKEN_KEY, null); set('karman:admin-email', null); try { sessionStorage.removeItem('karman:dash'); } catch (e) { /* ignore */ }
+    const told = tok ? fetch('/api/admin/logout', { method: 'POST', headers: { authorization: `Bearer ${tok}` }, keepalive: true }).catch(() => {}) : Promise.resolve();
+    Promise.race([told, new Promise((r) => setTimeout(r, 1500))]).then(() => location.reload());
+  });
 
   function start() {
     if (!get(TOKEN_KEY)) return gate();
@@ -1383,7 +1437,7 @@ tr.off td, tr.minor td { color: var(--ink-3); }
     if (email) $('signout').title = `Signed in as ${email}`;
     paintMe(); renderPasses();
     load(false);
-    loadPasses(); loadThanks(); loadIgnore(); loadBuyers();
+    loadPasses(); loadThanks(); loadIgnore(); loadBuyers(); loadErrors();
   }
   /* the chart weights are loaded first, so measured label widths match what is drawn (a 2 s cap keeps a
      slow font from holding the page) */

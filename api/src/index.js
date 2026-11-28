@@ -270,12 +270,43 @@ async function hmac(secret, msg) {
   const sig = await crypto.subtle.sign('HMAC', key, enc.encode(msg));
   return [...new Uint8Array(sig)].map((x) => x.toString(16).padStart(2, '0')).join('');
 }
-async function makeSession(env, sub) { return `${sub}.${await hmac(env.SESSION_SECRET, sub)}`; }
+/* Each account has a sign-in version (table accounts, 0 when absent). A token
+   is "sub.sig" at version 0 (every token issued before versions existed, so
+   nobody was signed out by adding them) and "sub.ver.sig" after that. "Sign out
+   on all devices" and the owner deleting an account's data bump the version, so
+   every older token stops working everywhere at once. */
+const accountVer = async (env, sub) => {
+  const r = await env.DB.prepare('SELECT ver FROM accounts WHERE sub = ?').bind(sub).first();
+  return r ? Number(r.ver) || 0 : 0;
+};
+async function makeSession(env, sub) {
+  const v = await accountVer(env, sub);
+  return v ? `${sub}.${v}.${await hmac(env.SESSION_SECRET, `${sub}.${v}`)}` : `${sub}.${await hmac(env.SESSION_SECRET, sub)}`;
+}
 async function readSession(request, env) {
+  if (!env.SESSION_SECRET) return null;
   const tok = (request.headers.get('authorization') || '').replace(/^Bearer /, '');
-  const [sub, sig] = tok.split('.');
-  if (!sub || !sig || sig !== await hmac(env.SESSION_SECRET, sub)) return null;
+  const parts = tok.split('.');
+  let sub, v, sig;
+  if (parts.length === 2) [sub, sig] = parts, v = 0;
+  else if (parts.length === 3 && /^[1-9]\d{0,8}$/.test(parts[1])) [sub, v, sig] = [parts[0], Number(parts[1]), parts[2]];
+  else return null;
+  if (!sub || !sig || sig !== await hmac(env.SESSION_SECRET, v ? `${sub}.${v}` : sub)) return null;
+  if (v !== await accountVer(env, sub)) return null;
   return sub;
+}
+const bumpVer = (env, sub, deleted) => env.DB.prepare(`INSERT INTO accounts (sub, ver, deleted) VALUES (?1, 1, ?2)
+  ON CONFLICT(sub) DO UPDATE SET ver = ver + 1, deleted = COALESCE(?2, deleted)`).bind(sub, deleted ? new Date().toISOString().slice(0, 19).replace('T', ' ') : null);
+
+/** POST /api/signout-all: every device signed in to this account is signed out
+    (their next sync or check gets 401 and forgets the session). Progress on each
+    device, and the purchase itself, are untouched. */
+async function postSignoutAll(request, env) {
+  if (await limited(request, env, 'signout')) return tooMany();
+  const sub = await readSession(request, env);
+  if (!sub) return json({ error: 'signed out' }, { status: 401 });
+  await bumpVer(env, sub, false).run();
+  return new Response(null, { status: 204 });
 }
 
 /** Verify a Google ID token with Google's tokeninfo endpoint (simple and reliable). */
@@ -333,9 +364,13 @@ async function confirmPaid(env, sub) {
 async function postCheckout(request, env) {
   let b;
   try { b = await request.json(); } catch { return json({ error: 'bad json' }, { status: 400 }); }
+  if (await limited(request, env, 'checkout')) return tooMany();
   const who = b && b.idToken ? await verifyGoogle(b.idToken, env) : null;
   if (!who) return json({ error: 'sign-in failed' }, { status: 401 });
-  await env.DB.prepare('INSERT INTO users (sub, email) VALUES (?, ?) ON CONFLICT(sub) DO UPDATE SET email = excluded.email').bind(who.sub, who.email || '').run();
+  // Only an address Google has verified is kept, used for the receipt or thanked:
+  // an unverified one may belong to someone else.
+  const email = who.verified ? who.email || '' : '';
+  await env.DB.prepare('INSERT INTO users (sub, email) VALUES (?, ?) ON CONFLICT(sub) DO UPDATE SET email = excluded.email').bind(who.sub, email).run();
   const session = await makeSession(env, who.sub);
   // Already paid (even if the webhook never arrived)? Restore, never charge twice.
   let state;
@@ -343,8 +378,19 @@ async function postCheckout(request, env) {
   if (state.unlimited) return json({ unlimited: true, session, email: who.email || null });
   if (b.restore) return json({ unlimited: false, session, email: who.email || null });          // "Restore purchase" never opens a payment
 
+  // One open checkout per account: a second Buy (a double tap, another device)
+  // gets the same Stripe page back instead of a second payable one, so nobody
+  // can be charged twice for one purchase. Checkouts expire after ~30 minutes.
+  const recent = await env.DB.prepare("SELECT id FROM checkouts WHERE sub = ? AND created > datetime('now', '-25 minutes') ORDER BY created DESC LIMIT 1").bind(who.sub).first();
+  if (recent) {
+    try {
+      const open = await stripeGet(env, `checkout/sessions/${encodeURIComponent(recent.id)}`);
+      if (open && open.status === 'open' && open.url) return json({ url: open.url, session, email: who.email || null });
+    } catch (e) { /* Stripe didn't answer: make a fresh one */ }
+  }
   const origin = /^https:\/\/([\w-]+\.)*karman\.day$/.test(b.returnTo || '') ? b.returnTo : 'https://karman.day';
   const form = new URLSearchParams({
+    expires_at: String(Math.floor(Date.now() / 1000) + 31 * 60),   // Stripe's minimum is 30 minutes
     mode: 'payment',
     'line_items[0][price_data][currency]': 'usd',
     'line_items[0][price_data][unit_amount]': String(env.PRICE_CENTS || 599),
@@ -354,7 +400,7 @@ async function postCheckout(request, env) {
     success_url: `${origin}/?paid=1`,
     cancel_url: `${origin}/`,
   });
-  if (who.email) form.set('customer_email', who.email);
+  if (email) form.set('customer_email', email);
   const r = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
     headers: { authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, 'content-type': 'application/x-www-form-urlencoded' },
@@ -425,6 +471,7 @@ async function postStripe(request, env) {
 }
 
 async function getMe(request, env) {
+  if (await limited(request, env, 'me')) return tooMany();    // each unpaid check asks Stripe: never let a script burn the Stripe rate limit
   const sub = await readSession(request, env);
   if (!sub) return json({ error: 'signed out' }, { status: 401 });
   let state;
@@ -553,7 +600,14 @@ async function postEvent(request, env) {
    isn't written in this (public) repo. ADMIN_SHA256 in the dashboard vars
    overrides it (comma-separated for more than one person). */
 const OWNER_SHA256 = '9cfa24bece8be678de7ae30766619cedef1c6c2bf0dfedd8f0a5237c03bcb0c7';
-const ADMIN_DAYS = 30;
+const ADMIN_DAYS = 7;
+/* The /dev sign-in has its own version (meta 'admin_ver'): Sign out on /dev bumps
+   it, so a copied token stops working at once, without touching players' sign-ins.
+   Tokens are "exp.ver.sig"; the older "exp.sig" counts as version 0. */
+const adminVer = async (env) => {
+  const r = await env.DB.prepare("SELECT v FROM meta WHERE k = 'admin_ver'").first();
+  return r ? Number(r.v) || 0 : 0;
+};
 async function sha256(s) {
   const d = await crypto.subtle.digest('SHA-256', enc.encode(s));
   return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, '0')).join('');
@@ -568,12 +622,51 @@ async function postAdminLogin(request, env) {
   // The owner's own Google account (and anything it buys) is left out of every number.
   try { await env.DB.prepare('INSERT OR IGNORE INTO ignore_subs (sub) VALUES (?)').bind(who.sub).run(); } catch (e) { /* not fatal */ }
   const exp = Date.now() + ADMIN_DAYS * 864e5;
-  return json({ token: `${exp}.${await hmac(env.SESSION_SECRET, `admin:${exp}`)}`, email: who.email });
+  const av = await adminVer(env);
+  const token = av ? `${exp}.${av}.${await hmac(env.SESSION_SECRET, `admin:${exp}:${av}`)}` : `${exp}.${await hmac(env.SESSION_SECRET, `admin:${exp}`)}`;
+  return json({ token, email: who.email });
 }
 async function isAdmin(request, env) {
+  if (!env.SESSION_SECRET) return false;
   const tok = (request.headers.get('authorization') || '').replace(/^Bearer /, '');
-  const [exp, sig] = tok.split('.');
-  return Boolean(env.SESSION_SECRET && exp && sig && Number(exp) > Date.now() && sig === await hmac(env.SESSION_SECRET, `admin:${exp}`));
+  const parts = tok.split('.');
+  let exp, av, sig;
+  if (parts.length === 2) [exp, sig] = parts, av = 0;
+  else if (parts.length === 3 && /^[1-9]\d{0,8}$/.test(parts[1])) [exp, av, sig] = [parts[0], Number(parts[1]), parts[2]];
+  else return false;
+  if (!exp || !sig || !(Number(exp) > Date.now())) return false;
+  if (sig !== await hmac(env.SESSION_SECRET, av ? `admin:${exp}:${av}` : `admin:${exp}`)) return false;
+  return av === await adminVer(env);
+}
+/** POST /api/admin/logout: ends every /dev sign-in (the owner's other browsers too). */
+async function postAdminLogout(request, env) {
+  if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401 });
+  await env.DB.prepare("INSERT INTO meta (k, v) VALUES ('admin_ver', '1') ON CONFLICT(k) DO UPDATE SET v = CAST(CAST(v AS INTEGER) + 1 AS TEXT)").run();
+  return new Response(null, { status: 204 });
+}
+
+/** POST /api/admin/delete-account { email }: a player asked for their data to
+    be deleted (privacy policy). Their cloud save, play log and stored email go;
+    every device signed in to that account is signed out, so nothing re-uploads
+    the save. What tax and accounting need stays: the payment rows and that the
+    account owns Unlimited (so a later "Restore purchase" still works). */
+async function postDeleteAccount(request, env) {
+  if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401, headers: PRIVATE });
+  let b;
+  try { b = await request.json(); } catch { return json({ error: 'bad json' }, { status: 400 }); }
+  const email = String((b && b.email) || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 200) return json({ error: 'invalid email' }, { status: 422 });
+  const subs = ((await env.DB.prepare('SELECT sub FROM users WHERE lower(email) = ?').bind(email).all()).results || []).map((r) => r.sub);
+  for (const sub of subs) {
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM saves WHERE sub = ?').bind(sub),
+      env.DB.prepare('DELETE FROM plays WHERE sub = ?').bind(sub),
+      env.DB.prepare("UPDATE users SET email = '' WHERE sub = ?").bind(sub),
+      env.DB.prepare("UPDATE thanks SET email = '' WHERE sub = ?").bind(sub),
+      bumpVer(env, sub, true),
+    ]);
+  }
+  return json({ deleted: subs.length }, { headers: PRIVATE });
 }
 
 /* Thank-you emails to buyers: how many went out, how many paying accounts
@@ -615,10 +708,16 @@ async function adminThanks(request, env) {
 const PRIVATE = { 'cache-control': 'no-store, private', vary: 'authorization' };
 async function adminBuyers(request, env) {
   if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401, headers: PRIVATE });
-  const rows = (await env.DB.prepare(`SELECT u.email, p.at, p.amount, p.currency, p.refunded, cs.src
+  const rows = (await env.DB.prepare(`SELECT p.sub, u.email, p.at, p.amount, p.currency, p.refunded, cs.src
     FROM payments p LEFT JOIN users u ON u.sub = p.sub LEFT JOIN checkout_src cs ON cs.id = p.session
     WHERE p.sub NOT IN (SELECT sub FROM ignore_subs) ORDER BY p.at DESC LIMIT 500`).all()).results || [];
-  return json({ buyers: rows.map((r) => ({ email: r.email || null, masked: maskEmail(r.email) || 'unknown', at: r.at, amount: r.amount, currency: r.currency, refunded: r.refunded || 0, src: r.src || null })) }, { headers: PRIVATE });
+  // One account paying twice (two checkouts open at once, from before checkouts
+  // were reused): every payment after the account's first one that isn't fully
+  // refunded is marked dup, for the owner to refund in Stripe. The account id never leaves.
+  const firstPaid = new Map();
+  [...rows].reverse().forEach((r) => { if (!(r.refunded >= r.amount) && !firstPaid.has(r.sub)) firstPaid.set(r.sub, r); });
+  return json({ buyers: rows.map((r) => ({ email: r.email || null, masked: maskEmail(r.email) || 'unknown', at: r.at, amount: r.amount, currency: r.currency, refunded: r.refunded || 0, src: r.src || null,
+    dup: !(r.refunded >= r.amount) && firstPaid.has(r.sub) && firstPaid.get(r.sub) !== r })) }, { headers: PRIVATE });
 }
 
 /* GET /api/admin/stats: everything the flight deck shows, built by
@@ -718,10 +817,40 @@ async function adminRebuild(request, env) {
 
 /** Paid player started an Unlimited/archive flight: logged so refunds follow the rule. */
 async function postPlay(request, env) {
+  if (await limited(request, env, 'play', 120)) return tooMany();
   const sub = await readSession(request, env);
   if (!sub) return new Response(null, { status: 401 });
   await env.DB.prepare('INSERT INTO plays (sub) VALUES (?)').bind(sub).run();
   return new Response(null, { status: 204 });
+}
+
+/* ------------------------------------------------------------ errors
+   POST /api/error { msg, file, line, page }: what went wrong in a player's
+   browser (web/js/stats.js), and the Worker's own errors (see fetch below),
+   counted per day and message for the owner's Health panel. No device id, no IP;
+   the browser blanks anything that looks like an email or a token and so does
+   this. Kept 30 days. */
+const scrubErr = (s, n) => String(s || '').replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[email]').replace(/\b[0-9a-f]{24,}\b/gi, '[id]').replace(/[\u0000-\u001f]/g, ' ').slice(0, n);
+async function logError(env, msg, file, line) {
+  await env.DB.prepare(`INSERT INTO errors (day, msg, file, line) VALUES (?, ?, ?, ?)
+    ON CONFLICT(day, msg, file, line) DO UPDATE SET n = n + 1, last = datetime('now')`).bind(latestFlight(), scrubErr(msg, 200), scrubErr(file, 80), Number.isInteger(line) && line >= 0 ? line : 0).run();
+}
+async function postError(request, env) {
+  let b;
+  try { b = await request.json(); } catch { return json({ error: 'bad json' }, { status: 400 }); }
+  if (!b || typeof b.msg !== 'string' || !b.msg.trim() || (b.file != null && typeof b.file !== 'string')) return json({ error: 'invalid' }, { status: 422 });
+  if (isBot(request)) return new Response(null, { status: 204 });
+  if (await limited(request, env, 'error')) return tooMany();
+  await logError(env, b.msg, b.file || b.page || '', Number(b.line) || 0);
+  return new Response(null, { status: 204 });
+}
+/** GET /api/admin/errors: the 20 most recent distinct errors of the last 7 days. */
+async function adminErrors(request, env) {
+  if (!await isAdmin(request, env)) return json({ error: 'signed out' }, { status: 401, headers: PRIVATE });
+  await env.DB.prepare('DELETE FROM errors WHERE day < ?').bind(latestFlight() - 30).run();
+  const rows = (await env.DB.prepare('SELECT day, msg, file, line, n, last FROM errors WHERE day >= ? ORDER BY last DESC LIMIT 20').bind(latestFlight() - 6).all()).results || [];
+  const total = await env.DB.prepare('SELECT COALESCE(SUM(n), 0) AS n FROM errors WHERE day >= ?').bind(latestFlight() - 6).first();
+  return json({ errors: rows, total: (total && total.n) || 0 }, { headers: PRIVATE });
 }
 
 /* Create any missing tables on the first API call after a cold start.
@@ -740,13 +869,29 @@ function ensureSchema(env) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/api/')) await ensureSchema(env);
+    if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);    // everything else: the game itself
+    // Anything that throws (the database at its daily limit or briefly down, a
+    // bug) answers a clean JSON 503 instead of Cloudflare's HTML error page, so
+    // the game treats it as "try later" (and re-sends results); it is logged for
+    // the owner's Health panel when the database can take the write.
+    try {
+      return await route(request, env, ctx, url);
+    } catch (e) {
+      console.error('api', request.method, url.pathname, e && (e.stack || e.message));
+      try { await logError(env, `Server: ${(e && e.message) || e}`, `${request.method} ${url.pathname}`.slice(0, 80), 0); } catch (e2) { /* the database itself is the problem */ }
+      return json({ error: 'temporarily unavailable' }, { status: 503, headers: { 'retry-after': '60', 'cache-control': 'no-store' } });
+    }
+  },
+};
+
+async function route(request, env, ctx, url) {
+    await ensureSchema(env);
     if (url.pathname === '/api/result' && request.method === 'POST') return postResult(request, env);
     const m = url.pathname.match(/^\/api\/stats\/(r?)(\d+)$/);
     if (m && request.method === 'GET') return getStats(Number(m[2]), env, ctx, request, m[1] === 'r');
     if (url.pathname === '/api/report' && request.method === 'POST') return postReport(request, env);
     const u = url.pathname.match(/^\/api\/unlock\/([\w-]{3,40})$/);
-    if (u && request.method === 'GET') return getUnlock(u[1], env, url.searchParams.get('device'));
+    if (u && request.method === 'GET') return (await limited(request, env, 'unlock', 120)) ? tooMany() : getUnlock(u[1], env, url.searchParams.get('device'));
     if (url.pathname === '/api/checkout' && request.method === 'POST') return postCheckout(request, env);
     if (url.pathname === '/api/health' && request.method === 'GET') return getHealth(env, ctx);
     if (url.pathname === '/api/reports' && request.method === 'GET') return getReports(env);
@@ -765,7 +910,10 @@ export default {
     if (url.pathname === '/api/admin/rebuild' && request.method === 'POST') return adminRebuild(request, env);
     const ap = url.pathname.match(/^\/api\/admin\/passes(?:\/([\w-]{3,40}))?$/);
     if (ap) return adminPasses(request, env, ap[1]);
-    if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, { status: 404 });
-    return env.ASSETS.fetch(request);    // everything else: the game itself
-  },
-};
+    if (url.pathname === '/api/signout-all' && request.method === 'POST') return postSignoutAll(request, env);
+    if (url.pathname === '/api/error' && request.method === 'POST') return postError(request, env);
+    if (url.pathname === '/api/admin/logout' && request.method === 'POST') return postAdminLogout(request, env);
+    if (url.pathname === '/api/admin/delete-account' && request.method === 'POST') return postDeleteAccount(request, env);
+    if (url.pathname === '/api/admin/errors' && request.method === 'GET') return adminErrors(request, env);
+    return json({ error: 'not found' }, { status: 404 });
+}

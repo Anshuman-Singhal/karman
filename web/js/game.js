@@ -557,6 +557,28 @@ K.game = (() => {
     }
   }
 
+  /* ------------------------------------------------------------ a new day
+     Midnight Eastern passed: show the new flight. Checked on every countdown
+     tick AND whenever the page comes back (main.js), because a phone that
+     slept through midnight fires no timers: without this, a tab left open
+     overnight woke up on yesterday's flight saying "next flight in 17 h".
+     Never mid-flight, never in an archive/Unlimited flight, and never over
+     results the player finished after midnight (they're still reading them). */
+  let switching = false;
+  function checkDay() {
+    if (switching || devFlight != null || live || mode !== 'daily' || !K.ui || K.ui.current === 'round') return false;
+    if (K.date.flightNumber() === today) return false;
+    if (K.ui.current === 'results') {
+      const rec = store && store.days[n];
+      const e = K.date.et();
+      const dayStart = Date.now() - (e.h * 3600 + e.mi * 60 + e.s) * 1000;
+      if (rec && rec.at && rec.at >= dayStart) return false;
+    }
+    switching = true;
+    try { boot(); if (K.stats) K.stats.hit(); } finally { switching = false; }
+    return true;
+  }
+
   /* ------------------------------------------------------------ countdown */
   function startCountdown() {
     clearInterval(countdownTimer);
@@ -566,7 +588,7 @@ K.game = (() => {
       if (el) el.textContent = K.date.formatClock(ms);
       const stub = document.getElementById('next-clock');   // the results' next-flight stub
       if (stub) stub.textContent = K.date.formatClock(ms);
-      if (ms < 1000 && devFlight == null && !live) setTimeout(() => { boot(); if (K.stats) K.stats.hit(); }, 1500);
+      checkDay();
     };
     tick();
     countdownTimer = setInterval(tick, 1000);
@@ -633,7 +655,7 @@ K.game = (() => {
   }
 
   return {
-    init, boot, launch, inflate, lock, next, streakNow, keepFlying, playDay, runsLeft, runsTotal, flyRun,
+    init, boot, launch, inflate, lock, next, streakNow, keepFlying, playDay, runsLeft, runsTotal, flyRun, checkDay,
     get mode() { return mode; },
     get today() { return today; },
     factById: (id) => factIndex.get(id),

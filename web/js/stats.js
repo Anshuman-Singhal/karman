@@ -34,24 +34,61 @@ K.stats = (() => {
     pending = send(record);
     return pending;
   }
-  async function send(record) {
+  /* A result that can't be delivered (offline, a server error, too many requests)
+     waits in an outbox on this device and is sent again on the next load, when
+     the tab comes back or the connection returns. Only a definite "no" from the
+     server (4xx: e.g. a daily flight past its grace window) drops it. The outbox
+     stays on this device (sync.js LOCAL_ONLY) and holds at most 20 results for a week. */
+  const OUTBOX_MAX = 20, OUTBOX_DAYS = 7;
+  const retryable = (status) => status === 0 || status === 429 || status >= 500;
+  async function post(body) {
     try {
-      await fetch(`${C.API_BASE}/api/result`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          ...(record.mode === 'unlimited' ? { run: record.run } : { n: record.n }),
-          device: K.storage.data.device,
-          pts: record.pts,
-          legs: record.rounds.map((r) => (r.hit ? '1' : '0')).join(''),
-          chips: record.rounds.map((r) => r.chip).join(''),
-        }),
-        keepalive: true,
-      });
+      const r = await fetch(`${C.API_BASE}/api/result`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), keepalive: true });
+      return r.status || (r.ok ? 200 : 0);
+    } catch (e) { return 0; }
+  }
+  const sameFlight = (a, b) => (a.run != null ? a.run === b.run : a.n === b.n) && a.device === b.device;
+  function enqueue(body) {
+    const d = K.storage.data;
+    const box = (Array.isArray(d.outbox) ? d.outbox : []).filter((x) => !sameFlight(x.body, body));
+    d.outbox = [...box, { body, t: Date.now() }].slice(-OUTBOX_MAX);
+    K.storage.save(true);
+  }
+  async function send(record) {
+    const body = {
+      ...(record.mode === 'unlimited' ? { run: record.run } : { n: record.n }),
+      device: K.storage.data.device,
+      pts: record.pts,
+      legs: record.rounds.map((r) => (r.hit ? '1' : '0')).join(''),
+      chips: record.rounds.map((r) => r.chip).join(''),
+    };
+    const status = await post(body);
+    if (status >= 200 && status < 300) {
       const key = record.mode === 'unlimited' ? `r${record.run}` : record.n;
       cache.delete(key);
       justSent.add(key);
-    } catch (e) { /* offline: stats just won't include this flight */ }
+    } else if (retryable(status)) enqueue(body);
+  }
+  let flushing = null;
+  /** Send whatever is waiting in the outbox. Safe to call any time. */
+  function flush() {
+    const d = K.storage && K.storage.data;
+    if (!live() || flushing || !d || !Array.isArray(d.outbox) || !d.outbox.length) return flushing || Promise.resolve();
+    flushing = (async () => {
+      const keep = [];
+      const before = d.outbox.slice();
+      const box = before.filter((x) => x && x.body && Date.now() - (x.t || 0) < OUTBOX_DAYS * 864e5);
+      for (let i = 0; i < box.length; i++) {
+        const status = await post(box[i].body);
+        if (status === 0) { keep.push(...box.slice(i)); break; }        // still offline: try the rest later
+        if (retryable(status)) keep.push(box[i]);
+      }
+      // results finished while this ran were added to d.outbox meanwhile: keep those too
+      const added = d.outbox.filter((x) => !before.includes(x));
+      d.outbox = [...keep, ...added];
+      K.storage.save(true);
+    })().finally(() => { flushing = null; });
+    return flushing;
   }
 
   /** A player flagged an answer as wrong. Stored server-side for the weekly check. */
@@ -163,13 +200,41 @@ K.stats = (() => {
   // Only the game's own errors: scripts on this origin (not extensions, not
   // third-party widgets such as Google sign-in).
   const ours = (url) => { try { return new URL(url, location.href).origin === location.origin; } catch (e) { return false; } };
+  /* What went wrong, for the owner's dashboard (Health → Recent errors): the
+     message, the file and the line. No device id, nothing typed by the player;
+     anything that looks like an email or a token is blanked. At most 5 per page
+     load, each different message once. */
+  const sentErr = new Set();
+  const scrub = (s) => String(s || '').replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[email]').replace(/\b[0-9a-f]{24,}\b/gi, '[id]').replace(/eyJ[\w-]+\.[\w-]+\.[\w-]*/g, '[token]').slice(0, 200);
+  function errorDetail(msg, file, line) {
+    if (!beacons() || sentErr.size >= 5) return;
+    const m = scrub(msg);
+    let f = '';
+    try { f = new URL(file, location.href).pathname.slice(0, 80); } catch (e) { /* unknown file */ }
+    const key = `${m}|${f}|${line || 0}`;
+    if (!m || sentErr.has(key)) return;
+    sentErr.add(key);
+    try {
+      fetch(`${C.API_BASE}/api/error`, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, keepalive: true,
+        body: JSON.stringify({ msg: m, file: f, line: Number(line) || 0, page: location.pathname.slice(0, 40) }),
+      }).catch(() => {});
+    } catch (e) { /* never let error reporting cause an error */ }
+  }
   if (typeof addEventListener === 'function') {
-    addEventListener('error', (e) => { if (e && e.filename && ours(e.filename)) event('error'); });
+    addEventListener('error', (e) => {
+      if (e && e.filename && ours(e.filename)) { event('error'); errorDetail(e.message, e.filename, e.lineno); }
+    });
     addEventListener('unhandledrejection', (e) => {
       const stack = e && e.reason && e.reason.stack ? String(e.reason.stack) : '';
-      if (stack && stack.includes(location.origin)) event('error');
+      if (stack && stack.includes(location.origin)) {
+        event('error');
+        const at = stack.split('\n').find((l) => l.includes(location.origin)) || '';
+        const m = at.match(/(https?:\/\/[^\s)]+?):(\d+):\d+/);
+        errorDetail(`Unhandled: ${e.reason.message || e.reason}`, m ? m[1] : '', m ? m[2] : 0);
+      }
     });
   }
 
-  return { submit, report, get, percentile, live, sampling, hit, event, get down() { return down; } };
+  return { submit, report, get, percentile, live, sampling, hit, event, flush, get down() { return down; } };
 })();

@@ -262,6 +262,7 @@
   }));
   if (document.readyState === 'complete') reveal(); else window.addEventListener('load', reveal, { once: true });
   K.stats.hit();
+  setTimeout(() => K.stats.flush(), 3000);        // results that didn't reach the server last time
   // karman.day/?fps : a small frame-rate counter, to check smoothness on a real device.
   if (/[?&]fps\b/.test(location.search)) {
     const m = document.createElement('div');
@@ -281,7 +282,15 @@
   });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && K.sync) K.sync.now();
-    if (!document.hidden) K.stats.hit();          // a tab or home-screen app resumed on a new day still counts
+    if (!document.hidden) {
+      K.game.checkDay();                          // woke up after midnight: today's flight, not yesterday's
+      K.stats.hit();                              // a tab or home-screen app resumed on a new day still counts
+      K.stats.flush();                            // results that couldn't be sent earlier
+    }
   });
+  // A page restored from the back/forward cache, or a window refocused, may also have slept through midnight.
+  addEventListener('pageshow', (e) => { if (e.persisted) { K.game.checkDay(); K.stats.hit(); } });
+  addEventListener('focus', () => K.game.checkDay());
+  addEventListener('online', () => K.stats.flush());
   paintSound();
 })();

@@ -133,7 +133,8 @@ check((await res('1101011')).status === 204, '7-leg result accepted');
 check((await res('11010')).status === 422, '5-leg result rejected');
 // T-3, not T-2: in the first two hours after Eastern midnight the server's grace still accepts T-2
 check((await res('1101011', T - 3, 'device-old-flight')).status === 422, 'a flight older than yesterday is refused (archive replay, ?dev picker)');
-check((await res('1101011', T + 1, 'device-future-1')).status === 422, 'a future flight is refused');
+// the server takes tomorrow's flight in the last 10 minutes before Eastern midnight (a fast phone clock), so test one past that
+check((await res('1101011', flightAt(Date.now() + 10 * 60e3) + 1, 'device-future-1')).status === 422, 'a future flight is refused');
 check((await res('1101011', T - 1, 'device-late-0001')).status === 204, "yesterday's flight is accepted (started before midnight)");
 check(db.prepare('SELECT COUNT(*) c FROM results WHERE n < ?').get(T - 2).c === 0, 'nothing landed on an old flight');
 // pilots: one row per device, moved only by a NEW result
@@ -581,6 +582,140 @@ globalThis.fetch = prevFetch;
   await new Promise((r) => setTimeout(r, 5));
   liveS.K.stats.hit();
   check(liveS.posts.filter((p) => p[0].endsWith('/api/hit')).length === 1, 'the daily hit goes out once, however often it is called');
+}
+
+/* ------------------------------------------------------------------ break-it fixes (Nov 2026) */
+{
+  const hmacHex = async (secret, msg) => { const k = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']); return hex(await crypto.subtle.sign('HMAC', k, enc.encode(msg))); };
+  const J = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+  const f0 = globalThis.fetch;
+  const stripe = { sessions: new Map(), posts: [] };
+  env.GOOGLE_CLIENT_ID = 'cid';
+  env.STRIPE_SECRET_KEY = 'rk_test_x';
+  globalThis.fetch = async (url, init = {}) => {
+    const u = String(url);
+    const g = u.match(/tokeninfo\?id_token=([^&]+)/);
+    if (g) { const [sub, email, flag] = decodeURIComponent(g[1]).split('~'); return J({ aud: 'cid', iss: 'accounts.google.com', sub, email, email_verified: flag === 'unverified' ? 'false' : 'true' }); }
+    if (u.includes('api.stripe.com/v1/checkout/sessions') && init.method === 'POST') {
+      const form = new URLSearchParams(String(init.body)); const id = `cs_r${stripe.posts.length + 1}`;
+      stripe.posts.push(form); stripe.sessions.set(id, { id, url: `https://checkout.stripe.com/${id}`, status: 'open', payment_status: 'unpaid' });
+      return J(stripe.sessions.get(id));
+    }
+    const m = u.match(/checkout\/sessions\/([\w]+)/);
+    if (m) return J(stripe.sessions.get(m[1]) || { id: m[1], status: 'expired', payment_status: 'unpaid' });
+    return f0(url, init);
+  };
+  const post = (path, body, headers = {}) => call(path, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  const bearer = (t) => ({ authorization: `Bearer ${t}` });
+
+  // sessions: old tokens keep working; "sign out on all devices" ends them everywhere
+  db.exec("INSERT INTO users (sub, email) VALUES ('g-v1', 'v1@example.com')");
+  const legacy = `g-v1.${await hmacHex('test-secret', 'g-v1')}`;
+  check((await call('/api/save', { headers: bearer(legacy) })).status === 200, 'a token issued before sign-in versions still works');
+  check((await call('/api/signout-all', { method: 'POST', headers: bearer(legacy) })).status === 204, 'sign out on all devices accepted');
+  check((await call('/api/save', { headers: bearer(legacy) })).status === 401, '...and the old token stops working everywhere');
+  const re = await (await post('/api/checkout', { idToken: 'g-v1~v1@example.com', restore: true })).json();
+  check(/^g-v1\.1\.[0-9a-f]{64}$/.test(re.session) && (await call('/api/save', { headers: bearer(re.session) })).status === 200, 'signing in again gives a working version-1 token');
+  check((await call('/api/save', { headers: bearer(`g-v1.0.${await hmacHex('test-secret', 'g-v1.0')}`) })).status === 401, 'a hand-made version-0 three-part token is refused');
+  check((await call('/api/save', { headers: bearer(`g-v1.2.${await hmacHex('test-secret', 'g-v1.2')}`) })).status === 401, 'a token from a future version is refused');
+
+  // owner sign-in: old-format tokens valid until /dev Sign out; then only fresh ones
+  env.ADMIN_SHA256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode('own@example.com')))].map((x) => x.toString(16).padStart(2, '0')).join('');
+  const exp = Date.now() + 864e5;
+  const oldAdmin = `${exp}.${await hmacHex('test-secret', `admin:${exp}`)}`;
+  check((await call('/api/admin/buyers', { headers: bearer(oldAdmin) })).status === 200, 'a /dev token from before this change still works');
+  const lg = await (await post('/api/admin/login', { idToken: 'g-own~own@example.com' })).json();
+  const days = (Number(lg.token.split('.')[0]) - Date.now()) / 864e5;
+  check(days > 6.9 && days < 7.1, `/dev sign-in now lasts 7 days (${days.toFixed(2)})`);
+  check((await call('/api/admin/logout', { method: 'POST', headers: bearer(lg.token) })).status === 204, '/dev Sign out reaches the server');
+  check((await call('/api/admin/buyers', { headers: bearer(lg.token) })).status === 401 && (await call('/api/admin/buyers', { headers: bearer(oldAdmin) })).status === 401, '...and every /dev token stops working at once');
+  const admin = (await (await post('/api/admin/login', { idToken: 'g-own~own@example.com' })).json()).token;
+  check(/^\d{13}\.1\.[0-9a-f]{64}$/.test(admin) && (await call('/api/admin/buyers', { headers: bearer(admin) })).status === 200, 'signing in to /dev again works');
+  check((await call('/api/save', { headers: bearer(admin) })).status === 401 && (await call('/api/admin/buyers', { headers: bearer(re.session) })).status === 401, 'player and owner tokens can never stand in for each other');
+
+  // a player's data deleted on request stays deleted
+  db.exec("INSERT INTO users (sub, email, unlimited) VALUES ('g-del', 'Del@Example.com', 1)");
+  db.exec("INSERT INTO payments (session, sub, amount) VALUES ('cs_del', 'g-del', 599)");
+  const delTok = `g-del.${await hmacHex('test-secret', 'g-del')}`;
+  await call('/api/save', { method: 'PUT', headers: { ...bearer(delTok), 'content-type': 'application/json' }, body: JSON.stringify({ data: { days: {} }, base: 0 }) });
+  check((await post('/api/admin/delete-account', { email: 'del@example.com' })).status === 401, 'deleting an account needs the owner');
+  const del = await (await post('/api/admin/delete-account', { email: ' DEL@example.com ' }, bearer(admin))).json();
+  check(del.deleted === 1 && !db.prepare("SELECT 1 FROM saves WHERE sub = 'g-del'").get(), 'deleting a player removes their cloud save');
+  check((await call('/api/save', { method: 'PUT', headers: { ...bearer(delTok), 'content-type': 'application/json' }, body: JSON.stringify({ data: { days: {} }, base: 0 }) })).status === 401 && !db.prepare("SELECT 1 FROM saves WHERE sub = 'g-del'").get(), '...and their signed-in devices cannot upload it again');
+  check(db.prepare("SELECT email, unlimited FROM users WHERE sub = 'g-del'").get().email === '' && db.prepare("SELECT COUNT(*) c FROM payments WHERE sub = 'g-del'").get().c === 1, '...their email is gone, the payment record (tax) and Unlimited stay');
+  check((await (await post('/api/admin/delete-account', { email: 'nobody@example.com' }, bearer(admin))).json()).deleted === 0, 'deleting an unknown email changes nothing');
+
+  // one open checkout per account; checkouts expire; unverified emails aren't used
+  const c1 = await (await post('/api/checkout', { idToken: 'g-buy~buy@example.com' })).json();
+  const c2 = await (await post('/api/checkout', { idToken: 'g-buy~buy@example.com' })).json();
+  check(c1.url && c1.url === c2.url && stripe.posts.length === 1, 'a second Buy gets the same open checkout, never a second payable one');
+  const ea = Number(stripe.posts[0].get('expires_at')) - Date.now() / 1000;
+  check(ea >= 30 * 60 && ea <= 32 * 60, 'checkouts expire after ~31 minutes');
+  stripe.sessions.get('cs_r1').status = 'expired';
+  const c3 = await (await post('/api/checkout', { idToken: 'g-buy~buy@example.com' })).json();
+  check(c3.url !== c1.url && stripe.posts.length === 2, 'once it has expired, Buy opens a fresh checkout');
+  await post('/api/checkout', { idToken: 'g-unv~someone@example.com~unverified' });
+  check(!stripe.posts[2].get('customer_email') && db.prepare("SELECT email FROM users WHERE sub = 'g-unv'").get().email === '', 'an unverified Google email is neither stored nor sent to Stripe');
+
+  // a duplicate payment is flagged for the owner
+  db.exec("INSERT INTO users (sub, email) VALUES ('g-twice', 't@example.com'); INSERT INTO payments (session, sub, amount, at) VALUES ('cs_t1', 'g-twice', 599, '2026-11-01 10:00:00'), ('cs_t2', 'g-twice', 599, '2026-11-01 10:01:00')");
+  const by = (await (await call('/api/admin/buyers', { headers: bearer(admin) })).json()).buyers.filter((b) => b.email === 't@example.com');
+  check(by.length === 2 && by.filter((b) => b.dup).length === 1 && by.find((b) => b.dup).at === '2026-11-01 10:01:00', 'the second payment of one account is flagged "paid twice"');
+  db.exec("UPDATE payments SET refunded = 599 WHERE session = 'cs_t2'");
+  check(!(await (await call('/api/admin/buyers', { headers: bearer(admin) })).json()).buyers.some((b) => b.dup), '...and the flag clears once it is refunded');
+
+  // errors: a clean 503 instead of a crash, recorded for the owner
+  const realDB = env.DB;
+  env.DB = { prepare: () => { throw new Error('D1_ERROR: too many requests'); }, batch: async () => { throw new Error('D1_ERROR'); } };
+  const down = await call(`/api/stats/${T}?fresh=1`);
+  env.DB = realDB;
+  check(down.status === 503 && (down.headers.get('content-type') || '').includes('json') && down.headers.get('retry-after'), 'database down: a clean JSON 503 with retry-after, not an HTML crash page');
+  check((await call('/some/page')).status === 200, 'the game itself is still served normally');
+  const boom = { ...env, DB: { ...realDB, prepare: (sql) => (/FROM results WHERE n/.test(sql) ? (() => { throw new Error('boom in stats'); })() : realDB.prepare(sql)) } };
+  await worker.fetch(new Request(`https://karman.day/api/stats/${T}?fresh=1`), boom, ctx);
+  const errBody = { msg: 'TypeError: x is undefined for a@b.co near 0123456789abcdef0123456789abcdef', file: '/js/round.js', line: 42 };
+  check((await post('/api/error', errBody)).status === 204 && (await post('/api/error', errBody)).status === 204, 'browser errors are accepted');
+  check((await post('/api/error', { msg: '' })).status === 422 && (await post('/api/error', { msg: 5 })).status === 422, 'empty or malformed error reports are refused');
+  check((await call('/api/admin/errors')).status === 401, 'the error list needs the owner');
+  const errs = await (await call('/api/admin/errors', { headers: bearer(admin) })).json();
+  const mine = errs.errors.find((e) => e.file === '/js/round.js');
+  check(mine && mine.n === 2 && mine.line === 42 && !mine.msg.includes('a@b.co') && !/[0-9a-f]{24}/.test(mine.msg), 'errors are counted, and emails / long ids are blanked');
+  check(errs.errors.some((e) => e.msg.includes('boom in stats') && e.file.includes('/api/stats/')), 'the Worker\'s own errors land in the same list');
+
+  // rate limits on endpoints that had none
+  const meBurst = []; for (let i = 0; i < 32; i++) meBurst.push((await call('/api/me', { headers: { ...bearer(re.session), 'cf-connecting-ip': '198.51.100.77' } })).status);
+  check(meBurst.slice(0, 30).every((s) => s === 200) && meBurst[31] === 429, '/api/me is rate-limited per IP (30 a minute)');
+  const unBurst = []; for (let i = 0; i < 122; i++) unBurst.push((await call('/api/unlock/PILOT-NOPE', { headers: { 'cf-connecting-ip': '198.51.100.78' } })).status);
+  check(unBurst[119] === 200 && unBurst[121] === 429, 'unlock-code checks are rate-limited per IP (120 a minute)');
+  globalThis.fetch = f0;
+}
+
+/* ------------------------------------------------------------------ results that can't be sent wait in an outbox */
+{
+  const vm = await import('node:vm');
+  let status = 503; const sent = [];
+  const ls = new Map();
+  const c = { console, Date, Math, JSON, Promise, Set, Map, URLSearchParams, setTimeout, location: { protocol: 'https:', hostname: 'karman.day', search: '', pathname: '/', href: 'https://karman.day/', origin: 'https://karman.day' },
+    localStorage: { getItem: (k) => (ls.has(k) ? ls.get(k) : null), setItem: (k, v) => ls.set(k, String(v)) },
+    fetch: async (url, init) => { if (status === 'offline') throw new TypeError('Failed to fetch'); sent.push([url, init && init.body]); return { ok: status < 300, status }; },
+    addEventListener() {}, document: { referrer: '' }, navigator: { onLine: true } };
+  c.window = c; vm.createContext(c);
+  vm.runInContext(fs.readFileSync(new URL('../web/js/config.js', import.meta.url), 'utf8'), c);
+  vm.runInContext('K.storage = { data: { device: "dev-outbox-0001" }, save() {} }; K.date = { flightNumber: () => 40 };', c);
+  vm.runInContext(fs.readFileSync(new URL('../web/js/stats.js', import.meta.url), 'utf8'), c);
+  const rec = (n) => ({ mode: 'daily', n, pts: 120, rounds: Array.from({ length: 7 }, () => ({ hit: true, chip: 2 })) });
+  await c.K.stats.submit(rec(40));
+  check(c.K.storage.data.outbox.length === 1, 'a result the server failed on (503) waits in the outbox');
+  status = 'offline'; await c.K.stats.submit(rec(41)); await c.K.stats.flush();
+  check(c.K.storage.data.outbox.length === 2, 'offline: new results queue up and nothing is lost');
+  status = 204; sent.length = 0; await c.K.stats.flush();
+  check(c.K.storage.data.outbox.length === 0 && sent.length === 2 && sent.every((x) => x[0].endsWith('/api/result')), 'back online: the outbox is sent and emptied');
+  status = 422; await c.K.stats.submit(rec(30));
+  check(c.K.storage.data.outbox.length === 0, 'a result the server refuses for good (422) is not kept');
+  status = 503; for (let i = 0; i < 25; i++) await c.K.stats.submit({ ...rec(40), mode: 'unlimited', run: i + 1 });
+  check(c.K.storage.data.outbox.length === 20, 'the outbox never holds more than 20 results');
+  c.K.storage.data.outbox[0].t = Date.now() - 8 * 864e5; status = 503; sent.length = 0; await c.K.stats.flush();
+  check(c.K.storage.data.outbox.length === 19, 'results older than a week are dropped');
 }
 
 console.log(fails ? `${fails} failed` : 'Worker checks passed.');

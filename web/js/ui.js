@@ -1158,6 +1158,7 @@ K.ui = (() => {
         ${signed ? '<button type="button" class="link-btn" id="ac-sync">Back up now</button>' : ''}
         ${!owned && payments ? '<button type="button" class="link-btn" id="ac-restore">Bought on another account or device? Restore</button>' : ''}
         ${signed ? '<button type="button" class="link-btn" id="ac-signout">Sign out on this device</button>' : ''}
+        ${signed ? '<button type="button" class="link-btn" id="ac-signout-all">Sign out on all devices</button>' : ''}
       </div>
       <p class="pay-fine">${owned && a.via === 'stripe' ? 'Refunds: refundable if you haven’t flown an Unlimited or archive flight since buying. ' : ''}Questions or a refund? <a href="mailto:${esc(K.CONFIG.CONTACT_EMAIL)}">${esc(K.CONFIG.CONTACT_EMAIL)}</a><br>Signing out keeps everything on this device. <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></p>`;
     K.fc.bindLivery($('account-body'));
@@ -1174,6 +1175,15 @@ K.ui = (() => {
     if ($('ac-signout')) $('ac-signout').onclick = () => {
       K.access.signOut();
       K.fx.toast('Signed out on this device. Your progress and unlock stay here.');
+      renderAccount(); renderMenuAcct();
+    };
+    // Signed in on a borrowed or shared computer? This ends that sign-in too. Two taps, no dialog.
+    if ($('ac-signout-all')) $('ac-signout-all').onclick = async (e) => {
+      const b = e.currentTarget;
+      if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Tap again to sign out everywhere'; return; }
+      b.textContent = 'Signing out…'; b.disabled = true;
+      const ok = await K.access.signOutAll();
+      K.fx.toast(ok ? 'Signed out on every device. Your progress and unlock stay on each one.' : 'Couldn’t reach the server. Try again in a moment.');
       renderAccount(); renderMenuAcct();
     };
     if ($('ac-gsi')) {

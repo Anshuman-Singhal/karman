@@ -25,6 +25,12 @@
     { "name": "LIMITER", "namespace_id": "1001", "simple": { "limit": 30, "period": 60 } },
     { "name": "LIMITER_WIDE", "namespace_id": "1002", "simple": { "limit": 120, "period": 60 } }
   ],
+  // Workers Logs: keeps the Worker's own console.warn / console.error lines
+  // (searchable for a few days in the Cloudflare dashboard → Workers → karman →
+  // Logs). Per-request invocation logs are off: they'd only add volume and
+  // request details we don't need. Free plan: 200,000 log lines a day, and
+  // past that Cloudflare simply stops keeping them (no charge).
+  "observability": { "enabled": true, "logs": { "invocation_logs": false } },
   "d1_databases": [
     { "binding": "DB", "database_name": "karman" }
   ],

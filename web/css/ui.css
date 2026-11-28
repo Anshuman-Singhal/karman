@@ -2956,7 +2956,7 @@ body[data-screen="round"]:has(#screen-round.show-ruler) #dock { -webkit-mask: no
 #screen-home .cal-btn:hover > span:last-child { text-decoration-color: var(--ink); }
 #screen-home .leaf { box-shadow: 0 0 0 1px rgba(20, 33, 61, 0.22), 0 2px 0 rgba(20, 33, 61, 0.18); background: #FBF6EC; }
 #screen-home .leaf::before, #screen-home .leaf::after { background: var(--stock); box-shadow: inset 0 0 0 0.75px rgba(20, 33, 61, 0.35); }
-#screen-home .leaf i { background: var(--ember-ink); }
+#screen-home .leaf i { background: #C43F16; }   /* a shade under --ember-ink: the 6.5px month needs 4.5:1 on cream text (was 4.42) */
 /* Take off: the navy ticket */
 #screen-home .launch-ticket {
   background: linear-gradient(90deg, transparent var(--cut), rgba(0, 0, 0, 0.2) var(--cut)), var(--navy-stock);

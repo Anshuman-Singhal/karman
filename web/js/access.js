@@ -189,6 +189,20 @@ K.access = (() => {
     save();
   }
 
+  /** Sign out everywhere: the server stops honouring this account's sign-in on
+      every device (each forgets it at its next sync), then this one forgets it now.
+      Resolves true if the server confirmed. */
+  async function signOutAll() {
+    const a = st();
+    if (!a.session || a.session === 'dev') { signOut(); return true; }
+    try {
+      const r = await fetch(`${C.API_BASE}/api/signout-all`, { method: 'POST', headers: { authorization: `Bearer ${a.session}` } });
+      if (!r.ok && r.status !== 401) return false;
+    } catch (e) { return false; }
+    signOut();
+    return true;
+  }
+
   /** Dev only: pretend a purchase went through. */
   function simulatePurchase() { grant('stripe', { session: 'dev' }); }
 
@@ -199,5 +213,5 @@ K.access = (() => {
     fetch(`${C.API_BASE}/api/play`, { method: 'POST', headers: { authorization: `Bearer ${a.session}`, 'content-type': 'application/json' }, body: JSON.stringify({ kind }), keepalive: true }).catch(() => {});
   }
 
-  return { unlimited, canArchive, canKeepFlying, freeRunLeft, redeem, get lastRefusal() { return lastRefusal; }, refresh, googleButton, buyWith, simulatePurchase, notePlay, backend, revoke, afterSignIn, signOut };
+  return { unlimited, canArchive, canKeepFlying, freeRunLeft, redeem, get lastRefusal() { return lastRefusal; }, refresh, googleButton, buyWith, simulatePurchase, notePlay, backend, revoke, afterSignIn, signOut, signOutAll };
 })();

@@ -26,7 +26,7 @@
 
 K.sync = (() => {
   const C = K.CONFIG;
-  const LOCAL_ONLY = ['live', 'parked', 'access', 'prefs', 'device', 'sync', 'runsSeen', 'nudge'];
+  const LOCAL_ONLY = ['live', 'parked', 'access', 'prefs', 'device', 'sync', 'runsSeen', 'nudge', 'outbox'];
   const session = () => { const a = K.storage.data.access; return a && a.session && a.session !== 'dev' ? a.session : null; };
   const enabled = () => Boolean(C.PAYMENTS && session());
   const hdrs = () => ({ authorization: `Bearer ${session()}`, 'content-type': 'application/json' });
@@ -138,6 +138,9 @@ K.sync = (() => {
       let changed = false;
       try {
         const got = await fetch(`${C.API_BASE}/api/save`, { headers: hdrs(), cache: 'no-store' });
+        // 401: this sign-in was ended (Sign out on all devices, or the account's
+        // data was deleted on request). Forget it here; progress stays on the device.
+        if (got.status === 401) { if (K.access && K.access.signOut) K.access.signOut(); return false; }
         if (!got.ok) return false;
         let { data, ver: v } = await got.json();
         for (let attempt = 0; attempt < 3; attempt++) {
@@ -148,6 +151,7 @@ K.sync = (() => {
           if (data && JSON.stringify(portable(K.storage.migrate(JSON.parse(JSON.stringify(data))))) === JSON.stringify(portable(K.storage.data))) { setVer(v); break; }
           const put = await fetch(`${C.API_BASE}/api/save`, { method: 'PUT', headers: hdrs(), body });
           if (put.ok) { setVer((await put.json()).ver); break; }
+          if (put.status === 401) { if (K.access && K.access.signOut) K.access.signOut(); break; }
           if (put.status !== 409) break;
           ({ data, ver: v } = await put.json());          // someone saved meanwhile: merge theirs too
         }
